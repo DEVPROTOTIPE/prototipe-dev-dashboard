@@ -72,6 +72,7 @@ import useToast from './hooks/useToast'
 import GuidedToast from './components/ui/GuidedToast'
 import { useAlertConfirm } from './components/common/AlertConfirmContext'
 import DarkModeToggle from './components/ui/DarkModeToggle'
+import ComponentLibraryView from './components/admin/ComponentLibraryView'
 
 
 // Variables de entorno para conectar al Firebase Central de Control
@@ -2033,6 +2034,7 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortLabel: 'Inicio' },
     { id: 'crm', label: 'CRM Clientes', icon: Users, shortLabel: 'CRM' },
     { id: 'billing', label: 'Facturación', icon: CreditCard, shortLabel: 'Cobros' },
+    { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'settings', label: 'Ajustes', icon: Settings, shortLabel: 'Config' },
   ]
@@ -2772,6 +2774,11 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ===== TAB: LIBRARY ===== */}
+          {activeTab === 'library' && (
+            <ComponentLibraryView showToast={showToast} />
           )}
 
           {/* ===== TAB: ONBOARDING ===== */}
