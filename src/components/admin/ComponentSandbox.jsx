@@ -662,6 +662,7 @@ export function getSandboxKey(name = '', technicalName = '') {
     if (str.includes('ruleta') || str.includes('fortuna') || str.includes('suerte') || str.includes('wheel')) return 'ruleta_suerte';
     if (str.includes('agenda') || str.includes('reserva') || str.includes('cita') || str.includes('calendario')) return 'reservas_agenda';
     if (str.includes('notif') || str.includes('toast') || str.includes('campana') || str.includes('bandeja') || str.includes('bell') || str.includes('tray')) return 'sistema_notificaciones';
+    if (str.includes('ubicación') || str.includes('ubicacion') || str.includes('savedlocation') || str.includes('saved_location')) return null;
     if (str.includes('auth') || str.includes('profile') || str.includes('guard')) return 'auth_guard_userprofile';
     if (str.includes('skeleton') || str.includes('shimmer')) return 'global_skeleton_loader';
     if (str.includes('breadcrumb') || str.includes('migas') || str.includes('pan')) return 'breadcrumb_header';

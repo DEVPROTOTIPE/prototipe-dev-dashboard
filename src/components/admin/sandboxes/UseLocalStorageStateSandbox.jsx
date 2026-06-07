@@ -50,30 +50,30 @@ export default function UseLocalStorageStateSandbox() {
     >
       <div className="space-y-4 w-full">
         <div className="space-y-1">
-          <label className="text-[9px] font-black uppercase text-slate-500">Nombre Persistente</label>
+          <label className="text-[9px] font-black uppercase text-[var(--color-text-muted)]">Nombre Persistente</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none focus:border-indigo-500/50"
+            className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500/50"
             placeholder="Escribe tu nombre..."
           />
         </div>
-        <div className="flex items-center justify-between p-3.5 bg-slate-900 border border-slate-800/80 rounded-2xl">
+        <div className="flex items-center justify-between p-3.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-sm">
           <div className="space-y-0.5">
-            <span className="text-[9px] font-black uppercase text-slate-500">Contador Persistente</span>
+            <span className="text-[9px] font-black uppercase text-[var(--color-text-muted)]">Contador Persistente</span>
             <p className="text-xs font-mono text-indigo-400 font-bold">Valor: {count}</p>
           </div>
           <div className="flex gap-1.5">
             <button
               onClick={() => setCount(c => c - 1)}
-              className="p-1.5 bg-slate-850 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg cursor-pointer transition-all active:scale-95"
+              className="p-1.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] text-[var(--color-text)] rounded-lg cursor-pointer transition-all active:scale-95"
             >
               <Minus size={12} />
             </button>
             <button
               onClick={() => setCount(c => c + 1)}
-              className="p-1.5 bg-indigo-650 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all active:scale-95"
+              className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer transition-all active:scale-95"
             >
               <Plus size={12} />
             </button>

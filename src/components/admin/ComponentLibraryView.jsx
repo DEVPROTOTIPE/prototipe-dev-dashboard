@@ -253,24 +253,11 @@ export default function ComponentLibraryView({ showToast }) {
   const [loadingContent, setLoadingContent] = useState(false);
   const [activeTab, setActiveTab] = useState('docs');
   const [sandboxFilter, setSandboxFilter] = useState('all'); // 'all' | 'sandbox' | 'docs'
-  const [expandedCats, setExpandedCats] = useState({});
+  const [expandedCat, setExpandedCat] = useState(null);
 
   const toggleCategory = useCallback((name) => {
-    setExpandedCats(prev => ({
-      ...prev,
-      [name]: !prev[name]
-    }));
+    setExpandedCat(prev => prev === name ? null : name);
   }, []);
-
-  // Auto-expandir la categoría del componente seleccionado
-  useEffect(() => {
-    if (selectedComponent && selectedComponent.category) {
-      setExpandedCats(prev => ({
-        ...prev,
-        [selectedComponent.category]: true
-      }));
-    }
-  }, [selectedComponent]);
   const fetchLibrary = async () => {
     try {
       setLoading(true);
@@ -473,7 +460,7 @@ export default function ComponentLibraryView({ showToast }) {
                   </div>
                 ) : (
                   filteredCategories.map(cat => {
-                    const isExpanded = !!expandedCats[cat.name] || !!searchTerm;
+                    const isExpanded = expandedCat === cat.name || !!searchTerm;
                     return (
                       <div key={cat.name} className="space-y-1">
                         {/* Selector Desplegable Premium de Categoría */}
@@ -513,8 +500,7 @@ export default function ComponentLibraryView({ showToast }) {
                             >
                               {cat.components.map(comp => {
                                 const isSelected = selectedComponent?.link === comp.link;
-                                const nameKey = comp.name ? comp.name.toLowerCase().trim() : '';
-                                const hasSandbox = COMPONENT_SANDBOX_MAP[nameKey] !== undefined;
+                                const hasSandbox = getSandboxKey(comp.name, comp.technicalName) !== null;
                                 return (
                                   <button
                                     key={comp.link}
@@ -525,25 +511,29 @@ export default function ComponentLibraryView({ showToast }) {
                                         : 'border border-transparent hover:bg-[var(--color-surface-2)]/60 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                                     }`}
                                   >
-                                    <div className="flex items-center justify-between gap-1.5 w-full">
-                                      <span className="truncate flex items-center gap-1.5">
+                                    <div className="flex flex-col gap-0.5 w-full min-w-0">
+                                      <div className="flex items-center gap-1.5 w-full min-w-0">
                                         {hasSandbox && <Eye size={11} className="text-indigo-400 shrink-0" title="Simulable en Sandbox" />}
-                                        {searchTerm
-                                          ? <HighlightText text={comp.name} term={searchTerm} />
-                                          : comp.name
-                                        }
-                                      </span>
-                                      {comp.technicalName && (
-                                        <span className="text-[8px] font-mono opacity-50 bg-[var(--color-surface-2)] px-1 py-0.5 rounded shrink-0">
-                                          {comp.technicalName}
+                                        <span className="truncate flex-1 text-xs font-semibold text-[var(--color-text)] min-w-0">
+                                          {searchTerm
+                                            ? <HighlightText text={comp.name} term={searchTerm} />
+                                            : comp.name
+                                          }
                                         </span>
-                                      )}
+                                      </div>
+                                      <div className="flex items-center gap-2 w-full min-w-0 text-[9px] text-[var(--color-text-muted)]">
+                                        {comp.technicalName && (
+                                          <span className="text-[7.5px] font-mono opacity-65 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1 py-0.5 rounded shrink-0 leading-none">
+                                            {comp.technicalName}
+                                          </span>
+                                        )}
+                                        {comp.description && (
+                                          <span className="truncate flex-1 text-left opacity-75">
+                                            {comp.description}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
-                                    {comp.description && (
-                                      <p className="text-[9px] text-[var(--color-text-muted)] line-clamp-1 opacity-80 pl-4">
-                                        {comp.description}
-                                      </p>
-                                    )}
                                   </button>
                                 );
                               })}
