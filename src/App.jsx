@@ -90,8 +90,83 @@ const CENTRAL_CONFIG = {
   appId: import.meta.env.VITE_DEVELOPER_CENTRAL_APP_ID || ""
 }
 
-const CLIENT_ID = import.meta.env.VITE_DEVELOPER_CLIENT_ID || "ventas-smartfix"
-const DEV_TOKEN = import.meta.env.VITE_DEVELOPER_TELEMETRY_TOKEN || "test-token"
+const AVAILABLE_FONTS = [
+  // Sans-Serif
+  { value: 'Inter', desc: 'Sans-serif funcional y altamente legible a cualquier tamaño.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Poppins', desc: 'Redondeada premium, excelente para interfaces amigables.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Roboto', desc: 'Clásica, limpia, geométrica y balanceada.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Montserrat', desc: 'Geométrica moderna, ideal para títulos impactantes.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Outfit', desc: 'Moderna, estilizada y con personalidad geométrica.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Plus Jakarta Sans', desc: 'Limpia, elegante y de estilo de negocio moderno.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Manrope', desc: 'Grotesque contemporánea de proporciones balanceadas.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'DM Sans', desc: 'Limpia, neutra y de baja distracción visual.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Open Sans', desc: 'Altamente legible, neutral y de gran versatilidad.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Lato', desc: 'Cálida, legible y muy popular en sitios web modernos.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Nunito', desc: 'Suave, con esquinas redondeadas y tono cercano.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Rubik', desc: 'Formas redondeadas sutiles y gran legibilidad en pantallas.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Work Sans', desc: 'Optimizada para pantallas de alta resolución.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Urbanist', desc: 'Estilo sans-serif geométrico elegante y sofisticado.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Lexend', desc: 'Diseñada específicamente para mejorar la velocidad de lectura.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Sora', desc: 'Bordes afilados y aspecto tech, ideal para interfaces modernas.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Cabin', desc: 'Neo-grotesque amigable con curvas suaves humanistas.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Quicksand', desc: 'Geometría puramente redondeada, juguetona y muy legible.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Fira Sans', desc: 'Diseño abierto y orgánico creado por Mozilla.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Kanit', desc: 'Formal, moderna y con gran variedad de pesos tipográficos.', cat: 'sans-serif', label: 'Sans-Serif' },
+  { value: 'Ubuntu', desc: 'Personalidad única con curvas fluidas e identidad tecnológica.', cat: 'sans-serif', label: 'Sans-Serif' },
+
+  // Serif
+  { value: 'Playfair Display', desc: 'Serif elegante con alto contraste de trazos y mucha clase.', cat: 'serif', label: 'Serif' },
+  { value: 'Lora', desc: 'Serif contemporánea con pinceladas suaves y tradicionales.', cat: 'serif', label: 'Serif' },
+  { value: 'Merriweather', desc: 'Diseñada específicamente para lectura cómoda en pantallas.', cat: 'serif', label: 'Serif' },
+  { value: 'PT Serif', desc: 'Estilo clásico con proporciones amplias y excelente legibilidad.', cat: 'serif', label: 'Serif' },
+  { value: 'EB Garamond', desc: 'Clásica renacentista, elegante, sofisticada y tradicional.', cat: 'serif', label: 'Serif' },
+  { value: 'Cinzel', desc: 'Basada en inscripciones romanas clásicas, ideal para lujo.', cat: 'serif', label: 'Serif' },
+  { value: 'Cormorant Garamond', desc: 'Trazo fino de alto impacto editorial y gran distinción.', cat: 'serif', label: 'Serif' },
+  { value: 'Arvo', desc: 'Slab-serif geométrica robusta y de gran presencia visual.', cat: 'serif', label: 'Serif' },
+  { value: 'Libre Baskerville', desc: 'Clásica optimizada para bloques largos de texto.', cat: 'serif', label: 'Serif' },
+  { value: 'Domine', desc: 'Serif amigable diseñada para editoriales web.', cat: 'serif', label: 'Serif' },
+  { value: 'DM Serif Display', desc: 'Contraste dramático y sofisticado para grandes titulares.', cat: 'serif', label: 'Serif' },
+  { value: 'Cardo', desc: 'Estilo de manuscrito medieval, clásica y distinguida.', cat: 'serif', label: 'Serif' },
+
+  // Display
+  { value: 'Space Grotesk', desc: 'Brutalista y futurista, con caracteres de gran impacto.', cat: 'display', label: 'Display' },
+  { value: 'Syne', desc: 'Artística, expresiva y diseñada para marcas de moda o creativas.', cat: 'display', label: 'Display' },
+  { value: 'Righteous', desc: 'Inspiración Art Deco con formas geométricas singulares.', cat: 'display', label: 'Display' },
+  { value: 'Syncopate', desc: 'Ancha, moderna y de proporciones muy extendidas para logos.', cat: 'display', label: 'Display' },
+  { value: 'Cabinet Grotesk', desc: 'Formas contrastadas que llaman fuertemente la atención.', cat: 'display', label: 'Display' },
+  { value: 'Unbounded', desc: 'Ancha, brutalista y de estilo cyber-tecnológico.', cat: 'display', label: 'Display' },
+  { value: 'Archivo Black', desc: 'Ultra-gruesa, idónea para títulos de gran tamaño e impacto.', cat: 'display', label: 'Display' },
+  { value: 'Oswald', desc: 'Estilo condensado de gran altura para encabezados firmes.', cat: 'display', label: 'Display' },
+  { value: 'Anton', desc: 'Diseño ultra-bold de gran masa visual y estilo póster.', cat: 'display', label: 'Display' },
+  { value: 'Abril Fatface', desc: 'Serif Display de alto impacto con curvas gruesas y elegantes.', cat: 'display', label: 'Display' },
+  { value: 'Lobster', desc: 'Cursiva gruesa y alegre con estilo retro americano.', cat: 'display', label: 'Display' },
+  { value: 'Bungee', desc: 'Estilo urbano monolítico inspirado en carteles callejeros.', cat: 'display', label: 'Display' },
+  { value: 'Fredoka', desc: 'Diseño amigable de puntas redondeadas e impacto blando.', cat: 'display', label: 'Display' },
+
+  // Monospace
+  { value: 'Space Mono', desc: 'Monospaciada tech con tintes retro y brutalistas.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Fira Code', desc: 'Diseñada para desarrollo con ligaduras de programación.', cat: 'monospace', label: 'Monospace' },
+  { value: 'JetBrains Mono', desc: 'Optimizada para máxima claridad de código y lectura técnica.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Source Code Pro', desc: 'Monospaciada limpia y neutral de Adobe.', cat: 'monospace', label: 'Monospace' },
+  { value: 'IBM Plex Mono', desc: 'Basada en la ingeniería clásica de IBM.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Inconsolata', desc: 'Sublime tipografía mono muy cercana al clásico Consolas.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Courier Prime', desc: 'Remasterización del estilo de máquina de escribir clásica.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Ubuntu Mono', desc: 'Variante mono de Ubuntu con formas de curvas suaves.', cat: 'monospace', label: 'Monospace' },
+  { value: 'DM Mono', desc: 'Estilo minimalista condensado para terminales limpios.', cat: 'monospace', label: 'Monospace' },
+  { value: 'Anonymous Pro', desc: 'Diseñada para programadores, con caracteres muy legibles.', cat: 'monospace', label: 'Monospace' },
+
+  // Handwriting/Script
+  { value: 'Great Vibes', desc: 'Caligrafía cursiva clásica con trazos largos y elegantes.', cat: 'handwriting', label: 'Script' },
+  { value: 'Caveat', desc: 'Tipografía de escritura a mano fluida y muy natural.', cat: 'handwriting', label: 'Script' },
+  { value: 'Pacifico', desc: 'Cursiva retro inspirada en la cultura surf norteamericana.', cat: 'handwriting', label: 'Script' },
+  { value: 'Dancing Script', desc: 'Cursiva informal y dinámica con trazos orgánicos.', cat: 'handwriting', label: 'Script' },
+  { value: 'Sacramento', desc: 'Línea fina y trazos continuos, elegante y sofisticada.', cat: 'handwriting', label: 'Script' },
+  { value: 'Satisfy', desc: 'Brush script contemporánea de curvas fluidas e informales.', cat: 'handwriting', label: 'Script' },
+  { value: 'Yellowtail', desc: 'Pincelada plana con toques vintage muy amigables.', cat: 'handwriting', label: 'Script' },
+  { value: 'Alex Brush', desc: 'Caligrafía fluida con trazos elegantes de altura corta.', cat: 'handwriting', label: 'Script' },
+  { value: 'Allura', desc: 'Estilo manuscrito de trazos finos y sumamente aireados.', cat: 'handwriting', label: 'Script' },
+  { value: 'Pinyon Script', desc: 'Cursiva ultra-inclinada aristocrática y de gran lujo.', cat: 'handwriting', label: 'Script' }
+];
 
 function InteractiveAmbientGlow({
   color1 = 'var(--color-primary)',
@@ -537,9 +612,23 @@ export default function App() {
   const [wizardTab, setWizardTab] = useState('server')
   const [isFontModalOpen, setIsFontModalOpen] = useState(false)
   const [fontSearchQuery, setFontSearchQuery] = useState('')
+  const [fontCategoryFilter, setFontCategoryFilter] = useState('all')
   const [historyPage, setHistoryPage] = useState(1)
   const [showArchivedHistory, setShowArchivedHistory] = useState(false)
   const [selectedDiagnosticError, setSelectedDiagnosticError] = useState(null)
+
+  // Estados Interactivos del Mockup de Smartphone en Vista Previa
+  const [mockActiveTab, setMockActiveTab] = useState('inicio')
+  const [mockOrders, setMockOrders] = useState([
+    { id: 1, title: 'iPhone 15 Pro Max', time: 'Hace 5 min', val: 4800000 },
+    { id: 2, title: 'Servicio Técnico Calzado', time: 'Hace 2 horas', val: 150000 },
+    { id: 3, title: 'Licencia Premium de Instancia', time: 'Ayer', val: 350000 }
+  ])
+  const [mockIsNewSaleOpen, setMockIsNewSaleOpen] = useState(false)
+  const [mockNewSaleTitle, setMockNewSaleTitle] = useState('')
+  const [mockNewSaleValue, setMockNewSaleValue] = useState('')
+  const [mockTheme, setMockTheme] = useState('dark')
+
 
   // Pre-load all Google Fonts for previews when onboarding is active
   useEffect(() => {
@@ -552,7 +641,8 @@ export default function App() {
       link.rel = 'stylesheet';
       document.head.appendChild(link);
     }
-    link.href = 'https://fonts.googleapis.com/css2?family=Cabin&family=DM+Sans&family=Fira+Sans&family=Inter&family=Lora&family=Manrope&family=Montserrat&family=Nunito&family=Outfit&family=Playfair+Display&family=Poppins&family=Plus+Jakarta+Sans&family=Quicksand&family=Roboto&family=Sora&family=Space+Grotesk&family=Syne&display=swap';
+    const families = AVAILABLE_FONTS.map(f => `family=${f.value.replace(/ /g, '+')}:wght@400;600;700`).join('&');
+    link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
   }, [isOnboardingActive]);
 
   // Dynamic font loader for premium mobile preview
@@ -645,16 +735,21 @@ export default function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark')
   }
 
-  // Cargar plantillas dinámicamente
+  // Cargar plantillas dinámicamente y catálogo de la biblioteca
+  const [libraryList, setLibraryList] = useState([])
+  const [selectedRecomendations, setSelectedRecomendations] = useState([])
+
   useEffect(() => {
+    // 1. Cargar plantillas
     fetch('http://localhost:3001/api/templates')
       .then(res => res.json())
       .then(data => {
         const seedTemplate = { id: 'template-core-seed', name: 'Crear desde cero' }
-        if (Array.isArray(data)) {
-          const list = data.some(t => (t.id || t) === 'template-core-seed')
-            ? data
-            : [seedTemplate, ...data]
+        const templatesArray = data && Array.isArray(data.templates) ? data.templates : (Array.isArray(data) ? data : []);
+        if (templatesArray.length > 0) {
+          const list = templatesArray.some(t => (t.id || t) === 'template-core-seed')
+            ? templatesArray
+            : [seedTemplate, ...templatesArray]
           setTemplates(list)
           if (list.length > 0 && !list.some(t => (t.id || t) === selectedTemplate)) {
             setSelectedTemplate(list[0].id || list[0])
@@ -673,6 +768,16 @@ export default function App() {
           { id: 'template-ventas', name: 'Plantilla de Ventas Base (Local)' }
         ])
       })
+
+    // 2. Cargar catálogo de biblioteca para recomendaciones
+    fetch('http://localhost:3001/api/library')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.categories)) {
+          setLibraryList(data.categories)
+        }
+      })
+      .catch(err => console.warn("No se pudo cargar catálogo de la biblioteca para recomendaciones:", err))
   }, [])
 
   // Auto-detectar credenciales Firebase desde el CLI Bridge local
@@ -2172,18 +2277,65 @@ export default function App() {
                             Facturación Electrónica DIAN Directa
                           </label>
 
-                          {enableDianBilling && (
-                            <div className="space-y-1.5 animate-fade-in">
-                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo Adicional por Documento DIAN ($ COP)</label>
-                              <input 
-                                type="number" 
-                                value={costoPorFacturaDian}
-                                onChange={(e) => setCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
-                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                                min="0"
-                                placeholder="150"
-                              />
-                            </div>
+                                </div>
+                      </div>
+
+                      {/* Selector de Recomendaciones de la Biblioteca */}
+                      <div className="border-t border-[var(--color-border)] pt-3.5 space-y-2">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Recomendaciones de Biblioteca y Módulos</label>
+                        <div className="bg-[var(--color-bg)]/80 border border-[var(--color-border)] rounded-xl p-3 max-h-56 overflow-y-auto space-y-3">
+                          {libraryList.length === 0 ? (
+                            <span className="text-[10px] text-[var(--color-text-muted)] italic block">Cargando catálogo de componentes...</span>
+                          ) : (
+                            libraryList.map((cat, catIdx) => {
+                              if (!cat.components || cat.components.length === 0) return null;
+                              return (
+                                <div key={catIdx} className="space-y-1.5">
+                                  <span className="text-[10px] uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1">
+                                    {cat.isModule ? '📦' : '📂'} {cat.name}
+                                  </span>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-2">
+                                    {cat.components.map((comp, compIdx) => {
+                                      const isSelected = selectedRecomendations.some(r => r.link === comp.link);
+                                      return (
+                                        <label
+                                          key={compIdx}
+                                          className={`flex items-start gap-2 p-2 rounded-lg border text-left cursor-pointer transition-colors select-none ${
+                                            isSelected
+                                              ? 'bg-indigo-600/10 border-indigo-500/30'
+                                              : 'bg-[var(--color-surface-2)]/20 border-transparent hover:border-[var(--color-border)]'
+                                          }`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              if (isSelected) {
+                                                setSelectedRecomendations(prev => prev.filter(r => r.link !== comp.link));
+                                              } else {
+                                                setSelectedRecomendations(prev => [...prev, {
+                                                  name: comp.name,
+                                                  technicalName: comp.technicalName,
+                                                  link: comp.link,
+                                                  resourceType: comp.resourceType
+                                                }]);
+                                              }
+                                            }}
+                                            className="w-3.5 h-3.5 mt-0.5 rounded accent-indigo-600 focus:ring-0 focus:outline-none shrink-0"
+                                          />
+                                          <div className="leading-none">
+                                            <span className="text-[10px] font-bold text-[var(--color-text)] block">{comp.name}</span>
+                                            {comp.technicalName && (
+                                              <span className="text-[8px] font-mono text-[var(--color-text-muted)] block mt-0.5">{comp.technicalName}</span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -2264,6 +2416,7 @@ export default function App() {
                       pagoMensualFijo,
                       enableDianBilling,
                       costoPorFacturaDian,
+                      selectedRecomendations, // Inyección de componentes/módulos seleccionados
                       branding: {
                         primaryColor,
                         secondaryColor,
@@ -2483,15 +2636,15 @@ export default function App() {
                   <Smartphone size={10} />
                   Vista Previa Interactiva
                 </span>
-                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">El mockup refleja branding y tipografías en tiempo real.</p>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Interactúa con el mockup: registra ventas, cambia de pestaña y edita ajustes.</p>
               </div>
 
               {/* Smartphone mockup */}
               <div 
-                className="w-[280px] h-[550px] rounded-[36px] p-2.5 relative shadow-2xl transition-all duration-555 ease-in-out border border-slate-700/50"
+                className="w-[280px] h-[550px] rounded-[36px] p-2.5 relative shadow-2xl transition-all duration-300 ease-in-out border border-slate-700/50 flex flex-col"
                 style={{ 
-                  backgroundColor: bgColor, 
-                  color: textColor,
+                  backgroundColor: mockTheme === 'dark' ? bgColor : '#ffffff', 
+                  color: mockTheme === 'dark' ? textColor : '#0f172a',
                   fontFamily: `'${googleFont}', sans-serif`,
                   boxShadow: `0 25px 50px -12px ${primaryColor}20, 0 0 2px 2px ${primaryColor}40`
                 }}
@@ -2503,7 +2656,7 @@ export default function App() {
                 <div className="h-full w-full flex flex-col justify-between relative overflow-hidden rounded-[28px] p-3 pt-6">
                   
                   {/* Dynamic Island / Camera Notch */}
-                  <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-900 rounded-full z-45 flex items-center justify-center">
+                  <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-900 rounded-full z-40 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-slate-800 rounded-full ml-auto mr-2" />
                   </div>
 
@@ -2519,7 +2672,7 @@ export default function App() {
                   </div>
 
                   {/* Mock App Header */}
-                  <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center justify-between mt-1 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <div 
                         className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
@@ -2531,77 +2684,287 @@ export default function App() {
                         {newClientName.trim() || 'App de Ventas'}
                       </span>
                     </div>
-                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center cursor-pointer">
+                    <div className="w-5 h-5 rounded-full bg-slate-500/10 flex items-center justify-center cursor-pointer hover:bg-slate-500/20 transition-colors">
                       <span className="text-[8px]">🔔</span>
                     </div>
                   </div>
 
                   {/* Mock Contents */}
-                  <div className="flex-1 my-3 overflow-y-auto space-y-3.5 scrollbar-none pr-0.5">
-                    {/* Hero Commission Dashboard inside app */}
-                    <div 
-                      className="p-3 rounded-2xl relative overflow-hidden transition-all duration-300 shadow-md border"
-                      style={{ 
-                        backgroundColor: `${secondaryColor}12`,
-                        borderColor: `${primaryColor}25`
-                      }}
-                    >
-                      <span className="text-[8px] opacity-75 uppercase font-bold tracking-wider block">Balance de Hoy</span>
-                      <span className="text-lg font-black block mt-0.5 tracking-tight">$2,450,000</span>
-                      <p className="text-[7px] opacity-80 mt-1">12 ventas procesadas exitosamente</p>
-                      
-                      {/* Decorative gradient spot inside card */}
-                      <div 
-                        className="absolute right-[-10%] bottom-[-10%] w-12 h-12 rounded-full blur-xl pointer-events-none opacity-40"
-                        style={{ backgroundColor: secondaryColor }}
-                      />
-                    </div>
-
-                    {/* Quick Action Button inside mockup */}
-                    <button 
-                      type="button"
-                      className="w-full py-2 rounded-xl text-[9px] font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <span>⚡ Registrar Nueva Venta</span>
-                    </button>
-
-                    {/* Simulating Recent List */}
-                    <div className="space-y-1.5">
-                      <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">Historial de Ventas</span>
-                      {[
-                        { title: 'iPhone 15 Pro Max', time: 'Hace 5 min', val: '$4,800,000' },
-                        { title: 'Servicio Técnico Calzado', time: 'Hace 2 horas', val: '$150,000' },
-                        { title: 'Licencia Premium de Instancia', time: 'Ayer', val: '$350,000' }
-                      ].map((item, i) => (
+                  <div className="flex-1 my-3 overflow-y-auto space-y-3 scrollbar-none pr-0.5">
+                    
+                    {mockActiveTab === 'inicio' && (
+                      <div className="space-y-3">
+                        {/* Hero Commission Dashboard inside app */}
                         <div 
-                          key={i} 
-                          className="p-2 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-[8px] hover:bg-white/10 transition-colors"
+                          className="p-3 rounded-2xl relative overflow-hidden transition-all duration-300 shadow-md border"
+                          style={{ 
+                            backgroundColor: `${secondaryColor}12`,
+                            borderColor: `${primaryColor}25`
+                          }}
                         >
-                          <div>
-                            <p className="font-bold">{item.title}</p>
-                            <p className="opacity-60 text-[7px]">{item.time}</p>
-                          </div>
-                          <span className="font-mono font-bold" style={{ color: primaryColor }}>{item.val}</span>
+                          <span className="text-[8px] opacity-75 uppercase font-bold tracking-wider block">Balance de Hoy</span>
+                          <span className="text-lg font-black block mt-0.5 tracking-tight">
+                            ${mockOrders.reduce((sum, item) => sum + item.val, 0).toLocaleString('es-CO')}
+                          </span>
+                          <p className="text-[7px] opacity-80 mt-1">{mockOrders.length} ventas procesadas exitosamente</p>
+                          
+                          {/* Decorative gradient spot inside card */}
+                          <div 
+                            className="absolute right-[-10%] bottom-[-10%] w-12 h-12 rounded-full blur-xl pointer-events-none opacity-40"
+                            style={{ backgroundColor: secondaryColor }}
+                          />
                         </div>
-                      ))}
-                    </div>
+
+                        {/* Quick Action / Sale Registration Form */}
+                        {mockIsNewSaleOpen ? (
+                          <div className="p-3 rounded-2xl bg-slate-500/10 border border-slate-500/20 space-y-2 animate-scale-up">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[8px] font-bold uppercase tracking-wider">Nueva Venta</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setMockIsNewSaleOpen(false)}
+                                className="text-[8px] text-red-500 hover:text-red-400 font-bold cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                            <input 
+                              type="text" 
+                              placeholder="Ej: Mantenimiento PC"
+                              value={mockNewSaleTitle}
+                              onChange={(e) => setMockNewSaleTitle(e.target.value)}
+                              className="w-full bg-slate-500/5 border border-slate-500/25 rounded px-2 py-1 text-[9px] outline-none focus:border-indigo-500"
+                              style={{ color: 'inherit' }}
+                            />
+                            <input 
+                              type="number" 
+                              placeholder="Ej: 85000"
+                              value={mockNewSaleValue}
+                              onChange={(e) => setMockNewSaleValue(e.target.value)}
+                              className="w-full bg-slate-500/5 border border-slate-500/25 rounded px-2 py-1 text-[9px] outline-none focus:border-indigo-500"
+                              style={{ color: 'inherit' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!mockNewSaleTitle || !mockNewSaleValue) return;
+                                setMockOrders([
+                                  {
+                                    id: Date.now(),
+                                    title: mockNewSaleTitle,
+                                    time: 'Hace un momento',
+                                    val: Number(mockNewSaleValue)
+                                  },
+                                  ...mockOrders
+                                ]);
+                                setMockNewSaleTitle('');
+                                setMockNewSaleValue('');
+                                setMockIsNewSaleOpen(false);
+                              }}
+                              className="w-full py-1.5 rounded-lg text-[9px] font-bold text-white cursor-pointer hover:brightness-110 active:scale-95 transition-all"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              Agregar Venta
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => setMockIsNewSaleOpen(true)}
+                            className="w-full py-2 rounded-xl text-[9px] font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1 hover:brightness-110"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            <span>⚡ Registrar Nueva Venta</span>
+                          </button>
+                        )}
+
+                        {/* Recent History (Top 3) */}
+                        <div className="space-y-1.5">
+                          <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">Últimas Ventas</span>
+                          {mockOrders.length === 0 ? (
+                            <p className="text-[8px] opacity-50 italic text-center py-2">No hay ventas registradas.</p>
+                          ) : (
+                            mockOrders.slice(0, 3).map((item) => (
+                              <div 
+                                key={item.id} 
+                                className="p-2 rounded-xl bg-slate-500/5 border border-slate-500/10 flex items-center justify-between text-[8px] hover:bg-slate-500/10 transition-colors"
+                              >
+                                <div>
+                                  <p className="font-bold">{item.title}</p>
+                                  <p className="opacity-60 text-[7px]">{item.time}</p>
+                                </div>
+                                <span className="font-mono font-bold" style={{ color: primaryColor }}>
+                                  ${item.val.toLocaleString('es-CO')}
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {mockActiveTab === 'ventas' && (
+                      <div className="space-y-3">
+                        {/* Analytical bars widget */}
+                        <div className="p-2 rounded-2xl bg-slate-500/5 border border-slate-500/10 space-y-1.5">
+                          <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">Distribución de Ventas</span>
+                          {mockOrders.length === 0 ? (
+                            <div className="h-10 flex items-center justify-center text-[8px] opacity-50 italic">Sin datos de gráfico</div>
+                          ) : (
+                            <div className="h-12 flex items-end gap-1.5 justify-center pt-2">
+                              {mockOrders.slice(0, 6).map((item, idx) => {
+                                const maxVal = Math.max(...mockOrders.map(o => o.val)) || 1;
+                                const heightPercent = Math.max(15, Math.min(100, (item.val / maxVal) * 100));
+                                return (
+                                  <div key={item.id} className="flex-1 flex flex-col items-center gap-1 group">
+                                    <div 
+                                      className="w-3 rounded-t-sm transition-all duration-300 relative"
+                                      style={{ 
+                                        height: `${heightPercent * 0.35}px`,
+                                        backgroundColor: idx === 0 ? primaryColor : secondaryColor,
+                                        opacity: 0.85
+                                      }}
+                                    />
+                                    <span className="text-[6px] opacity-50 font-mono">V{idx + 1}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Deletable Sales List */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider">Historial Completo</span>
+                            <span className="text-[7px] font-bold opacity-50 font-mono">Total: {mockOrders.length}</span>
+                          </div>
+                          <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-0.5 scrollbar-none">
+                            {mockOrders.length === 0 ? (
+                              <p className="text-[8px] opacity-50 italic text-center py-4">No hay ventas. ¡Registra una!</p>
+                            ) : (
+                              mockOrders.map((item) => (
+                                <div 
+                                  key={item.id} 
+                                  className="p-2 rounded-xl bg-slate-500/5 border border-slate-500/10 flex items-center justify-between text-[8px] hover:bg-red-500/5 group/row transition-all duration-200"
+                                >
+                                  <div>
+                                    <p className="font-bold">{item.title}</p>
+                                    <p className="opacity-60 text-[7px]">{item.time}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold" style={{ color: primaryColor }}>
+                                      ${item.val.toLocaleString('es-CO')}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setMockOrders(mockOrders.filter(o => o.id !== item.id))}
+                                      className="w-4 h-4 rounded bg-red-500/15 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center text-[7px] font-black cursor-pointer transition-colors"
+                                      title="Eliminar venta"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {mockActiveTab === 'ajustes' && (
+                      <div className="space-y-3">
+                        <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">Ajustes de Branding</span>
+                        
+                        {/* Interactive Toggles linked bidirectionally to wizard */}
+                        <div className="space-y-2 p-2 rounded-2xl bg-slate-500/5 border border-slate-500/10 text-[8px]">
+                          {/* Theme Mode Toggle inside phone */}
+                          <div className="flex items-center justify-between py-1">
+                            <span className="font-bold">Modo del Mockup</span>
+                            <button
+                              type="button"
+                              onClick={() => setMockTheme(mockTheme === 'dark' ? 'light' : 'dark')}
+                              className="px-2 py-0.5 rounded bg-slate-500/15 hover:bg-slate-500/25 cursor-pointer font-bold uppercase transition-colors"
+                            >
+                              {mockTheme === 'dark' ? '🌙 Oscuro' : '☀️ Claro'}
+                            </button>
+                          </div>
+
+                          {/* PWA Activation sync */}
+                          <div className="flex items-center justify-between py-1 border-t border-slate-500/10">
+                            <span className="font-bold">Soporte PWA</span>
+                            <button
+                              type="button"
+                              onClick={() => setEnablePwa(!enablePwa)}
+                              className={`w-7 h-4 rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${enablePwa ? 'bg-emerald-500' : 'bg-slate-500/35'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full bg-white transition-transform duration-200 ${enablePwa ? 'translate-x-3' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+
+                          {/* Push Notifications sync */}
+                          <div className="flex items-center justify-between py-1 border-t border-slate-500/10">
+                            <span className="font-bold">Notificaciones Push</span>
+                            <button
+                              type="button"
+                              onClick={() => setEnablePush(!enablePush)}
+                              className={`w-7 h-4 rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${enablePush ? 'bg-emerald-500' : 'bg-slate-500/35'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full bg-white transition-transform duration-200 ${enablePush ? 'translate-x-3' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+
+                          {/* Billing module sync */}
+                          <div className="flex items-center justify-between py-1 border-t border-slate-500/10">
+                            <span className="font-bold">Módulo de Facturación</span>
+                            <button
+                              type="button"
+                              onClick={() => setEnableBilling(!enableBilling)}
+                              className={`w-7 h-4 rounded-full p-0.5 cursor-pointer transition-colors duration-200 ${enableBilling ? 'bg-emerald-500' : 'bg-slate-500/35'}`}
+                            >
+                              <div className={`w-3 h-3 rounded-full bg-white transition-transform duration-200 ${enableBilling ? 'translate-x-3' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/15 text-center text-[7.5px] text-indigo-400">
+                          ℹ️ Los interruptores de PWA, Push y Facturación modifican el formulario de registro en tiempo real.
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
                   {/* Navigation Bar inside phone */}
-                  <div className="border-t border-white/10 pt-2 flex justify-around text-[8px] opacity-80">
-                    <div className="flex flex-col items-center gap-0.5" style={{ color: primaryColor }}>
+                  <div className="border-t border-slate-500/15 pt-2 flex justify-around text-[8px] opacity-90 shrink-0">
+                    <button 
+                      type="button"
+                      onClick={() => setMockActiveTab('inicio')}
+                      className="flex flex-col items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                      style={{ color: mockActiveTab === 'inicio' ? primaryColor : 'inherit', opacity: mockActiveTab === 'inicio' ? 1 : 0.6 }}
+                    >
                       <span>🏠</span>
                       <span className="font-bold">Inicio</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-0.5 opacity-60">
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setMockActiveTab('ventas')}
+                      className="flex flex-col items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                      style={{ color: mockActiveTab === 'ventas' ? primaryColor : 'inherit', opacity: mockActiveTab === 'ventas' ? 1 : 0.6 }}
+                    >
                       <span>📊</span>
-                      <span>Ventas</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-0.5 opacity-60">
+                      <span className="font-bold">Ventas</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setMockActiveTab('ajustes')}
+                      className="flex flex-col items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                      style={{ color: mockActiveTab === 'ajustes' ? primaryColor : 'inherit', opacity: mockActiveTab === 'ajustes' ? 1 : 0.6 }}
+                    >
                       <span>⚙️</span>
-                      <span>Ajustes</span>
-                    </div>
+                      <span className="font-bold">Ajustes</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2635,12 +2998,12 @@ export default function App() {
               </div>
 
               {/* Buscador de Fuentes */}
-              <div className="mb-4 shrink-0">
+              <div className="mb-3 shrink-0">
                 <div className="flex items-center gap-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] px-3.5 py-2 rounded-xl shadow-sm focus-within:border-indigo-500/50 transition-colors duration-300">
                   <Search size={14} className="text-slate-500" />
                   <input 
                     type="text" 
-                    placeholder="Buscar tipografía..."
+                    placeholder="Buscar tipografía por nombre..."
                     value={fontSearchQuery}
                     onChange={(e) => setFontSearchQuery(e.target.value)}
                     className="bg-transparent border-0 outline-none text-xs w-full text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:ring-0"
@@ -2648,72 +3011,91 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Listado de Fuentes con Vista Previa */}
-              <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-[250px]">
+              {/* Categorías de Tipografía */}
+              <div className="flex gap-1.5 overflow-x-auto pb-3 mb-3 shrink-0 scrollbar-none border-b border-[var(--color-border)]/50">
                 {[
-                  { value: 'Inter', desc: 'Sans-serif funcional y altamente legible a cualquier tamaño.' },
-                  { value: 'Poppins', desc: 'Redondeada premium, excelente para interfaces amigables.' },
-                  { value: 'Roboto', desc: 'Clásica, limpia, geométrica y balanceada.' },
-                  { value: 'Montserrat', desc: 'Geométrica moderna, ideal para títulos impactantes.' },
-                  { value: 'Outfit', desc: 'Moderna, estilizada y con personalidad geométrica.' },
-                  { value: 'Plus Jakarta Sans', desc: 'Limpia, elegante y de estilo corporativo moderno.' },
-                  { value: 'Sora', desc: 'Estilo tech muy marcado, ideal para productos de desarrollo.' },
-                  { value: 'Manrope', desc: 'Grotesque contemporánea y de proporciones balanceadas.' },
-                  { value: 'Space Grotesk', desc: 'Brutalista y futurista, con caracteres de gran impacto.' },
-                  { value: 'Playfair Display', desc: 'Serif sumamente elegante, con alto contraste y clase.' },
-                  { value: 'Lora', desc: 'Serif literaria y premium, con terminaciones suaves.' },
-                  { value: 'Fira Sans', desc: 'Legible, humana y diseñada para pantallas de alta densidad.' },
-                  { value: 'Cabin', desc: 'Neo-grotesque amigable con sutiles curvas humanistas.' },
-                  { value: 'Nunito', desc: 'Suave, con esquinas redondeadas y tono cercano.' },
-                  { value: 'Syne', desc: 'Artística, expresiva y diseñada para marcas de moda o creativas.' },
-                  { value: 'DM Sans', desc: 'Limpia, neutra y corporativa de baja distracción.' },
-                  { value: 'Quicksand', desc: 'Totalmente geométrica y redondeada con curvas amigables.' }
-                ]
-                .filter(f => f.value.toLowerCase().includes(fontSearchQuery.toLowerCase()))
-                .map(font => {
-                  const isSelected = googleFont === font.value;
+                  { key: 'all', label: 'Todos' },
+                  { key: 'sans-serif', label: 'Sans-Serif' },
+                  { key: 'serif', label: 'Serif' },
+                  { key: 'display', label: 'Display' },
+                  { key: 'monospace', label: 'Monospace' },
+                  { key: 'handwriting', label: 'Script' }
+                ].map(cat => {
+                  const isActive = fontCategoryFilter === cat.key;
                   return (
                     <button
-                      key={font.value}
+                      key={cat.key}
                       type="button"
-                      onClick={() => {
-                        setGoogleFont(font.value);
-                        setIsFontModalOpen(false);
-                        showToast(`Fuente cambiada a: ${font.value}`, { type: 'success' });
-                      }}
-                      className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex flex-col gap-2 hover:scale-[1.01] ${
-                        isSelected 
-                          ? 'bg-indigo-600/15 border-indigo-500 shadow-md ring-1 ring-indigo-500' 
-                          : 'bg-[var(--color-surface-2)]/30 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/60'
+                      onClick={() => setFontCategoryFilter(cat.key)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                          : 'bg-[var(--color-surface-2)]/50 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)]'
                       }`}
                     >
-                      <div className="flex justify-between items-center w-full">
-                        <span className="text-xs font-black text-[var(--color-text)]">{font.value}</span>
-                        {isSelected && <span className="text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full">Activa</span>}
-                      </div>
-                      
-                      {/* Vista Previa de la Fuente */}
-                      <div className="p-2.5 bg-[var(--color-bg)]/80 rounded-xl border border-[var(--color-border)] w-full text-center transition-colors">
-                        <p 
-                          className="text-sm font-semibold truncate text-[var(--color-text)]" 
-                          style={{ fontFamily: `'${font.value}', sans-serif` }}
-                        >
-                          {font.value} Specimen
-                        </p>
-                        <p 
-                          className="text-[9px] text-[var(--color-text-muted)] mt-1 truncate" 
-                          style={{ fontFamily: `'${font.value}', sans-serif` }}
-                        >
-                          El veloz murciélago comía feliz cardo.
-                        </p>
-                      </div>
-                      
-                      <p className="text-[9px] text-[var(--color-text-muted)] leading-normal mt-0.5">{font.desc}</p>
+                      {cat.label}
                     </button>
                   );
                 })}
               </div>
-              
+
+              {/* Listado de Fuentes con Vista Previa */}
+              <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-3 min-h-[250px]">
+                {AVAILABLE_FONTS
+                  .filter(f => {
+                    const matchesSearch = f.value.toLowerCase().includes(fontSearchQuery.toLowerCase());
+                    const matchesCategory = fontCategoryFilter === 'all' || f.cat === fontCategoryFilter;
+                    return matchesSearch && matchesCategory;
+                  })
+                  .map(font => {
+                    const isSelected = googleFont === font.value;
+                    return (
+                      <button
+                        key={font.value}
+                        type="button"
+                        onClick={() => {
+                          setGoogleFont(font.value);
+                          setIsFontModalOpen(false);
+                          showToast(`Fuente cambiada a: ${font.value}`, { type: 'success' });
+                        }}
+                        className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex flex-col gap-2 hover:scale-[1.01] ${
+                          isSelected 
+                            ? 'bg-indigo-600/15 border-indigo-500 shadow-md ring-1 ring-indigo-500' 
+                            : 'bg-[var(--color-surface-2)]/30 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/60'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-[var(--color-text)]">{font.value}</span>
+                            <span className="text-[8px] bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text-muted)] font-semibold px-1.5 py-0.5 rounded-md">
+                              {font.label}
+                            </span>
+                          </div>
+                          {isSelected && <span className="text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full">Activa</span>}
+                        </div>
+                        
+                        {/* Vista Previa de la Fuente */}
+                        <div className="p-2.5 bg-[var(--color-bg)]/80 rounded-xl border border-[var(--color-border)] w-full text-center transition-colors">
+                          <p 
+                            className="text-sm font-semibold truncate text-[var(--color-text)]" 
+                            style={{ fontFamily: `'${font.value}', sans-serif` }}
+                          >
+                            {font.value} Specimen
+                          </p>
+                          <p 
+                            className="text-[9px] text-[var(--color-text-muted)] mt-1 truncate" 
+                            style={{ fontFamily: `'${font.value}', sans-serif` }}
+                          >
+                            El veloz murciélago comía feliz cardo.
+                          </p>
+                        </div>
+                        
+                        <p className="text-[9px] text-[var(--color-text-muted)] leading-normal mt-0.5">{font.desc}</p>
+                      </button>
+                    );
+                  })}
+              </div>
+
               {/* Footer */}
               <div className="pt-4 border-t border-[var(--color-border)] flex justify-end shrink-0">
                 <button

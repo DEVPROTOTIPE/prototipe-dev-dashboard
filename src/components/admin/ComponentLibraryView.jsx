@@ -253,6 +253,7 @@ export default function ComponentLibraryView({ showToast }) {
   const [loadingContent, setLoadingContent] = useState(false);
   const [activeTab, setActiveTab] = useState('docs');
   const [sandboxFilter, setSandboxFilter] = useState('all'); // 'all' | 'sandbox' | 'docs'
+  const [resourceFilter, setResourceFilter] = useState('all'); // 'all' | 'component' | 'module'
   const [expandedCat, setExpandedCat] = useState(null);
 
   const toggleCategory = useCallback((name) => {
@@ -316,9 +317,12 @@ export default function ComponentLibraryView({ showToast }) {
         
         const hasSandbox = getSandboxKey(comp.name, comp.technicalName) !== null;
 
-        if (sandboxFilter === 'sandbox') return matchesSearch && hasSandbox;
-        if (sandboxFilter === 'docs') return matchesSearch && !hasSandbox;
-        return matchesSearch;
+        const matchesSandbox = sandboxFilter === 'sandbox' ? hasSandbox : (sandboxFilter === 'docs' ? !hasSandbox : true);
+        const matchesType = resourceFilter === 'all'
+          ? true
+          : (resourceFilter === 'module' ? comp.resourceType === 'module' : comp.resourceType !== 'module');
+
+        return matchesSearch && matchesSandbox && matchesType;
       }),
     }))
     .filter(cat => cat.components.length > 0);
@@ -403,37 +407,83 @@ export default function ComponentLibraryView({ showToast }) {
               )}
             </div>
 
-            {/* Filtros de Sandbox interactivos */}
-            <div className="flex bg-[var(--color-surface-2)]/60 p-0.5 rounded-xl border border-[var(--color-border)] text-[10px]">
+            {/* Filtros de Tipo de Recurso (Componentes vs Módulos) */}
+            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)]">
               <button
-                onClick={() => setSandboxFilter('all')}
-                className={`flex-grow py-1 px-2.5 text-center rounded-lg font-bold transition-all cursor-pointer ${
-                  sandboxFilter === 'all'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                onClick={() => setResourceFilter('all')}
+                title="Todos los Recursos"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                  resourceFilter === 'all'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                Todos
+                <Layers size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Todos</span>
+              </button>
+              <button
+                onClick={() => setResourceFilter('component')}
+                title="Solo Componentes"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                  resourceFilter === 'component'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
+                }`}
+              >
+                <Code2 size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Componentes</span>
+              </button>
+              <button
+                onClick={() => setResourceFilter('module')}
+                title="Solo Módulos Completos"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                  resourceFilter === 'module'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
+                }`}
+              >
+                <Package size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Módulos</span>
+              </button>
+            </div>
+
+            {/* Filtros de Sandbox interactivos */}
+            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)]">
+              <button
+                onClick={() => setSandboxFilter('all')}
+                title="Todos los Filtros"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                  sandboxFilter === 'all'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
+                }`}
+              >
+                <List size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Todos</span>
               </button>
               <button
                 onClick={() => setSandboxFilter('sandbox')}
-                className={`flex-grow py-1 px-2 text-center rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                title="Filtrar por Interactivos en Sandbox"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   sandboxFilter === 'sandbox'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <Eye size={10} /> Sandbox
+                <Eye size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Sandbox</span>
               </button>
               <button
                 onClick={() => setSandboxFilter('docs')}
-                className={`flex-grow py-1 px-2 text-center rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                title="Filtrar por Solo Documentación"
+                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   sandboxFilter === 'docs'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <FileText size={10} /> Solo Docs
+                <FileText size={13} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Solo Docs</span>
               </button>
             </div>
 
@@ -522,6 +572,15 @@ export default function ComponentLibraryView({ showToast }) {
                                         </span>
                                       </div>
                                       <div className="flex items-center gap-2 w-full min-w-0 text-[9px] text-[var(--color-text-muted)]">
+                                        {comp.resourceType === 'module' ? (
+                                          <span className="text-[7px] font-black uppercase bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 px-1 py-0.5 rounded leading-none shrink-0">
+                                            Módulo
+                                          </span>
+                                        ) : (
+                                          <span className="text-[7px] font-black uppercase bg-slate-500/10 border border-slate-800 text-slate-400 px-1 py-0.5 rounded leading-none shrink-0">
+                                            Comp
+                                          </span>
+                                        )}
                                         {comp.technicalName && (
                                           <span className="text-[7.5px] font-mono opacity-65 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1 py-0.5 rounded shrink-0 leading-none">
                                             {comp.technicalName}

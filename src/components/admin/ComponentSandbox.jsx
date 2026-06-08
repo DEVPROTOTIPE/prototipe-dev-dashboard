@@ -52,6 +52,12 @@ const DatePickerSandbox = React.lazy(() => import('./sandboxes/DatePickerSandbox
 const ConnectivityToastSandbox = React.lazy(() => import('./sandboxes/ConnectivityToastSandbox'));
 const QuantitySelectorSandbox = React.lazy(() => import('./sandboxes/QuantitySelectorSandbox'));
 const CustomCursorSandbox = React.lazy(() => import('./sandboxes/CustomCursorSandbox'));
+const PantallaCocinaKDSSandbox = React.lazy(() => import('./sandboxes/PantallaCocinaKDSSandbox'));
+const ReservasAgendaCitasSandbox = React.lazy(() => import('./sandboxes/ReservasAgendaCitasSandbox'));
+const POSExpressScannerSandbox = React.lazy(() => import('./sandboxes/POSExpressScannerSandbox'));
+const OrdenesTrabajoEquiposSandbox = React.lazy(() => import('./sandboxes/OrdenesTrabajoEquiposSandbox'));
+const CreditosSaldosSandbox = React.lazy(() => import('./sandboxes/CreditosSaldosSandbox'));
+const OmnicanalidadWhatsAppSandbox = React.lazy(() => import('./sandboxes/OmnicanalidadWhatsAppSandbox'));
 
 const LoaderSpinner = () => (
   <div className="flex flex-col items-center justify-center p-12 space-y-3">
@@ -295,6 +301,36 @@ const SANDBOXES = {
   'custom_cursor': () => (
     <React.Suspense fallback={<LoaderSpinner />}>
       <CustomCursorSandbox />
+    </React.Suspense>
+  ),
+  'pantalla_cocina_kds': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <PantallaCocinaKDSSandbox />
+    </React.Suspense>
+  ),
+  'reservas_agenda_citas': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <ReservasAgendaCitasSandbox />
+    </React.Suspense>
+  ),
+  'pos_express_scanner': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <POSExpressScannerSandbox />
+    </React.Suspense>
+  ),
+  'ordenes_trabajo_equipos': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <OrdenesTrabajoEquiposSandbox />
+    </React.Suspense>
+  ),
+  'creditos_y_saldos': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <CreditosSaldosSandbox />
+    </React.Suspense>
+  ),
+  'omnicanalidad_whatsapp': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <OmnicanalidadWhatsAppSandbox />
     </React.Suspense>
   ),
 };
@@ -622,6 +658,28 @@ export const COMPONENT_SANDBOX_MAP = {
   'control de caja y cierre de turno': 'caja_diaria_pos',
   'control de caja': 'caja_diaria_pos',
   'cierre de caja': 'caja_diaria_pos',
+  'pantalla de cocina kds': 'pantalla_cocina_kds',
+  'pantallacocinakds': 'pantalla_cocina_kds',
+  'pantalla de cocina': 'pantalla_cocina_kds',
+  'kds': 'pantalla_cocina_kds',
+  'reservas y agenda de citas': 'reservas_agenda_citas',
+  'reservasagendacitas': 'reservas_agenda_citas',
+  'agenda de citas': 'reservas_agenda_citas',
+  'reservas y citas': 'reservas_agenda_citas',
+  'cobro pos exprés por lector de barras': 'pos_express_scanner',
+  'posexpressscanner': 'pos_express_scanner',
+  'lector de barras': 'pos_express_scanner',
+  'órdenes de trabajo y equipos': 'ordenes_trabajo_equipos',
+  'ordenes_trabajo_equipos': 'ordenes_trabajo_equipos',
+  'ordenestrabajoequipos': 'ordenes_trabajo_equipos',
+  'órdenes de trabajo': 'ordenes_trabajo_equipos',
+  'créditos y saldos': 'creditos_y_saldos',
+  'creditossaldos': 'creditos_y_saldos',
+  'creditos_y_saldos': 'creditos_y_saldos',
+  'omnicanalidad whatsapp': 'omnicanalidad_whatsapp',
+  'omnicanalidadwhatsapp': 'omnicanalidad_whatsapp',
+  'omnicanalidad_whatsapp': 'omnicanalidad_whatsapp',
+  'whatsapp': 'omnicanalidad_whatsapp',
   'currency_input': 'currency_input',
   'currencyinput': 'currency_input',
   'entrada de moneda formateada cop (currencyinput)': 'currency_input',
@@ -680,6 +738,12 @@ export function getSandboxKey(name = '', technicalName = '') {
     if (str.includes('skeleton') || str.includes('shimmer')) return 'global_skeleton_loader';
     if (str.includes('breadcrumb') || str.includes('migas') || str.split(' ').includes('pan')) return 'breadcrumb_header';
     if (str.includes('error') || str.includes('boundary') || str.includes('fallback')) return 'error_boundary_fallback';
+    if (str.includes('cocina') || str.includes('kds')) return 'pantalla_cocina_kds';
+    if (str.includes('reservas y agenda') || str.includes('reservasagenda') || str.includes('agenda de citas')) return 'reservas_agenda_citas';
+    if (str.includes('lector de barras') || str.includes('scanner') || str.includes('barcode') || str.includes('barras')) return 'pos_express_scanner';
+    if (str.includes('órdenes de trabajo') || str.includes('ordenes de trabajo') || str.includes('equipos') || str.includes('workorder') || str.includes('ot ')) return 'ordenes_trabajo_equipos';
+    if (str.includes('créditos') || str.includes('creditos') || str.includes('saldos') || str.includes('deuda')) return 'creditos_y_saldos';
+    if (str.includes('omnicanalidad') || str.includes('redirección whatsapp') || str.includes('redireccion whatsapp') || str.includes('whatsapp')) return 'omnicanalidad_whatsapp';
     if (str.includes('caja') || str.includes('cierre') || str.includes('arqueo') || str.includes('diaria')) return 'caja_diaria_pos';
     if (str.includes('cursor') || str.includes('ccursor') || str.includes('puntero')) return 'custom_cursor';
     return null;

@@ -1,49 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ─── Función helper: verifica que un token es válido y pertenece al clientId dado ───
+
+    // ─── HELPER: Verifica que un token existe, está activo y pertenece al clientId declarado ───
+    // NOTA DE SEGURIDAD: Esta función realiza 2 lecturas adicionales a Firestore por validación.
+    // En Plan Spark esto es aceptable. Al migrar a Blaze, reemplazar por Cloud Function proxy
+    // para eliminar completamente la necesidad de exponer apiKey en el cliente.
     function tokenValido(token, clientId) {
-      return exists(/databases/$(database)/documents/tokens/$(token))
+      return token != null
+        && clientId != null
+        && exists(/databases/$(database)/documents/tokens/$(token))
         && get(/databases/$(database)/documents/tokens/$(token)).data.clientId == clientId
         && get(/databases/$(database)/documents/tokens/$(token)).data.active == true;
     }
 
     // ─── Reportes de facturación comisional ───────────────────────────────────────────
+    // La app del cliente escribe su reporte mensual SOLO si su token es válido y activo.
+    // El token nunca puede apuntar a un clientId diferente al declarado en el reporte.
     match /reportesBilling/{reportId} {
-      // La app cliente escribe su reporte si su token es válido
       allow create, update: if tokenValido(
         request.resource.data.token,
         request.resource.data.clientId
       );
-      // Solo el desarrollador autenticado puede leer y eliminar
+      // Solo el desarrollador autenticado (dev-dashboard) puede leer y eliminar
       allow read, delete: if request.auth != null;
     }
-    
-    // ─── Tokens de autenticación de clientes ──────────────────────────────────────────
+
+    // ─── Tokens de autenticación de instancias ────────────────────────────────────────
+    // CRÍTICO: Los tokens NUNCA se crean ni modifican desde el browser del cliente.
+    // Solo el CLI del desarrollador los crea vía REST con la apiKey del desarrollador.
+    // La función tokenValido() solo necesita leerlos internamente (no se expone al cliente).
     match /tokens/{tokenId} {
-      // Solo el desarrollador autenticado puede gestionar y leer tokens
       allow read, write: if request.auth != null;
     }
 
-    // ─── Configuración de tasas comisionales por cliente de instancia ─────────────────
+    // ─── Configuración de tasas comisionales por instancia ────────────────────────────
+    // CORREGIDO: La lectura se restringe. Un documento de configuración de cliente
+    // no debe ser público — contiene su modo de facturación y tasas de comisión.
+    // La app del cliente no necesita leer esto desde el browser; la config de facturación
+    // se inyecta localmente en el .env.local durante el aprovisionamiento del CLI.
     match /clientes_control/{clientId} {
-      // La app cliente puede leer su propia configuración si tiene un token válido
-      // El token se pasa como query param: ?token=xxx  — lo leemos del header custom no disponible en Firestore.
-      // Alternativa: permitir lectura pública del propio documento validando el clientId con el token.
-      // Como Firestore no permite recibir headers, usamos una regla más simple:
-      // La app puede leer su propio doc si presenta el token correcto en el campo de la solicitud.
-      // Dado que esto es una lectura (no escritura), no tenemos request.resource. 
-      // Solución: permitir lectura pública del documento del cliente (solo datos de comisión, no sensibles).
-      allow read: if true; // El doc solo contiene: comisionPorcentaje, nombre. No hay datos sensibles.
-      allow write: if request.auth != null; // Solo el developer desde la consola puede modificar
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
 
-    // ─── Colección de errores/fallos de aplicaciones ─────────────────────────────────
+    // ─── Reportes de fallos y errores de aplicaciones ─────────────────────────────────
+    // CORREGIDO: Se agrega validación de token antes de permitir crear un reporte de fallo.
+    // Esto previene que procesos externos inyecten ruido o datos falsos en el log de errores.
     match /app_failures/{failureId} {
-      allow create: if true; // Permitir que cualquier app envíe reportes de fallo
-      allow read, write: if request.auth != null; // Solo el desarrollador puede auditar y resolver
+      allow create: if tokenValido(
+        request.resource.data.token,
+        request.resource.data.clientId
+      );
+      allow read, update, delete: if request.auth != null;
     }
   }
 }
-
