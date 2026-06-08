@@ -26,8 +26,8 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // ─── Configuración de tasas comisionales por cliente SaaS ─────────────────────────
-    match /clientes_saas/{clientId} {
+    // ─── Configuración de tasas comisionales por cliente de instancia ─────────────────
+    match /clientes_control/{clientId} {
       // La app cliente puede leer su propia configuración si tiene un token válido
       // El token se pasa como query param: ?token=xxx  — lo leemos del header custom no disponible en Firestore.
       // Alternativa: permitir lectura pública del propio documento validando el clientId con el token.
@@ -37,6 +37,12 @@ service cloud.firestore {
       // Solución: permitir lectura pública del documento del cliente (solo datos de comisión, no sensibles).
       allow read: if true; // El doc solo contiene: comisionPorcentaje, nombre. No hay datos sensibles.
       allow write: if request.auth != null; // Solo el developer desde la consola puede modificar
+    }
+
+    // ─── Colección de errores/fallos de aplicaciones ─────────────────────────────────
+    match /app_failures/{failureId} {
+      allow create: if true; // Permitir que cualquier app envíe reportes de fallo
+      allow read, write: if request.auth != null; // Solo el desarrollador puede auditar y resolver
     }
   }
 }

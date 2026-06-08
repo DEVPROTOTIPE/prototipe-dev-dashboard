@@ -20,7 +20,7 @@ export function exportCommissionReceiptPDF(report) {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text('RECIBO DE COMISIÓN SAAS', 15, 20)
+  doc.text('RECIBO DE COMISIÓN DE INSTANCIA', 15, 20)
   
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
@@ -54,7 +54,7 @@ export function exportCommissionReceiptPDF(report) {
   
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Desarrollador Core: Soporte Técnico Central / SaaS Owner`, 15, 68)
+  doc.text(`Desarrollador Core: Soporte Técnico Central / Ecosistema Owner`, 15, 68)
   doc.text(`Cliente Asociado: ${report.clientId}`, 15, 74)
   doc.text(`Periodo Contable: ${report.periodo}`, 15, 80)
   
@@ -85,7 +85,7 @@ export function exportCommissionReceiptPDF(report) {
   const headers = [['Concepto', 'Base Imponible', 'Tasa (%)', 'Subtotal']]
   const data = [
     [
-      `Comisión de Servicio por Licenciamiento SaaS - Cliente: ${report.clientId}`,
+      `Comisión de Servicio por Licenciamiento de Instancia - Cliente: ${report.clientId}`,
       `$${report.totalVentas.toLocaleString('es-CO')}`,
       `${report.comisionPorcentaje}%`,
       `$${report.comisionValor.toLocaleString('es-CO')}`
@@ -114,11 +114,11 @@ export function exportCommissionReceiptPDF(report) {
   doc.setFontSize(8)
   doc.setTextColor(107, 114, 128)
   doc.text('Firma Autorizada Desarrollador', 15, finalY + 20)
-  doc.text('SaaS Core Telemetry Service', 15, finalY + 24)
+  doc.text('Core Telemetry Service', 15, finalY + 24)
   
   // Sello o texto decorativo
   doc.setFontSize(7)
-  doc.text('Este documento digital sirve como soporte administrativo oficial de la Consola Central SaaS.', 15, 280)
+  doc.text('Este documento digital sirve como soporte administrativo oficial de la Consola Central de Control.', 15, 280)
   
   doc.save(`Recibo_Comision_${report.clientId}_${report.periodo}.pdf`)
 }

@@ -1,6 +1,34 @@
 import React, { useState, Component } from 'react';
 import { AlertTriangle, AlertOctagon, RefreshCcw, Send, ChevronDown, ChevronUp } from 'lucide-react';
 import { SandboxLayout } from './SandboxLayout';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, addDoc } from 'firebase/firestore';
+
+const CENTRAL_CONFIG = {
+  apiKey: import.meta.env.VITE_DEVELOPER_CENTRAL_API_KEY || "",
+  authDomain: import.meta.env.VITE_DEVELOPER_CENTRAL_AUTH_DOMAIN || "",
+  projectId: import.meta.env.VITE_DEVELOPER_CENTRAL_PROJECT_ID || "",
+  storageBucket: import.meta.env.VITE_DEVELOPER_CENTRAL_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env.VITE_DEVELOPER_CENTRAL_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env.VITE_DEVELOPER_CENTRAL_APP_ID || ""
+};
+
+const getCentralDb = () => {
+  if (!CENTRAL_CONFIG.apiKey || !CENTRAL_CONFIG.projectId) return null;
+  const appName = "centralDevApp";
+  try {
+    let app;
+    if (getApps().some(a => a.name === appName)) {
+      app = getApp(appName);
+    } else {
+      app = initializeApp(CENTRAL_CONFIG, appName);
+    }
+    return getFirestore(app);
+  } catch (err) {
+    console.error("Error inicializando Firebase Central en Sandbox:", err);
+    return null;
+  }
+};
 
 // Real ErrorBoundary Component class (from the ecosystem library)
 class ErrorBoundaryFallback extends Component {
@@ -78,7 +106,7 @@ class ErrorBoundaryFallback extends Component {
             
             {this.props.onReport && (
               <button
-                onClick={() => this.props.onReport(this.state.error)}
+                onClick={() => this.props.onReport(this.state.error, this.state.errorInfo)}
                 className="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:border-indigo-500/35 hover:scale-105 active:scale-95 text-[10px] font-black text-[var(--color-text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Send size={11} />
@@ -110,11 +138,45 @@ export default function ErrorBoundaryFallbackSandbox() {
   const [shouldCrash, setShouldCrash] = useState(false);
   const [reportLog, setReportLog] = useState([]);
 
-  const handleReport = (error) => {
+  const handleReport = async (error, errorInfo) => {
+    const db = getCentralDb();
+    const clientId = import.meta.env.VITE_DEVELOPER_CLIENT_ID || 'sandbox-error-boundary';
+    
     setReportLog(prev => [
-      `[${new Date().toLocaleTimeString()}] Reportado bug: "${error?.message || 'Error desconocido'}" a la central.`,
+      `[${new Date().toLocaleTimeString()}] 📤 Enviando reporte de fallo a la base de datos central...`,
       ...prev
     ]);
+
+    try {
+      if (!db) {
+        throw new Error("Base de datos central no disponible (variables de entorno no encontradas)");
+      }
+      
+      const payload = {
+        clientId,
+        niche: 'Sandbox Error Boundary Fallback',
+        timestamp: Date.now(),
+        errorMsg: error?.message || error?.toString() || 'Error desconocido',
+        stack: error?.stack || errorInfo?.componentStack || 'No stack trace available',
+        deviceInfo: navigator.userAgent,
+        resolved: false,
+        version: '1.0.0-sandbox',
+        path: window.location.pathname
+      };
+      
+      const docRef = await addDoc(collection(db, 'app_failures'), payload);
+      
+      setReportLog(prev => [
+        `[${new Date().toLocaleTimeString()}] ✅ Éxito: Reportado con ID ${docRef.id} a la colección 'app_failures'.`,
+        ...prev.filter(l => !l.includes("Enviando reporte"))
+      ]);
+    } catch (err) {
+      console.error("Error al reportar a la central:", err);
+      setReportLog(prev => [
+        `[${new Date().toLocaleTimeString()}] ❌ Error al enviar: ${err.message}`,
+        ...prev.filter(l => !l.includes("Enviando reporte"))
+      ]);
+    }
   };
 
   return (

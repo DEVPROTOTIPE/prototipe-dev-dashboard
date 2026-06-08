@@ -12,6 +12,7 @@ import {
   Lock,
   Unlock,
   LogOut,
+  User,
   Mail,
   KeyRound,
   Eye,
@@ -45,7 +46,8 @@ import {
   Zap,
   DollarSign,
   Hash,
-  Send
+  Send,
+  Trash2
 } from 'lucide-react'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
@@ -54,10 +56,12 @@ import {
   onSnapshot, 
   doc, 
   updateDoc, 
+  deleteDoc,
   query, 
   orderBy,
   serverTimestamp,
   setDoc,
+  addDoc,
   writeBatch
 } from 'firebase/firestore'
 import { 
@@ -73,6 +77,7 @@ import GuidedToast from './components/ui/GuidedToast'
 import { useAlertConfirm } from './components/common/AlertConfirmContext'
 import DarkModeToggle from './components/ui/DarkModeToggle'
 import ComponentLibraryView from './components/admin/ComponentLibraryView'
+import Pagination from './components/ui/Pagination'
 
 
 // Variables de entorno para conectar al Firebase Central de Control
@@ -87,6 +92,319 @@ const CENTRAL_CONFIG = {
 
 const CLIENT_ID = import.meta.env.VITE_DEVELOPER_CLIENT_ID || "ventas-smartfix"
 const DEV_TOKEN = import.meta.env.VITE_DEVELOPER_TELEMETRY_TOKEN || "test-token"
+
+function InteractiveAmbientGlow({
+  color1 = 'var(--color-primary)',
+  color2 = 'var(--color-accent)',
+  color3 = '#ec4899',
+  sensitivity = 0.05,
+  className = ''
+}) {
+  const containerRef = useRef(null);
+  const mousePosRef = useRef({ x: 0, y: 0 });
+  const isPointerActiveRef = useRef(false);
+  const gyroRef = useRef({ x: 0, y: 0 });
+  const [glowOffset, setGlowOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!containerRef.current) return;
+      isPointerActiveRef.current = true;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - (rect.left + rect.width / 2);
+      const y = e.clientY - (rect.top + rect.height / 2);
+      mousePosRef.current = { x, y };
+    };
+
+    const handlePointerLeave = () => {
+      isPointerActiveRef.current = false;
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('pointermove', handlePointerMove);
+      container.addEventListener('pointerleave', handlePointerLeave);
+      container.addEventListener('pointerup', handlePointerLeave);
+    }
+
+    const handleOrientation = (e) => {
+      if (e.beta !== null && e.gamma !== null) {
+        const clampedGamma = Math.max(-45, Math.min(45, e.gamma));
+        const clampedBeta = Math.max(-45, Math.min(45, e.beta - 45));
+        gyroRef.current = { x: clampedGamma, y: clampedBeta };
+      }
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
+
+    return () => {
+      if (container) {
+        container.removeEventListener('pointermove', handlePointerMove);
+        container.removeEventListener('pointerleave', handlePointerLeave);
+        container.removeEventListener('pointerup', handlePointerLeave);
+      }
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
+
+  useEffect(() => {
+    let animationFrameId;
+
+    const updatePosition = () => {
+      setGlowOffset((prev) => {
+        if (!isPointerActiveRef.current) {
+          mousePosRef.current.x += (0 - mousePosRef.current.x) * 0.05;
+          mousePosRef.current.y += (0 - mousePosRef.current.y) * 0.05;
+        }
+
+        const pointerTargetX = mousePosRef.current.x * sensitivity * 12;
+        const pointerTargetY = mousePosRef.current.y * sensitivity * 12;
+
+        const gyroTargetX = gyroRef.current.x * sensitivity * 40;
+        const gyroTargetY = gyroRef.current.y * sensitivity * 40;
+
+        const targetX = pointerTargetX + gyroTargetX;
+        const targetY = pointerTargetY + gyroTargetY;
+
+        const nextX = prev.x + (targetX - prev.x) * 0.08;
+        const nextY = prev.y + (targetY - prev.y) * 0.08;
+        return { x: nextX, y: nextY };
+      });
+      animationFrameId = requestAnimationFrame(updatePosition);
+    };
+
+    animationFrameId = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [sensitivity]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`absolute inset-0 overflow-hidden bg-[var(--color-bg)] z-0 transition-colors duration-500 rounded-3xl ${className}`}
+      style={{ pointerEvents: 'auto' }} // Permitimos eventos en el contenedor
+    >
+      {/* Blob 1 — primary, arriba-izquierda */}
+      <div 
+        style={{
+          transform: `translate3d(${glowOffset.x * 1.2}px, ${glowOffset.y * 1.2}px, 0)`,
+        }}
+        className="absolute w-[620px] h-[580px] top-[-20%] left-[-5%] pointer-events-none will-change-transform z-1"
+      >
+        <div
+          style={{
+            backgroundColor: color1,
+            animation: 'floatBlob1 25s ease-in-out infinite, morphBlob1 18s ease-in-out infinite'
+          }}
+          className="w-full h-full blur-[45px] opacity-70"
+        />
+      </div>
+
+      {/* Blob 2 — accent, abajo-derecha */}
+      <div 
+        style={{
+          transform: `translate3d(${glowOffset.x * -0.9}px, ${glowOffset.y * -0.9}px, 0)`,
+        }}
+        className="absolute w-[580px] h-[560px] bottom-[-20%] right-[-5%] pointer-events-none will-change-transform z-1"
+      >
+        <div
+          style={{
+            backgroundColor: color2,
+            animation: 'floatBlob2 30s ease-in-out infinite, morphBlob2 22s ease-in-out infinite'
+          }}
+          className="w-full h-full blur-[50px] opacity-65"
+        />
+      </div>
+
+      {/* Blob 3 — rosa, centro */}
+      <div 
+        style={{
+          transform: `translate3d(${glowOffset.y * 0.8}px, ${glowOffset.x * 0.8}px, 0)`,
+        }}
+        className="absolute w-[420px] h-[380px] top-[20%] left-[35%] pointer-events-none will-change-transform z-1"
+      >
+        <div
+          style={{
+            backgroundColor: color3,
+            animation: 'floatBlob3 20s ease-in-out infinite, morphBlob3 14s ease-in-out infinite'
+          }}
+          className="w-full h-full blur-[40px] opacity-55"
+        />
+      </div>
+
+      {/* Blob 4 — accent secundario, arriba-derecha */}
+      <div 
+        style={{
+          transform: `translate3d(${glowOffset.x * 0.6}px, ${glowOffset.y * -0.6}px, 0)`,
+        }}
+        className="absolute w-[370px] h-[340px] top-[-5%] right-[15%] pointer-events-none will-change-transform z-1"
+      >
+        <div
+          style={{
+            backgroundColor: color2,
+            animation: 'floatBlob4 35s ease-in-out infinite, morphBlob4 26s ease-in-out infinite'
+          }}
+          className="w-full h-full blur-[55px] opacity-45"
+        />
+      </div>
+
+      {/* Overlay glassmorphism sutil */}
+      <div className="absolute inset-0 backdrop-blur-[20px] bg-[var(--color-bg)]/10 z-2 pointer-events-none" />
+
+      <style dangerouslySetInnerHTML={{__html: `
+        /* === FLOAT KEYFRAMES === */
+        @keyframes floatBlob1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(40px, -60px) scale(1.12); }
+          66% { transform: translate(-30px, 30px) scale(0.92); }
+        }
+        @keyframes floatBlob2 {
+          0%, 100% { transform: translate(0, 0) scale(1.1); }
+          50% { transform: translate(-55px, 45px) scale(0.93); }
+        }
+        @keyframes floatBlob3 {
+          0%, 100% { transform: translate(0, 0) scale(0.9); }
+          50% { transform: translate(45px, 55px) scale(1.18); }
+        }
+        @keyframes floatBlob4 {
+          0%, 100% { transform: translate(0, 0) scale(1.05); }
+          40% { transform: translate(35px, 50px) scale(0.9); }
+          80% { transform: translate(-25px, -35px) scale(1.1); }
+        }
+
+        /* === MORPH KEYFRAMES — formas orgánicas irregulares === */
+        @keyframes morphBlob1 {
+          0%   { border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%; }
+          20%  { border-radius: 40% 60% 30% 70% / 65% 35% 55% 45%; }
+          40%  { border-radius: 70% 30% 50% 50% / 40% 60% 70% 30%; }
+          60%  { border-radius: 35% 65% 60% 40% / 55% 45% 35% 65%; }
+          80%  { border-radius: 55% 45% 40% 60% / 30% 70% 50% 50%; }
+          100% { border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%; }
+        }
+        @keyframes morphBlob2 {
+          0%   { border-radius: 50% 50% 35% 65% / 60% 40% 70% 30%; }
+          25%  { border-radius: 70% 30% 55% 45% / 40% 60% 30% 70%; }
+          50%  { border-radius: 40% 60% 65% 35% / 70% 30% 50% 50%; }
+          75%  { border-radius: 65% 35% 45% 55% / 35% 65% 60% 40%; }
+          100% { border-radius: 50% 50% 35% 65% / 60% 40% 70% 30%; }
+        }
+        @keyframes morphBlob3 {
+          0%   { border-radius: 45% 55% 60% 40% / 55% 45% 35% 65%; }
+          30%  { border-radius: 65% 35% 40% 60% / 30% 70% 65% 35%; }
+          60%  { border-radius: 35% 65% 55% 45% / 70% 30% 45% 55%; }
+          100% { border-radius: 45% 55% 60% 40% / 55% 45% 35% 65%; }
+        }
+        @keyframes morphBlob4 {
+          0%   { border-radius: 55% 45% 50% 50% / 40% 60% 55% 45%; }
+          35%  { border-radius: 40% 60% 65% 35% / 60% 40% 35% 65%; }
+          65%  { border-radius: 70% 30% 45% 55% / 50% 50% 65% 35%; }
+          100% { border-radius: 55% 45% 50% 50% / 40% 60% 55% 45%; }
+        }
+      `}} />
+
+    </div>
+  );
+}
+
+// ─── Custom Cursor (solo desktop) ────────────────────────────────────────────
+// Dot SVG renderizado a nivel OS (cero latencia JS) — 4 4 = hotspot centrado
+const DOT_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><circle cx='4' cy='4' r='3.5' fill='%238b5cf6'/><circle cx='4' cy='4' r='3.5' fill='%238b5cf6' opacity='0.5' filter='blur(2px)'/></svg>`;
+const DOT_CURSOR = `url("data:image/svg+xml,${DOT_SVG}") 4 4, none`;
+
+function CustomCursor() {
+  const ringRef    = useRef(null);
+  const mouse      = useRef({ x: -200, y: -200 });
+  const scaleRef   = useRef(1);
+  const rafRef     = useRef(null);
+  const isHoverRef = useRef(false);
+  const [activated, setActivated] = useState(false);
+
+  useEffect(() => {
+    let styleEl = null;
+    let targetScale = 1.0;
+
+    const onMove = (e) => {
+      mouse.current.x = e.clientX;
+      mouse.current.y = e.clientY;
+      if (ringRef.current) {
+        ringRef.current.style.transform =
+          `translate(${e.clientX - 20}px, ${e.clientY - 20}px) scale(${scaleRef.current})`;
+      }
+
+      const el = e.target.closest('button,a,input,select,textarea,[role="button"],label,[tabindex]');
+      const hover = !!el;
+      if (hover !== isHoverRef.current) {
+        isHoverRef.current = hover;
+        targetScale = hover ? 1.5 : 1.0;
+      }
+    };
+
+    const onFirstMove = () => {
+      setActivated(true);
+
+      styleEl = document.createElement('style');
+      styleEl.id = 'ccursor-style';
+      styleEl.textContent = `*,*::before,*::after{cursor:${DOT_CURSOR}!important}`;
+      document.head.appendChild(styleEl);
+
+      window.removeEventListener('mousemove', onFirstMove);
+      window.addEventListener('mousemove', onMove, { passive: true });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    const onDown = () => {
+      if (ringRef.current) ringRef.current.style.opacity = '0.4';
+    };
+    const onUp = () => {
+      if (ringRef.current) ringRef.current.style.opacity = '1';
+    };
+
+    const tick = () => {
+      scaleRef.current += (targetScale - scaleRef.current) * 0.18;
+
+      if (ringRef.current) {
+        ringRef.current.style.transform =
+          `translate(${mouse.current.x - 20}px, ${mouse.current.y - 20}px) scale(${scaleRef.current})`;
+        ringRef.current.style.borderColor = isHoverRef.current
+          ? 'rgba(139,92,246,1)' : 'rgba(139,92,246,0.6)';
+        ringRef.current.style.backgroundColor = isHoverRef.current
+          ? 'rgba(139,92,246,0.08)' : 'transparent';
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('mousemove', onFirstMove);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('mouseup', onUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onFirstMove);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mouseup', onUp);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      document.getElementById('ccursor-style')?.remove();
+    };
+  }, []);
+
+  if (!activated) return null;
+
+  return (
+    <div
+      ref={ringRef}
+      className="fixed top-0 left-0 z-[9999] pointer-events-none"
+      style={{
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        border: '1.5px solid rgba(139,92,246,0.6)',
+        backgroundColor: 'transparent',
+        willChange: 'transform',
+        transformOrigin: 'center center',
+      }}
+    />
+  );
+}
 
 function CustomSelect({ value, onChange, options, className }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -171,6 +489,16 @@ export default function App() {
   const [comisionPorcentaje, setComisionPorcentaje] = useState(1.5)
   const [montoFijoServicio, setMontoFijoServicio] = useState(500)
   const [pagoMensualFijo, setPagoMensualFijo] = useState(50000)
+  const [niche, setNiche] = useState('retail_clothing')
+
+  // Estados de edición para CRM de clientes
+  const [editNiche, setEditNiche] = useState('retail_clothing')
+  const [editBillingMode, setEditBillingMode] = useState('percentage')
+  const [editComisionPorcentaje, setEditComisionPorcentaje] = useState(1.5)
+  const [editMontoFijoServicio, setEditMontoFijoServicio] = useState(500)
+  const [editPagoMensualFijo, setEditPagoMensualFijo] = useState(50000)
+  const [editEnableDianBilling, setEditEnableDianBilling] = useState(false)
+  const [editCostoPorFacturaDian, setEditCostoPorFacturaDian] = useState(150)
 
   const [fbApiKey, setFbApiKey] = useState('')
   const [fbAuthDomain, setFbAuthDomain] = useState('')
@@ -189,6 +517,7 @@ export default function App() {
   const [isProvisioning, setIsProvisioning] = useState(false)
   const [isFetchingConfig, setIsFetchingConfig] = useState(false)
   const [fbVapidKey, setFbVapidKey] = useState('')
+  const [autoProvisionFirebase, setAutoProvisionFirebase] = useState(false)
   // Guarda datos del cliente cuando Firestore OK pero CLI falla — permite reintentar solo el paso físico
   const [pendingCliProvisioning, setPendingCliProvisioning] = useState(null)
 
@@ -208,6 +537,9 @@ export default function App() {
   const [wizardTab, setWizardTab] = useState('server')
   const [isFontModalOpen, setIsFontModalOpen] = useState(false)
   const [fontSearchQuery, setFontSearchQuery] = useState('')
+  const [historyPage, setHistoryPage] = useState(1)
+  const [showArchivedHistory, setShowArchivedHistory] = useState(false)
+  const [selectedDiagnosticError, setSelectedDiagnosticError] = useState(null)
 
   // Pre-load all Google Fonts for previews when onboarding is active
   useEffect(() => {
@@ -258,6 +590,11 @@ export default function App() {
   // --- NAVEGACIÓN POR TABS ---
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [failures, setFailures] = useState([])
+  const [selectedErrorClientFilter, setSelectedErrorClientFilter] = useState('todos')
+  const [expandedErrorId, setExpandedErrorId] = useState(null)
+  const [errorsPage, setErrorsPage] = useState(1)
 
   // --- SIMULADOR DE PROYECCIONES DE INGRESOS ---
   const [projNewClients, setProjNewClients] = useState(3)
@@ -291,7 +628,7 @@ export default function App() {
   const [editingTemplateBody, setEditingTemplateBody] = useState('')
 
   const getClientRate = (clientId) => {
-    const configObj = clientesSaas.find(c => c.id === clientId)
+    const configObj = clientesSaas.find(c => c.id.toLowerCase() === clientId.toLowerCase())
     return configObj && configObj.comisionPorcentaje !== undefined ? parseFloat(configObj.comisionPorcentaje) : 1.5
   }
 
@@ -340,27 +677,28 @@ export default function App() {
 
   // Auto-detectar credenciales Firebase desde el CLI Bridge local
   const handleAutoDetectConfig = async () => {
-    if (!fbProjectId.trim()) {
+    const cleanProjectId = fbProjectId.trim()
+    if (!cleanProjectId) {
       showToast('Ingresa primero el Firebase Project ID para auto-detectar', { type: 'error' })
       return
     }
     setIsFetchingConfig(true)
-    addLog(`Auto-detectando credenciales Firebase para proyecto: ${fbProjectId}...`, 'info')
+    addLog(`Auto-detectando credenciales Firebase para proyecto: ${cleanProjectId}...`, 'info')
     try {
       const res = await fetch(
-        `http://localhost:3001/api/firebase-config?projectId=${encodeURIComponent(fbProjectId)}&projectName=${encodeURIComponent(newClientName || fbProjectId)}`
+        `http://localhost:3001/api/firebase-config?projectId=${encodeURIComponent(cleanProjectId)}&projectName=${encodeURIComponent((newClientName || '').trim() || cleanProjectId)}`
       )
       const data = await res.json()
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Error desconocido del servidor CLI.')
       }
       const { config } = data
-      setFbApiKey(config.apiKey || '')
-      setFbAuthDomain(config.authDomain || '')
-      setFbStorageBucket(config.storageBucket || '')
-      setFbMessagingSenderId(config.messagingSenderId || '')
-      setFbAppId(config.appId || '')
-      addLog(`✓ Credenciales Firebase auto-detectadas y cargadas para ${fbProjectId}.`, 'success')
+      setFbApiKey((config.apiKey || '').trim())
+      setFbAuthDomain((config.authDomain || '').trim())
+      setFbStorageBucket((config.storageBucket || '').trim())
+      setFbMessagingSenderId((config.messagingSenderId || '').trim())
+      setFbAppId((config.appId || '').trim())
+      addLog(`✓ Credenciales Firebase auto-detectadas y cargadas para ${cleanProjectId}.`, 'success')
       showToast('Configuración de Firebase auto-detectada y rellenada ✓', { type: 'success' })
     } catch (err) {
       console.error('Auto-detect error:', err)
@@ -455,7 +793,7 @@ export default function App() {
 
     try {
       const batch = writeBatch(dbInstance)
-      const clientRef = doc(dbInstance, 'clientes_saas', clientId)
+      const clientRef = doc(dbInstance, 'clientes_control', clientId)
       const tokenRef = doc(dbInstance, 'tokens', telemetryToken)
 
       batch.delete(clientRef)
@@ -503,6 +841,13 @@ export default function App() {
 
   // Auth y Firebase Listeners
   useEffect(() => {
+    if (isSimulated) {
+      loadSimulatedData()
+      setDbStatus('simulado')
+      setIsLoading(false)
+      return
+    }
+
     addLog("Iniciando conexión con Consola Central...", "warning")
     const centralApp = getCentralApp()
     if (!centralApp) {
@@ -522,6 +867,7 @@ export default function App() {
     let unsubDocs = null
     let unsubClientes = null
     let unsubTokens = null
+    let unsubFailures = null
 
     const cleanUpListeners = () => {
       if (typeof unsubDocs === 'function') {
@@ -535,6 +881,10 @@ export default function App() {
       if (typeof unsubTokens === 'function') {
         unsubTokens()
         unsubTokens = null
+      }
+      if (typeof unsubFailures === 'function') {
+        unsubFailures()
+        unsubFailures = null
       }
     }
 
@@ -564,14 +914,14 @@ export default function App() {
             addLog("Acceso denegado a Firestore. Cargando Sandbox local automático.", "error")
           })
 
-          // Escuchar configuración de tasas comisiones SaaS
-          const qClientes = collection(dbInstance, 'clientes_saas')
+          // Escuchar configuración de tasas comisiones de instancias
+          const qClientes = collection(dbInstance, 'clientes_control')
           unsubClientes = onSnapshot(qClientes, (snapshot) => {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setClientesSaas(data)
-            addLog(`Sincronizadas ${data.length} configuraciones de clientes SaaS en tiempo real.`, "success")
+            addLog(`Sincronizadas ${data.length} configuraciones de clientes en tiempo real.`, "success")
           }, (error) => {
-            console.warn("Fallo al escuchar clientes_saas:", error)
+            console.warn("Fallo al escuchar clientes_control:", error)
           })
 
           // Escuchar tokens de telemetría en tiempo real
@@ -581,6 +931,20 @@ export default function App() {
             setTelemetryTokens(data)
           }, (error) => {
             console.warn("Fallo al escuchar tokens:", error)
+          })
+
+          // Escuchar fallos en tiempo real
+          const qFailures = query(collection(dbInstance, 'app_failures'), orderBy('timestamp', 'desc'))
+          unsubFailures = onSnapshot(qFailures, (snapshot) => {
+            const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+            setFailures(data)
+            const activeFailures = data.filter(f => !f.resolved)
+            if (activeFailures.length > 0) {
+              const clientIds = Array.from(new Set(activeFailures.map(f => f.clientId || 'desconocido'))).join(', ')
+              addLog(`⚠️ Detectados ${activeFailures.length} fallos activos en aplicaciones de clientes: [${clientIds}].`, "error")
+            }
+          }, (error) => {
+            console.warn("Fallo al escuchar app_failures:", error)
           })
         } catch (dbErr) {
           console.error("Error setting up Firestore listeners:", dbErr)
@@ -596,7 +960,7 @@ export default function App() {
       unsubAuth()
       cleanUpListeners()
     }
-  }, [])
+  }, [isSimulated])
 
   const loadSimulatedData = () => {
     setReports([
@@ -659,6 +1023,38 @@ export default function App() {
         comisionValor: 172500,
         estadoPago: 'pendiente',
         updatedAt: { toDate: () => new Date(Date.now() - 25000000) }
+      }
+    ])
+    setFailures([
+      {
+        id: 'fail-1',
+        clientId: 'ventas-smartfix',
+        niche: 'Ropa y Calzado',
+        timestamp: new Date(Date.now() - 600000).toISOString(),
+        errorMsg: "TypeError: Cannot read properties of undefined (reading 'precio')",
+        stack: "TypeError: Cannot read properties of undefined (reading 'precio')\n    at DetalleProducto.jsx:54:23\n    at callCallback (react-dom.development.js:20542:12)\n    at invokeGuardedCallbackDev (react-dom.development.js:20591:16)",
+        deviceInfo: "Chrome v126 / Windows 11",
+        resolved: false
+      },
+      {
+        id: 'fail-2',
+        clientId: 'tienda-calzado-x',
+        niche: 'Calzado Deportivo',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        errorMsg: "FirebaseError: [code=permission-denied]: Missing or insufficient permissions.",
+        stack: "FirebaseError: Missing or insufficient permissions.\n    at new FirestoreError (index.esm2017.js:342:15)\n    at index.esm2017.js:9304:18\n    at async getDoc (index.esm2017.js:1200:10)",
+        deviceInfo: "Safari v17 / iOS 17.4",
+        resolved: false
+      },
+      {
+        id: 'fail-3',
+        clientId: 'minimercado-central',
+        niche: 'Retail Minimarket',
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        errorMsg: "ReferenceError: React is not defined",
+        stack: "ReferenceError: React is not defined\n    at CardItem (CardItem.jsx:5:2)\n    at renderWithHooks (react-dom.development.js:16305:18)",
+        deviceInfo: "Firefox v125 / macOS",
+        resolved: true
       }
     ])
   }
@@ -750,6 +1146,242 @@ export default function App() {
       console.error("Error actualizando pago:", err)
       addLog(`Error al guardar estado de pago: ${err.message}`, "error")
       showToast(`Error al actualizar pago: ${err.message}`, { type: 'error' })
+    }
+  }
+
+  // Guardar configuración modificada en CRM
+  const handleSaveCrmConfig = async () => {
+    if (!selectedCrmClientId) return;
+    
+    addLog(`Guardando configuración de vertical/cobro para cliente ${selectedCrmClientId}...`, "info")
+    
+    if (isSimulated) {
+      setClientesSaas(prev => prev.map(c => c.id.toLowerCase() === selectedCrmClientId.toLowerCase() ? {
+        ...c,
+        niche: editNiche,
+        billingMode: editBillingMode,
+        comisionPorcentaje: editComisionPorcentaje,
+        montoFijoServicio: editMontoFijoServicio,
+        pagoMensualFijo: editPagoMensualFijo,
+        enableDianBilling: editEnableDianBilling,
+        costoPorFacturaDian: editCostoPorFacturaDian
+      } : c))
+      
+      addLog(`[Sandbox] Configuración de cliente ${selectedCrmClientId} actualizada localmente.`, "success")
+      showToast('Configuración guardada (Modo Sandbox)', { type: 'success' })
+      setActiveMetricModal(null)
+      setSelectedCrmClientId(null)
+      return
+    }
+
+    const centralApp = getCentralApp()
+    if (!centralApp) return
+    const dbInstance = getFirestore(centralApp)
+
+    try {
+      const clientRef = doc(dbInstance, 'clientes_control', selectedCrmClientId.toLowerCase())
+      await updateDoc(clientRef, {
+        niche: editNiche,
+        billingMode: editBillingMode,
+        comisionPorcentaje: editComisionPorcentaje,
+        montoFijoServicio: editMontoFijoServicio,
+        pagoMensualFijo: editPagoMensualFijo,
+        enableDianBilling: editEnableDianBilling,
+        costoPorFacturaDian: editCostoPorFacturaDian
+      })
+      
+      addLog(`[Firestore] Configuración de cliente ${selectedCrmClientId} guardada en Firestore central.`, "success")
+      showToast('Configuración guardada correctamente', { type: 'success' })
+      setActiveMetricModal(null)
+      setSelectedCrmClientId(null)
+    } catch (err) {
+      console.error("Error al actualizar cliente:", err)
+      addLog(`Error al guardar configuración de cliente: ${err.message}`, "error")
+      showToast(`Error al guardar configuración: ${err.message}`, { type: 'error' })
+    }
+  }
+
+  const handleArchiveClient = async (clientId) => {
+    if (isSimulated) {
+      setClientesSaas(prev => prev.map(c => c.id.toLowerCase() === clientId.toLowerCase() ? { ...c, archived: true } : c))
+      addLog(`[Sandbox] Cliente ${clientId} archivado localmente.`, "success")
+      showToast(`Cliente ${clientId} archivado (Sandbox)`, { type: 'success' })
+      return
+    }
+
+    const centralApp = getCentralApp()
+    if (!centralApp) return
+    const dbInstance = getFirestore(centralApp)
+
+    try {
+      const clientRef = doc(dbInstance, 'clientes_control', clientId.toLowerCase())
+      await updateDoc(clientRef, { archived: true })
+      addLog(`[Firestore] Cliente ${clientId} archivado en Firestore central.`, "success")
+      showToast(`Cliente ${clientId} archivado correctamente`, { type: 'success' })
+    } catch (err) {
+      console.error(err)
+      addLog(`Error al archivar cliente ${clientId}: ${err.message}`, "error")
+      showToast(`Error al archivar cliente: ${err.message}`, { type: 'error' })
+    }
+  }
+
+  const handleUnarchiveClient = async (clientId) => {
+    if (isSimulated) {
+      setClientesSaas(prev => prev.map(c => c.id.toLowerCase() === clientId.toLowerCase() ? { ...c, archived: false } : c))
+      addLog(`[Sandbox] Cliente ${clientId} desarchivado localmente.`, "success")
+      showToast(`Cliente ${clientId} desarchivado (Sandbox)`, { type: 'success' })
+      return
+    }
+
+    const centralApp = getCentralApp()
+    if (!centralApp) return
+    const dbInstance = getFirestore(centralApp)
+
+    try {
+      const clientRef = doc(dbInstance, 'clientes_control', clientId.toLowerCase())
+      await updateDoc(clientRef, { archived: false })
+      addLog(`[Firestore] Cliente ${clientId} desarchivado en Firestore central.`, "success")
+      showToast(`Cliente ${clientId} desarchivado correctamente`, { type: 'success' })
+    } catch (err) {
+      console.error(err)
+      addLog(`Error al desactivar archivo para cliente ${clientId}: ${err.message}`, "error")
+      showToast(`Error al desarchivar cliente: ${err.message}`, { type: 'error' })
+    }
+  }
+
+  // SIMULAR Y GESTIONAR ERRORES CENTRALIZADOS
+  const handleSimulateFailure = async () => {
+    const errorTypes = [
+      {
+        msg: "TypeError: Cannot read properties of undefined (reading 'split')",
+        stack: "TypeError: Cannot read properties of undefined (reading 'split')\n    at CategoriasView.jsx:42:15\n    at renderWithHooks (react-dom.development.js:15486:18)\n    at updateFunctionComponent (react-dom.development.js:17356:15)",
+      },
+      {
+        msg: "FirebaseError: [code=unavailable]: The service is temporarily unavailable.",
+        stack: "FirebaseError: The service is temporarily unavailable.\n    at index.esm2017.js:520:25\n    at async fetchCollection (uploadService.js:12:15)\n    at async handleInit (App.jsx:320:10)",
+      },
+      {
+        msg: "ReferenceError: process is not defined",
+        stack: "ReferenceError: process is not defined\n    at index.js:12:5\n    at Object.module.exports (main.js:2:1)\n    at __webpack_require__ (bootstrap:19:1)",
+      }
+    ]
+    const randomError = errorTypes[Math.floor(Math.random() * errorTypes.length)]
+    
+    // Obtener cliente aleatorio o fallback
+    const targetCli = clientesSaas.length > 0 
+      ? clientesSaas[Math.floor(Math.random() * clientesSaas.length)]
+      : { id: 'ventas-smartfix', niche: 'Ropa y Calzado' }
+
+    const newFailure = {
+      clientId: targetCli.id || 'desconocido',
+      niche: targetCli.niche || 'General',
+      timestamp: new Date().toISOString(),
+      errorMsg: randomError.msg,
+      stack: randomError.stack,
+      deviceInfo: `Chrome/124.0.0 (Windows NT 10.0; Win64; x64) WebView2`,
+      resolved: false
+    }
+
+    if (isSimulated) {
+      setFailures(prev => [
+        { id: `sim-fail-${Date.now()}`, ...newFailure },
+        ...prev
+      ])
+      addLog(`[SANDBOX] Fallo simulado agregado para: ${newFailure.clientId}`, 'error')
+      showToast('Fallo simulado agregado (Sandbox)', { type: 'error' })
+    } else {
+      try {
+        const dbInstance = getFirestore(getCentralApp())
+        await addDoc(collection(dbInstance, 'app_failures'), newFailure)
+        addLog(`[TELEMETRÍA] Registrado nuevo reporte de fallo de: ${newFailure.clientId} en Firestore Central`, 'error')
+        showToast('Fallo inyectado en Firestore Central', { type: 'success' })
+      } catch (err) {
+        console.error("Error creating telemetry failure doc:", err)
+        showToast('Error al inyectar fallo en base de datos', { type: 'error' })
+      }
+    }
+  }
+
+  const handleResolveFailure = async (id) => {
+    if (isSimulated) {
+      setFailures(prev => prev.map(f => f.id === id ? { ...f, resolved: true } : f))
+      addLog(`[SANDBOX] Fallo ${id} marcado como resuelto.`, 'success')
+      showToast('Fallo resuelto (Sandbox)', { type: 'success' })
+    } else {
+      try {
+        const dbInstance = getFirestore(getCentralApp())
+        await updateDoc(doc(dbInstance, 'app_failures', id), { resolved: true })
+        addLog(`[TELEMETRÍA] Fallo ${id} marcado como resuelto en Firestore.`, 'success')
+        showToast('Fallo marcado como resuelto', { type: 'success' })
+      } catch (err) {
+        console.error("Error updating failure doc:", err)
+        showToast('Error al resolver fallo', { type: 'error' })
+      }
+    }
+  }
+
+  const handleResolveAllFailures = async () => {
+    const activeFailures = failures.filter(f => !f.resolved)
+    if (activeFailures.length === 0) {
+      showToast('No hay fallos activos por resolver', { type: 'info' })
+      return
+    }
+
+    if (isSimulated) {
+      setFailures(prev => prev.map(f => ({ ...f, resolved: true })))
+      addLog(`[SANDBOX] Todos los fallos (${activeFailures.length}) marcados como resueltos.`, 'success')
+      showToast('Todos los fallos resueltos (Sandbox)', { type: 'success' })
+    } else {
+      try {
+        const dbInstance = getFirestore(getCentralApp())
+        const batchPromises = activeFailures.map(f => 
+          updateDoc(doc(dbInstance, 'app_failures', f.id), { resolved: true })
+        )
+        await Promise.all(batchPromises)
+        addLog(`[TELEMETRÍA] ${activeFailures.length} fallos marcados como resueltos en Firestore.`, 'success')
+        showToast('Todos los fallos marcados como resueltos', { type: 'success' })
+      } catch (err) {
+        console.error("Error resolving all failures:", err)
+        showToast('Error al resolver todos los fallos', { type: 'error' })
+      }
+    }
+  }
+
+  const handleClearAllFailures = async () => {
+    if (failures.length === 0) {
+      showToast('No hay incidentes para vaciar', { type: 'info' })
+      return
+    }
+
+    const confirm = await showAlert({
+      title: '¿Vaciar Historial?',
+      message: `Esta acción eliminará de forma permanente los ${failures.length} incidentes del historial. No se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, Vaciar',
+      cancelText: 'Cancelar'
+    })
+
+    if (!confirm) return
+
+    if (isSimulated) {
+      setFailures([])
+      setErrorsPage(1)
+      addLog('[SANDBOX] Historial de incidentes vaciado por completo.', 'info')
+      showToast('Historial vaciado (Sandbox)', { type: 'success' })
+    } else {
+      try {
+        const dbInstance = getFirestore(getCentralApp())
+        const batchPromises = failures.map(f => 
+          deleteDoc(doc(dbInstance, 'app_failures', f.id))
+        )
+        await Promise.all(batchPromises)
+        setErrorsPage(1)
+        addLog(`[TELEMETRÍA] ${failures.length} incidentes eliminados físicamente de la colección 'app_failures'.`, 'success')
+        showToast('Historial de incidentes vaciado por completo', { type: 'success' })
+      } catch (err) {
+        console.error("Error clearing all failures:", err)
+        showToast('Error al vaciar el historial', { type: 'error' })
+      }
     }
   }
 
@@ -860,13 +1492,13 @@ export default function App() {
           className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 p-8 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 space-y-6"
         >
           <div className="text-center relative">
-            <div className="w-16 h-16 bg-gradient-to-tr from-violet-500 to-cyan-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_25px_rgba(124,58,237,0.3)] animate-gradient-shift">
-              <svg className="w-8 h-8" viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path d="M25 15h40c13 0 20 7 20 20s-7 20-20 20H45v30H25V15zm20 20h18c4 0 6-2 6-5s-2-5-6-5H45v10z"/>
-              </svg>
+            <div className="flex items-center justify-center gap-3 mb-2 select-none">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+                <img src="/logo.png?v=3" className="w-8 h-8 object-contain rounded-full" alt="Logo" />
+              </div>
+              <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent leading-none">PROTOTIPE</h2>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">PROTOTIPE</h2>
-            <p className="text-xs text-slate-400 mt-1">Consola Central de Aplicaciones a la Medida</p>
+            <p className="text-xs text-slate-400 mt-1.5">Consola Central de Aplicaciones a la Medida</p>
           </div>
 
           {authError && (
@@ -1111,91 +1743,134 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="border-t border-[var(--color-border)] pt-4 mt-2">
-                      <div className="space-y-1.5 mb-4">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Project ID</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            value={fbProjectId}
-                            onChange={(e) => setFbProjectId(e.target.value)}
-                            placeholder="proyecto-cliente"
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAutoDetectConfig}
-                            disabled={isFetchingConfig}
-                            className="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/25 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            {isFetchingConfig ? 'Detectando...' : 'Auto-detectar'}
-                          </button>
+                    <div className="border-t border-[var(--color-border)] pt-4 mt-2 space-y-4">
+                      {/* Toggle de Aprovisionamiento Automático */}
+                      <div className="flex items-center justify-between p-3.5 bg-indigo-600/10 border border-indigo-500/25 rounded-2xl">
+                        <div className="space-y-0.5 max-w-[80%]">
+                          <label className="text-xs font-bold text-[var(--color-text)] block">Aprovisionar Firebase Automáticamente</label>
+                          <span className="text-[10px] text-[var(--color-text-muted)] leading-relaxed block">
+                            Habilita la creación desatendida del proyecto, base de datos Firestore y registro de la Web App bajo tus credenciales de CLI.
+                          </span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setAutoProvisionFirebase(!autoProvisionFirebase)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                            autoProvisionFirebase ? 'bg-indigo-600' : 'bg-[var(--color-surface-2)] border-[var(--color-border)]'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              autoProvisionFirebase ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase API Key</label>
-                          <input 
-                            type="text" 
-                            value={fbApiKey}
-                            onChange={(e) => setFbApiKey(e.target.value)}
-                            placeholder="AIzaSy..."
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
+                      {autoProvisionFirebase ? (
+                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-2.5 animate-fade-in">
+                          <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Plan de Aprovisionamiento Automático</span>
+                          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+                            El daemon CLI local creará el proyecto Firebase con el identificador recomendado:
+                          </p>
+                          <div className="bg-[var(--color-bg)] p-2.5 rounded-xl border border-[var(--color-border)] flex items-center justify-between">
+                            <span className="text-[10px] text-[var(--color-text-muted)] font-mono uppercase">PROJECT ID:</span>
+                            <code className="text-xs font-mono text-emerald-400 font-bold">
+                              {newClientName.trim() ? newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'auto-detect'}
+                            </code>
+                          </div>
+                          <p className="text-[10px] text-[var(--color-text-muted)] italic">
+                            ✓ Firestore, Web Auth, y la Web App se inicializarán automáticamente. Las credenciales se extraerán e inyectarán directamente.
+                          </p>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Auth Domain</label>
-                          <input 
-                            type="text" 
-                            value={fbAuthDomain}
-                            onChange={(e) => setFbAuthDomain(e.target.value)}
-                            placeholder="proyecto.firebaseapp.com"
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Storage Bucket</label>
-                          <input 
-                            type="text" 
-                            value={fbStorageBucket}
-                            onChange={(e) => setFbStorageBucket(e.target.value)}
-                            placeholder="proyecto.appspot.com"
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Messaging Sender ID</label>
-                          <input 
-                            type="text" 
-                            value={fbMessagingSenderId}
-                            onChange={(e) => setFbMessagingSenderId(e.target.value)}
-                            placeholder="856294715..."
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
-                        </div>
-                        <div className="space-y-1 sm:col-span-2">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase App ID</label>
-                          <input 
-                            type="text" 
-                            value={fbAppId}
-                            onChange={(e) => setFbAppId(e.target.value)}
-                            placeholder="1:856294715:web:a1b2c3d4..."
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                          />
-                        </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-4 animate-fade-in">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Project ID</label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                value={fbProjectId}
+                                onChange={(e) => setFbProjectId(e.target.value.replace(/\s+/g, '').toLowerCase())}
+                                placeholder="proyecto-cliente"
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAutoDetectConfig}
+                                disabled={isFetchingConfig}
+                                className="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/25 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                {isFetchingConfig ? 'Detectando...' : 'Auto-detectar'}
+                              </button>
+                            </div>
+                          </div>
 
-                      <div className="space-y-1 mt-3">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">VAPID Key de Web Push (Manual)</label>
-                        <input 
-                          type="text" 
-                          value={fbVapidKey}
-                          onChange={(e) => setFbVapidKey(e.target.value)}
-                          placeholder="BDd3L1s..."
-                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                        />
-                      </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase API Key</label>
+                              <input 
+                                type="text" 
+                                value={fbApiKey}
+                                onChange={(e) => setFbApiKey(e.target.value)}
+                                placeholder="AIzaSy..."
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Auth Domain</label>
+                              <input 
+                                type="text" 
+                                value={fbAuthDomain}
+                                onChange={(e) => setFbAuthDomain(e.target.value)}
+                                placeholder="proyecto.firebaseapp.com"
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Storage Bucket</label>
+                              <input 
+                                type="text" 
+                                value={fbStorageBucket}
+                                onChange={(e) => setFbStorageBucket(e.target.value)}
+                                placeholder="proyecto.appspot.com"
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase Messaging Sender ID</label>
+                              <input 
+                                type="text" 
+                                value={fbMessagingSenderId}
+                                onChange={(e) => setFbMessagingSenderId(e.target.value)}
+                                placeholder="856294715..."
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                            <div className="space-y-1 sm:col-span-2">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Firebase App ID</label>
+                              <input 
+                                type="text" 
+                                value={fbAppId}
+                                onChange={(e) => setFbAppId(e.target.value)}
+                                placeholder="1:856294715:web:a1b2c3d4..."
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">VAPID Key de Web Push (Manual)</label>
+                            <input 
+                              type="text" 
+                              value={fbVapidKey}
+                              onChange={(e) => setFbVapidKey(e.target.value)}
+                              placeholder="BDd3L1s..."
+                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1413,6 +2088,26 @@ export default function App() {
                 {wizardTab === 'modules' && (
                   <div className="space-y-4">
                     <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-4">
+                      <div className="space-y-1.5 border-b border-[var(--color-border)] pb-4">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Nicho de Mercado / Vertical de Negocio</label>
+                        <CustomSelect 
+                          value={niche} 
+                          onChange={(e) => setNiche(e.target.value)}
+                          options={[
+                            { id: "retail_clothing", name: "🛍️ Ropa y Retail Tradicional (retail_clothing)" },
+                            { id: "technical_services", name: "⚙️ Tornerías y Mecanizado de Precisión (technical_services)" },
+                            { id: "refrigeration_ac", name: "❄️ Refrigeración y Climatización (refrigeration_ac)" },
+                            { id: "contractors", name: "📐 Contratistas y Construcción (contractors)" },
+                            { id: "machinery_rental", name: "🚜 Alquiler de Maquinaria y Equipos (machinery_rental)" },
+                            { id: "carpentry", name: "🪚 Carpinterías y Muebles (carpentry)" },
+                            { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
+                            { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
+                            { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
+                            { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
+                          ]}
+                        />
+                      </div>
+
                       <h4 className="text-xs font-bold text-[var(--color-text)]">Funcionalidades Core y Flags</h4>
                       
                       <div className="flex flex-col gap-3">
@@ -1539,28 +2234,30 @@ export default function App() {
                     const clientId = newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                     const telemetryToken = `${clientId}-token-${Date.now()}`
 
-                    addLog(`Registrando nuevo cliente SaaS: ${clientId} (${billingMode})`, "info")
+                    addLog(`Registrando nuevo cliente: ${clientId} (${billingMode})`, "info")
 
                     const cliPayload = {
                       template: selectedTemplate,
                       projectName: newClientName.trim(),
                       targetPath,
                       telemetryToken,
+                      autoProvisionFirebase,
                       paletteChoice: 'custom',
                       customPrimary: primaryColor,
                       customAccent: secondaryColor,
                       enableGithub,
                       enableFirebaseDeploy,
-                      firebaseApiKey: fbApiKey,
-                      firebaseAuthDomain: fbAuthDomain,
-                      firebaseProjectId: fbProjectId,
-                      firebaseStorageBucket: fbStorageBucket,
-                      firebaseMessagingSenderId: fbMessagingSenderId,
-                      firebaseAppId: fbAppId,
+                      firebaseApiKey: fbApiKey.trim(),
+                      firebaseAuthDomain: fbAuthDomain.trim(),
+                      firebaseProjectId: fbProjectId.trim(),
+                      firebaseStorageBucket: fbStorageBucket.trim(),
+                      firebaseMessagingSenderId: fbMessagingSenderId.trim(),
+                      firebaseAppId: fbAppId.trim(),
                       centralApiKey: CENTRAL_CONFIG.apiKey,
                       centralMessagingSenderId: CENTRAL_CONFIG.messagingSenderId,
                       centralAppId: CENTRAL_CONFIG.appId,
                       customRequirements: customRequirements.trim(),
+                      niche,
                       billingMode,
                       comisionPorcentaje,
                       montoFijoServicio,
@@ -1609,7 +2306,7 @@ export default function App() {
                         updatedAt: { toDate: () => new Date() }
                       }
 
-                      setClientesSaas(prev => [...prev, { id: clientId, billingMode, comisionPorcentaje, montoFijoServicio, pagoMensualFijo, enableDianBilling, costoPorFacturaDian }])
+                      setClientesSaas(prev => [...prev, { id: clientId, niche, billingMode, comisionPorcentaje, montoFijoServicio, pagoMensualFijo, enableDianBilling, costoPorFacturaDian }])
                       setReports(prev => [newRep, ...prev])
                       setTelemetryTokens(prev => [...prev, { id: telemetryToken, clientId }])
 
@@ -1621,7 +2318,9 @@ export default function App() {
                         token: telemetryToken,
                         comisionPorcentaje,
                         vapidKey: fbVapidKey,
-                        prompt: `# Antigravity Bootstrap Prompt for ${clientId}\n\nThis is a simulated prompt for testing purposes.`
+                        prompt: `# Antigravity Bootstrap Prompt for ${clientId}\n\nThis is a simulated prompt for testing purposes.`,
+                        adminEmail: `admin@${clientId}.com`,
+                        adminPassword: 'Admin2026!'
                       })
                       setIsOnboardingActive(false)
                       setNewClientName('')
@@ -1646,9 +2345,10 @@ export default function App() {
                     const dbInstance = getFirestore(centralApp)
 
                     try {
-                      const clientRef = doc(dbInstance, 'clientes_saas', clientId)
+                      const clientRef = doc(dbInstance, 'clientes_control', clientId)
                       await setDoc(clientRef, {
                         nombre: newClientName.trim(),
+                        niche,
                         billingMode,
                         comisionPorcentaje,
                         montoFijoServicio,
@@ -1660,13 +2360,13 @@ export default function App() {
                         template: selectedTemplate,
                         customRequirements: customRequirements.trim(),
                         firebaseConfig: {
-                          apiKey: fbApiKey,
-                          authDomain: fbAuthDomain,
-                          projectId: fbProjectId,
-                          storageBucket: fbStorageBucket,
-                          messagingSenderId: fbMessagingSenderId,
-                          appId: fbAppId,
-                          vapidKey: fbVapidKey
+                          apiKey: fbApiKey.trim(),
+                          authDomain: fbAuthDomain.trim(),
+                          projectId: fbProjectId.trim(),
+                          storageBucket: fbStorageBucket.trim(),
+                          messagingSenderId: fbMessagingSenderId.trim(),
+                          appId: fbAppId.trim(),
+                          vapidKey: fbVapidKey.trim()
                         },
                         branding: {
                           primaryColor,
@@ -1739,7 +2439,9 @@ export default function App() {
                         token: telemetryToken,
                         comisionPorcentaje,
                         vapidKey: fbVapidKey,
-                        prompt: promptResult
+                        prompt: promptResult,
+                        adminEmail: `admin@${clientId}.com`,
+                        adminPassword: 'Admin2026!'
                       })
                       setIsOnboardingActive(false)
                       setNewClientName('')
@@ -1870,7 +2572,7 @@ export default function App() {
                       {[
                         { title: 'iPhone 15 Pro Max', time: 'Hace 5 min', val: '$4,800,000' },
                         { title: 'Servicio Técnico Calzado', time: 'Hace 2 horas', val: '$150,000' },
-                        { title: 'Licencia Premium SaaS', time: 'Ayer', val: '$350,000' }
+                        { title: 'Licencia Premium de Instancia', time: 'Ayer', val: '$350,000' }
                       ].map((item, i) => (
                         <div 
                           key={i} 
@@ -2032,11 +2734,10 @@ export default function App() {
   // CONSTANTES DE NAVEGACIÓN
   const NAV_TABS = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortLabel: 'Inicio' },
-    { id: 'crm', label: 'CRM Clientes', icon: Users, shortLabel: 'CRM' },
     { id: 'billing', label: 'Facturación', icon: CreditCard, shortLabel: 'Cobros' },
-    { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
-    { id: 'settings', label: 'Ajustes', icon: Settings, shortLabel: 'Config' },
+    { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
+    { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo' },
   ]
 
   // Proyecciones de ingresos calculadas
@@ -2047,6 +2748,26 @@ export default function App() {
   const projNewMonthly = projNewClients * (projAvgSales * projRate / 100)
   const projTotalMonthly = projExistingMonthly + projNewMonthly
   const projTotalYear = projTotalMonthly * projMonths
+
+  // Historial de Aprovisionamientos (Clientes activos o archivados)
+  const filteredProvisionings = clientesSaas.filter(c => showArchivedHistory ? c.archived === true : c.archived !== true)
+  const HISTORY_ITEMS_PER_PAGE = 10
+  const totalHistoryPages = Math.ceil(filteredProvisionings.length / HISTORY_ITEMS_PER_PAGE) || 1
+  const currentHistoryPage = Math.min(historyPage, totalHistoryPages)
+  const paginatedProvisionings = filteredProvisionings.slice(
+    (currentHistoryPage - 1) * HISTORY_ITEMS_PER_PAGE,
+    currentHistoryPage * HISTORY_ITEMS_PER_PAGE
+  )
+
+  // Historial de Errores e Incidentes
+  const filteredFailures = failures.filter(f => selectedErrorClientFilter === 'todos' || f.clientId === selectedErrorClientFilter)
+  const FAILURES_ITEMS_PER_PAGE = 10
+  const totalFailuresPages = Math.ceil(filteredFailures.length / FAILURES_ITEMS_PER_PAGE) || 1
+  const currentFailuresPage = Math.min(errorsPage, totalFailuresPages)
+  const paginatedFailures = filteredFailures.slice(
+    (currentFailuresPage - 1) * FAILURES_ITEMS_PER_PAGE,
+    currentFailuresPage * FAILURES_ITEMS_PER_PAGE
+  )
 
   // Obtener preview del mensaje WhatsApp
   const getWaPreview = () => {
@@ -2081,7 +2802,10 @@ export default function App() {
 
   // RENDER PANEL PRINCIPAL
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans overflow-x-hidden selection:bg-violet-500/30 selection:text-violet-200 transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans overflow-x-hidden selection:bg-violet-500/30 selection:text-violet-200 transition-colors duration-300 flex flex-col md:cursor-none">
+      {/* Cursor personalizado — solo desktop */}
+      <CustomCursor />
+
       {/* Background decorativos */}
       <div className="fixed top-0 right-0 w-[50%] h-[400px] rounded-full bg-gradient-to-b from-violet-500/5 to-purple-500/0 blur-[150px] pointer-events-none opacity-50 dark:opacity-100 z-0" />
       <div className="fixed top-[20%] left-[-10%] w-[40%] h-[400px] rounded-full bg-violet-500/2 blur-[150px] pointer-events-none opacity-50 dark:opacity-100 z-0" />
@@ -2107,66 +2831,80 @@ export default function App() {
             {/* Logo & Brand (Inside wrapper, visible ONLY when expanded) */}
             {!sidebarCollapsed && (
               <div className="flex items-center gap-3 transition-all duration-300 ease-out select-none truncate">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 text-violet-400 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.15)] animate-gradient-shift shrink-0">
-                  <svg className="w-4.5 h-4.5" viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M25 15h40c13 0 20 7 20 20s-7 20-20 20H45v30H25V15zm20 20h18c4 0 6-2 6-5s-2-5-6-5H45v10z"/>
-                  </svg>
+                <div className="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+                  <img src="/logo.png?v=3" className="w-5.5 h-5.5 object-contain rounded-full" alt="Logo" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-extrabold text-sm tracking-wide text-slate-800 dark:text-slate-100 leading-tight">PROTOTIPE</span>
+                  <span className="font-extrabold text-sm tracking-wide text-[var(--color-text)] leading-tight">PROTOTIPE</span>
                 </div>
               </div>
             )}
           </div>
-
-          {/* Logo & Brand (Outside wrapper, visible ONLY when collapsed to slide into topbar) */}
-          {sidebarCollapsed && (
-            <div 
-              onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center gap-3 pl-6 transition-all duration-300 ease-out cursor-pointer hover:opacity-80 select-none"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 text-violet-400 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.15)] animate-gradient-shift shrink-0">
-                <svg className="w-4.5 h-4.5" viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M25 15h40c13 0 20 7 20 20s-7 20-20 20H45v30H25V15zm20 20h18c4 0 6-2 6-5s-2-5-6-5H45v10z"/>
-                </svg>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-sm tracking-wide text-slate-800 dark:text-slate-100 leading-tight">PROTOTIPE</span>
-                <span className="hidden sm:block text-[9px] text-slate-450 dark:text-slate-500 font-medium tracking-wider uppercase">
-                  Motor de Aplicaciones a la Medida
-                </span>
-              </div>
+  
+          {/* Logo & Brand (Visible always on mobile, on desktop only when sidebar is collapsed) */}
+          <div 
+            onClick={() => {
+              if (window.innerWidth >= 1024) {
+                setSidebarCollapsed(false);
+              }
+            }}
+            className={`flex items-center gap-3 pl-4 sm:pl-6 transition-all duration-300 ease-out cursor-pointer hover:opacity-80 select-none ${
+              !sidebarCollapsed ? 'lg:hidden' : 'lg:flex'
+            }`}
+          >
+            <div className="w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+              <img src="/logo.png?v=3" className="w-5.5 h-5.5 object-contain rounded-full" alt="Logo" />
             </div>
-          )}
+            <div className="flex flex-col">
+              <span className="font-extrabold text-sm tracking-wide text-[var(--color-text)] leading-tight">PROTOTIPE</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold ${
-            dbStatus === 'conectado' && !isSimulated
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-          }`}>
-            <span className="relative flex h-1.5 w-1.5">
+          <button 
+            onClick={() => setActiveTab('errors')}
+            className={`hidden md:flex items-center gap-2 px-3 h-8 rounded-xl border text-[11px] font-bold cursor-pointer transition-all duration-200 active:scale-95 select-none ${
+              isSimulated
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/15'
+                : failures.filter(f => !f.resolved).length > 0
+                  ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/15'
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15'
+            }`}
+            title="Ver Consola de Errores y Monitoreo"
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className={`animate-radar-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-400' : 'bg-amber-400'
+                isSimulated 
+                  ? 'bg-amber-400' 
+                  : failures.filter(f => !f.resolved).length > 0 
+                    ? 'bg-red-400' 
+                    : 'bg-emerald-400'
               }`}></span>
-              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
-                dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-500' : 'bg-amber-500'
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                isSimulated 
+                  ? 'bg-amber-500' 
+                  : failures.filter(f => !f.resolved).length > 0 
+                    ? 'bg-red-500' 
+                    : 'bg-emerald-500'
               }`}></span>
             </span>
-            {dbStatus === 'conectado' && !isSimulated ? 'Live' : 'Sandbox'}
-          </div>
-          <DarkModeToggle isDark={theme === 'dark'} onToggle={toggleTheme} />
-          <div className="hidden sm:flex flex-col items-end">
-            <span className="text-[11px] font-semibold text-[var(--color-text)] truncate max-w-[140px]">{user.email}</span>
-            <span className="text-[9px] text-violet-500 dark:text-violet-400 font-bold uppercase tracking-wider">Root Dev</span>
-          </div>
+            <span className="tracking-wide">
+              {isSimulated 
+                ? 'Sandbox Local' 
+                : failures.filter(f => !f.resolved).length > 0 
+                  ? `${failures.filter(f => !f.resolved).length} Fallo${failures.filter(f => !f.resolved).length > 1 ? 's' : ''} en Apps` 
+                  : 'Sistemas en Línea'
+              }
+            </span>
+          </button>
           <button 
-            onClick={handleLogout}
-            className="h-8 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+            onClick={() => setIsProfileModalOpen(true)}
+            className="h-8 px-3 rounded-xl border bg-[var(--color-surface-2)]/50 hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-[var(--color-border)] transition-all duration-200 flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs font-bold"
+            title="Ver detalles del perfil"
           >
-            <LogOut size={13} />
-            <span className="hidden sm:inline">Salir</span>
+            <User size={13} />
+            <span>Perfil</span>
           </button>
         </div>
       </nav>
@@ -2287,7 +3025,7 @@ export default function App() {
                   { label: 'Por Recaudar', val: totalPendiente, icon: Clock, col: 'from-amber-500/20 to-amber-500/5 dark:from-amber-500/10 dark:to-amber-500/2', iconCol: 'text-amber-600 dark:text-amber-400', type: 'pendiente' },
                   { label: 'Clientes Activos', val: clientesActivos, icon: Users, col: 'from-cyan-500/20 to-cyan-500/5 dark:from-cyan-500/10 dark:to-cyan-500/2', iconCol: 'text-cyan-600 dark:text-cyan-400', isNumber: true, type: 'clientes' }
                 ].map((card, idx) => (
-                  <div key={idx} onClick={() => setActiveMetricModal(card.type)}
+                  <div key={idx} onClick={() => card.type === 'clientes' ? setActiveTab('crm') : setActiveMetricModal(card.type)}
                     className={`p-5 bg-gradient-to-br ${card.col} bg-[var(--color-surface)] rounded-2xl flex flex-col gap-2 shadow-sm relative overflow-hidden group active:scale-[0.98] cursor-pointer border border-[var(--color-border)] hover-glow-card`}>
                     <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     <div className="flex items-center justify-between">
@@ -2421,11 +3159,17 @@ export default function App() {
                           const currentPage = Math.min(logPage, totalLogPages)
                           const paginatedLogs = systemLogs.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE)
                           return paginatedLogs.map((log, index) => {
+                            const isClickable = log.type === 'error';
+                            const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 active:scale-[0.99] transition-all' : '';
                             const cardStyle = { info: 'bg-[var(--color-surface-2)]/45 text-[var(--color-text-muted)] border-[var(--color-border)]', warning: 'bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20', error: 'bg-red-500/5 text-red-700 dark:text-red-400 border-red-500/20', success: 'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' }[log.type]
                             const badgeStyle = { info: 'bg-slate-500/10 text-slate-500 dark:text-slate-400', warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', error: 'bg-red-500/10 text-red-600 dark:text-red-400', success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }[log.type]
                             const label = { info: 'INFO', warning: 'WARN', error: 'ERR', success: 'OK' }[log.type]
                             return (
-                              <div key={index} className={`p-2 rounded-xl border ${cardStyle} text-[10px] flex flex-col gap-0.5`}>
+                              <div 
+                                key={index} 
+                                onClick={isClickable ? () => setActiveTab('errors') : undefined}
+                                className={`p-2 rounded-xl border ${cardStyle} ${hoverStyle} text-[10px] flex flex-col gap-0.5`}
+                              >
                                 <div className="flex items-center justify-between">
                                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${badgeStyle}`}>{label}</span>
                                   <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{log.timestamp}</span>
@@ -2554,7 +3298,18 @@ export default function App() {
                         <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
                         <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
                       </div>
-                      <button onClick={() => { setSelectedCrmClientId(client.name); setActiveMetricModal('clientes') }}
+                      <button onClick={() => { 
+                        const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
+                        setEditNiche(cfg.niche || 'retail_clothing');
+                        setEditBillingMode(cfg.billingMode || 'percentage');
+                        setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
+                        setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
+                        setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
+                        setEditEnableDianBilling(!!cfg.enableDianBilling);
+                        setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+                        setSelectedCrmClientId(client.name); 
+                        setActiveMetricModal('clientes'); 
+                      }}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
                         Gestionar
                         <ChevronRight size={12} />
@@ -2641,7 +3396,7 @@ export default function App() {
                             <td className="p-4 text-right font-mono text-[var(--color-text)]">${report.totalVentas.toLocaleString('es-CO')}</td>
                             <td className="p-4 text-center font-bold text-[var(--color-text-muted)]">
                               {(() => {
-                                const cfg = clientesSaas.find(c => c.id === report.clientId)
+                                const cfg = clientesSaas.find(c => c.id.toLowerCase() === report.clientId.toLowerCase())
                                 const mode = cfg?.billingMode || 'percentage'
                                 if (mode === 'fixed_per_service') return `$${(cfg?.montoFijoServicio || 500).toLocaleString('es-CO')} c/u`
                                 if (mode === 'flat_monthly') return `$${((cfg?.pagoMensualFijo || 50000) / 1000).toFixed(0)}k/mes`
@@ -2781,29 +3536,501 @@ export default function App() {
             <ComponentLibraryView showToast={showToast} />
           )}
 
-          {/* ===== TAB: ONBOARDING ===== */}
           {activeTab === 'onboarding' && (
-            <div className="tab-content-enter">
-              {/* Reutilizar el wizard completo */}
+            <div className="tab-content-enter h-full">
               {isOnboardingActive ? (
                 <div className="text-center text-xs text-[var(--color-text-muted)] p-8">El asistente de aprovisionamiento está activo en la vista de pantalla completa.</div>
               ) : (
-                <div className="space-y-4">
-                  <div>
-                    <h1 className="text-xl font-black text-[var(--color-text)] flex items-center gap-2.5">
-                      <Sparkles size={20} className="text-indigo-400" />
-                      Nuevo Cliente
-                    </h1>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Aprovisiona, configura y despliega una nueva instancia de aplicación para un cliente.</p>
+                <div className="space-y-6">
+                  {/* Tarjeta de Inicio de Asistente */}
+                  <div className="relative overflow-hidden w-full min-h-[420px] flex items-center justify-center rounded-3xl border border-[var(--color-border)] shadow-2xl p-8 sm:p-12 transition-all duration-300">
+                    {/* Interactive Ambient Glow Background — ocupa todo el contenedor */}
+                    <InteractiveAmbientGlow 
+                      color1="var(--color-primary)"
+                      color2="var(--color-accent)"
+                      color3="#ec4899"
+                      sensitivity={0.07}
+                    />
+                    
+                    {/* Inner Content Card (Glassmorphism & Neon Shadows) */}
+                    <div className="relative z-10 text-center max-w-xl mx-auto space-y-6 p-6 sm:p-8 rounded-2xl bg-[var(--color-surface-2)]/60 dark:bg-[var(--color-surface-2)]/45 backdrop-blur-xl border border-[var(--color-border)] shadow-xl transition-all duration-500 hover:shadow-indigo-500/10">
+                      <div className="inline-flex p-3 rounded-2.5xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 shadow-inner animate-pulse">
+                        <Sparkles size={24} />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[var(--color-text)]">
+                          Aprovisionamiento de Clientes
+                        </h2>
+                        <p className="text-xs text-[var(--color-text-muted)] max-w-md mx-auto leading-relaxed">
+                          Crea, configura y despliega una instancia exclusiva a la medida del cliente en segundos. Define servidor, branding visual y módulos del negocio.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col items-center gap-3 pt-2">
+                        {/* Premium Interactive Button */}
+                        <button 
+                          onClick={() => setIsOnboardingActive(true)}
+                          className="group relative px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center gap-2.5 transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.3)] active:scale-[0.97] hover:scale-[1.02] cursor-pointer"
+                        >
+                          {/* Glow effect on hover */}
+                          <span className="absolute inset-0 w-full h-full rounded-xl bg-gradient-to-r from-indigo-400 to-purple-500 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300 pointer-events-none" />
+                          
+                          <span className="relative flex items-center gap-2">
+                            <Sparkles size={14} className="animate-spin-slow text-indigo-200 group-hover:rotate-12 transition-transform" />
+                            <span>Iniciar Asistente Premium</span>
+                            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </button>
+                        
+                        <div className="flex items-center gap-4 text-[9px] text-[var(--color-text-muted)] font-medium">
+                          <span className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                            Branding en caliente
+                          </span>
+                          <span className="w-0.5 h-0.5 rounded-full bg-[var(--color-border)]" />
+                          <span className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-indigo-500" />
+                            Base de datos seed
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <button onClick={() => setIsOnboardingActive(true)}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_25px_rgba(99,102,241,0.3)] active:scale-[0.98] cursor-pointer">
-                    <Sparkles size={16} />
-                    Iniciar Asistente de Aprovisionamiento
-                  </button>
-                  <p className="text-[10px] text-[var(--color-text-muted)]">El asistente te guiará paso a paso a través de la configuración del servidor, branding y módulos.</p>
+
+                  {/* Historial de Aprovisionamientos Previos */}
+                  <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 space-y-4 shadow-sm transition-colors duration-300">
+                    <div className="flex justify-between items-center gap-4">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
+                          <Database size={15} className="text-indigo-400" />
+                          Historial de Aprovisionamientos
+                        </h3>
+                        <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Listado de instancias de clientes configuradas y desplegadas en la plataforma.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setShowArchivedHistory(prev => !prev)
+                            setHistoryPage(1)
+                          }}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer select-none ${
+                            showArchivedHistory
+                              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
+                              : 'bg-[var(--color-surface-2)]/60 text-[var(--color-text-muted)] border-[var(--color-border)] hover:text-[var(--color-text)]'
+                          }`}
+                        >
+                          {showArchivedHistory ? 'Ver Activos' : 'Ver Archivados'}
+                        </button>
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full select-none shrink-0 whitespace-nowrap">
+                          {filteredProvisionings.length} {showArchivedHistory ? 'Archivado' : 'Instancia'}{filteredProvisionings.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-2)]/20">
+                      {/* Vista Desktop: Tabla */}
+                      <table className="w-full text-left border-collapse hidden md:table">
+                        <thead>
+                          <tr className="border-b border-[var(--color-border)] text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface-2)]/40 select-none">
+                            <th className="p-4">Cliente / ID</th>
+                            <th className="p-4">Vertical / Nicho</th>
+                            <th className="p-4">Comisión / Tarifa</th>
+                            <th className="p-4">Facturación DIAN</th>
+                            <th className="p-4 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--color-border)] text-xs">
+                          {paginatedProvisionings.length === 0 ? (
+                            <tr>
+                              <td colSpan="5" className="p-8 text-center text-[var(--color-text-muted)] font-medium">
+                                {showArchivedHistory 
+                                  ? 'No se encontraron registros de aprovisionamiento archivados.'
+                                  : 'No se encontraron registros de aprovisionamiento activos.'
+                                }
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedProvisionings.map(client => {
+                              const nicheData = [
+                                { id: "retail_clothing", emoji: "🛍️", name: "Ropa y Retail" },
+                                { id: "technical_services", emoji: "⚙️", name: "Tornerías y Mecanizado" },
+                                { id: "refrigeration_ac", emoji: "❄️", name: "Refrigeración/AC" },
+                                { id: "contractors", emoji: "📐", name: "Contratistas" },
+                                { id: "machinery_rental", emoji: "🚜", name: "Alquiler Maquinaria" },
+                                { id: "carpentry", emoji: "🪚", name: "Carpinterías" },
+                                { id: "laundry", emoji: "🧺", name: "Lavanderías" },
+                                { id: "furniture_repair", emoji: "🛋️", name: "Restauración/Tapicería" },
+                                { id: "wellness_podology", emoji: "💆", name: "Estética/Podología" },
+                                { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" }
+                              ].find(n => n.id === client.niche) || { emoji: "📦", name: client.niche || "Desconocido" }
+                              
+                              return (
+                                <tr key={client.id} className="hover:bg-[var(--color-surface-2)]/30 transition-colors">
+                                  <td className="p-4 font-extrabold text-[var(--color-text)]">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 font-bold flex items-center justify-center text-xs border border-indigo-500/15 select-none">
+                                        {client.id.substring(0, 2).toUpperCase()}
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="truncate max-w-[150px]">{client.nombre || client.id}</span>
+                                        <span className="text-[10px] text-[var(--color-text-muted)] font-mono font-medium">{client.id}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-4">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-[10px] font-bold text-[var(--color-text-muted)]">
+                                      <span>{nicheData.emoji}</span>
+                                      <span>{nicheData.name}</span>
+                                    </span>
+                                  </td>
+                                  <td className="p-4 font-bold text-[var(--color-text)]">
+                                    {client.billingMode === 'percentage' 
+                                      ? `${client.comisionPorcentaje}% Ventas` 
+                                      : client.billingMode === 'fixed_per_service' 
+                                        ? `$${(client.montoFijoServicio || 0).toLocaleString('es-CO')} / Serv` 
+                                        : `$${(client.pagoMensualFijo || 0).toLocaleString('es-CO')} / Mes`
+                                    }
+                                  </td>
+                                  <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                                      client.enableDianBilling
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                        : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
+                                    }`}>
+                                      {client.enableDianBilling ? 'Habilitado' : 'Inactivo'}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    {showArchivedHistory ? (
+                                      <button
+                                        onClick={() => handleUnarchiveClient(client.id)}
+                                        className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 ml-auto"
+                                      >
+                                        Reactivar
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleArchiveClient(client.id)}
+                                        className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 ml-auto"
+                                      >
+                                        Archivar
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+
+                      {/* Vista Móvil: Tarjetas */}
+                      <div className="md:hidden divide-y divide-[var(--color-border)]">
+                        {paginatedProvisionings.length === 0 ? (
+                          <div className="p-8 text-center text-[var(--color-text-muted)] font-medium text-xs">
+                            {showArchivedHistory 
+                              ? 'No se encontraron registros de aprovisionamiento archivados.'
+                              : 'No se encontraron registros de aprovisionamiento activos.'
+                            }
+                          </div>
+                        ) : (
+                          paginatedProvisionings.map(client => {
+                            const nicheData = [
+                              { id: "retail_clothing", emoji: "🛍️", name: "Ropa y Retail" },
+                              { id: "technical_services", emoji: "⚙️", name: "Tornerías y Mecanizado" },
+                              { id: "refrigeration_ac", emoji: "❄️", name: "Refrigeración/AC" },
+                              { id: "contractors", emoji: "📐", name: "Contratistas" },
+                              { id: "machinery_rental", emoji: "🚜", name: "Alquiler Maquinaria" },
+                              { id: "carpentry", emoji: "🪚", name: "Carpinterías" },
+                              { id: "laundry", emoji: "🧺", name: "Lavanderías" },
+                              { id: "furniture_repair", emoji: "🛋️", name: "Restauración/Tapicería" },
+                              { id: "wellness_podology", emoji: "💆", name: "Estética/Podología" },
+                              { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" }
+                            ].find(n => n.id === client.niche) || { emoji: "📦", name: client.niche || "Desconocido" }
+
+                            return (
+                              <div key={client.id} className="p-4 space-y-3 hover:bg-[var(--color-surface-2)]/10 transition-colors">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 font-bold flex items-center justify-center text-xs border border-indigo-500/15 select-none">
+                                      {client.id.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-extrabold text-[var(--color-text)] truncate max-w-[160px] text-xs">
+                                        {client.nombre || client.id}
+                                      </span>
+                                      <span className="text-[10px] text-[var(--color-text-muted)] font-mono font-medium">{client.id}</span>
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                                    client.enableDianBilling
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                      : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
+                                  }`}>
+                                    DIAN: {client.enableDianBilling ? 'Habilitado' : 'Inactivo'}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-[9px] font-bold text-[var(--color-text-muted)]">
+                                      <span>{nicheData.emoji}</span>
+                                      <span>{nicheData.name}</span>
+                                    </span>
+                                    <span className="text-[10px] font-extrabold text-[var(--color-text)]">
+                                      {client.billingMode === 'percentage' 
+                                        ? `${client.comisionPorcentaje}% Ventas` 
+                                        : client.billingMode === 'fixed_per_service' 
+                                          ? `$${(client.montoFijoServicio || 0).toLocaleString('es-CO')} / Serv` 
+                                          : `$${(client.pagoMensualFijo || 0).toLocaleString('es-CO')} / Mes`
+                                      }
+                                    </span>
+                                  </div>
+
+                                  {showArchivedHistory ? (
+                                    <button
+                                      onClick={() => handleUnarchiveClient(client.id)}
+                                      className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 rounded-lg text-[9px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                                    >
+                                      Reactivar
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleArchiveClient(client.id)}
+                                      className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 rounded-lg text-[9px] font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                                    >
+                                      Archivar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pagination - Always visible */}
+                    <div className="pt-2 select-none">
+                      <Pagination
+                        currentPage={currentHistoryPage}
+                        totalPages={totalHistoryPages}
+                        onPageChange={setHistoryPage}
+                        siblingCount={1}
+                        showAlways={true}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ===== TAB: ERRORS ===== */}
+          {activeTab === 'errors' && (
+            <div className="space-y-6 tab-content-enter">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-black text-[var(--color-text)] flex items-center gap-2.5">
+                    <AlertTriangle size={20} className="text-red-500 animate-pulse" />
+                    Consola de Errores y Diagnóstico
+                  </h1>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Monitoreo en tiempo real de fallos e incidentes en aplicaciones de clientes.</p>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  <button 
+                    onClick={handleSimulateFailure}
+                    className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 text-violet-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+                  >
+                    <Activity size={13} className="animate-pulse" />
+                    Simular Fallo
+                  </button>
+                  <button 
+                    onClick={handleResolveAllFailures}
+                    disabled={failures.filter(f => !f.resolved).length === 0}
+                    className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+                  >
+                    <CheckCircle size={13} />
+                    Resolver Todos
+                  </button>
+                  <button 
+                    onClick={handleClearAllFailures}
+                    disabled={failures.length === 0}
+                    className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/25 text-red-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+                  >
+                    <Trash2 size={13} />
+                    Vaciar Historial
+                  </button>
+                </div>
+              </div>
+
+              {/* Tarjetas de Resumen */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    failures.filter(f => !f.resolved).length > 0 ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
+                  }`}>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Fallos Activos</span>
+                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5">
+                      {failures.filter(f => !f.resolved).length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Clientes Afectados</span>
+                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5">
+                      {new Set(failures.filter(f => !f.resolved).map(f => f.clientId)).size}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                    <Activity size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Uptime del Motor</span>
+                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5">
+                      {failures.filter(f => !f.resolved).length > 0 ? '99.78%' : '100.00%'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filtro y Listado */}
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-3xl space-y-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--color-border)]">
+                  <h3 className="font-extrabold text-sm text-[var(--color-text)]">Historial de Incidentes</h3>
+                  
+                  {/* Selector de Cliente */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Filtrar Cliente:</span>
+                    <CustomSelect
+                      value={selectedErrorClientFilter}
+                      onChange={(e) => {
+                        setSelectedErrorClientFilter(e.target.value)
+                        setErrorsPage(1)
+                      }}
+                      options={[
+                        { id: 'todos', label: 'Todos los Clientes' },
+                        ...Array.from(new Set(failures.map(f => f.clientId))).map(cid => ({
+                          id: cid,
+                          label: cid
+                        }))
+                      ]}
+                      className="!py-1 !px-2.5 font-bold min-w-[160px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Listado */}
+                {filteredFailures.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <CheckCircle size={36} className="text-emerald-500/40 mx-auto" />
+                    <p className="text-xs font-bold text-[var(--color-text-muted)]">Sin incidentes reportados</p>
+                    <p className="text-[10px] text-slate-500">Todas las instancias de aplicaciones cliente operan correctamente.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {paginatedFailures.map((fail) => {
+                        const isExpanded = expandedErrorId === fail.id
+                        return (
+                          <div 
+                            key={fail.id} 
+                            className={`p-4 rounded-2xl border transition-all duration-200 ${
+                              fail.resolved 
+                                ? 'bg-[var(--color-surface-2)]/20 border-[var(--color-border)]/50 opacity-60' 
+                                : 'bg-[var(--color-surface-2)]/30 border-red-500/20 hover:border-red-500/30'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                              {/* Metadata de Fallo */}
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-slate-800 text-slate-300 font-mono text-[9px] font-black rounded uppercase">
+                                    {fail.clientId}
+                                  </span>
+                                  <span className="text-[10px] text-[var(--color-text-muted)] font-semibold">
+                                    • {fail.niche}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    • {new Date(fail.timestamp).toLocaleString()}
+                                  </span>
+                                  {fail.resolved ? (
+                                    <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase rounded border border-emerald-500/20">
+                                      Resuelto
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 bg-red-500/10 text-red-400 text-[8px] font-black uppercase rounded border border-red-500/20 animate-pulse">
+                                      Activo
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-xs font-bold text-red-400 break-words mt-1">{fail.errorMsg}</h4>
+                                <p className="text-[10px] text-slate-450 dark:text-slate-500">Dispositivo: {fail.deviceInfo}</p>
+                              </div>
+
+                              {/* Acciones */}
+                              <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
+                                <button 
+                                  onClick={() => setSelectedDiagnosticError(fail)}
+                                  className="px-2.5 py-1 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 text-violet-400 text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Diagnosticar
+                                </button>
+                                <button 
+                                  onClick={() => setExpandedErrorId(isExpanded ? null : fail.id)}
+                                  className="px-2.5 py-1 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-lg transition-colors cursor-pointer"
+                                >
+                                  {isExpanded ? 'Ocultar Stack' : 'Ver Stack'}
+                                </button>
+                                {!fail.resolved && (
+                                  <button 
+                                    onClick={() => handleResolveFailure(fail.id)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer active:scale-95 shadow"
+                                  >
+                                    Resolver
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Stack Trace Expandido */}
+                            {isExpanded && (
+                              <div className="mt-3.5 space-y-1.5 animate-fade-in">
+                                <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider font-mono">Stack Trace Diagnóstico:</span>
+                                <pre className="bg-[#0c101a] font-mono text-[10px] p-3.5 rounded-xl border border-red-500/15 overflow-x-auto text-red-300 leading-relaxed shadow-inner select-text select-all">
+                                  {fail.stack}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+
+                    {/* Pagination - Always visible */}
+                    <div className="pt-2 select-none">
+                      <Pagination
+                        currentPage={currentFailuresPage}
+                        totalPages={totalFailuresPages}
+                        onPageChange={setErrorsPage}
+                        siblingCount={1}
+                        showAlways={true}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -2872,9 +4099,15 @@ export default function App() {
                     <div className="text-[var(--color-text-muted)] italic text-xs text-center my-auto">Sin transmisiones registradas.</div>
                   ) : (
                     systemLogs.map((log, index) => {
+                      const isClickable = log.type === 'error';
+                      const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 active:scale-[0.99] transition-all' : '';
                       const cardStyle = { info: 'bg-[var(--color-surface-2)]/45 text-[var(--color-text-muted)] border-[var(--color-border)]', warning: 'bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20', error: 'bg-red-500/5 text-red-700 dark:text-red-400 border-red-500/20', success: 'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' }[log.type]
                       return (
-                        <div key={index} className={`p-2 rounded-xl border ${cardStyle} text-[10px] flex flex-col gap-0.5`}>
+                        <div 
+                          key={index} 
+                          onClick={isClickable ? () => setActiveTab('errors') : undefined}
+                          className={`p-2 rounded-xl border ${cardStyle} ${hoverStyle} text-[10px] flex flex-col gap-0.5`}
+                        >
                           <div className="flex items-center justify-between">
                             <span className="text-[8px] font-bold uppercase">{log.type}</span>
                             <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{log.timestamp}</span>
@@ -2899,6 +4132,28 @@ export default function App() {
           {NAV_TABS.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
+            const isCenterAction = tab.id === 'onboarding'
+            
+            if (isCenterAction) {
+              return (
+                <button
+                  key={tab.id}
+                  id={`bottom-tab-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="relative -mt-3.5 flex flex-col items-center cursor-pointer transition-all duration-300 active:scale-95 group min-w-[64px]"
+                >
+                  <div className={`w-13 h-13 rounded-full flex items-center justify-center bg-gradient-to-tr from-violet-600 via-indigo-600 to-cyan-500 border border-violet-400/20 text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] onboarding-center-btn ${
+                    isActive ? 'scale-105 animate-pulse-glow' : 'animate-center-float'
+                  }`}>
+                    <Icon size={20} className="transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110" />
+                  </div>
+                  <span className={`text-[9px] font-black tracking-wide mt-1.5 transition-colors duration-200 ${
+                    isActive ? 'text-indigo-400' : 'text-[var(--color-text-muted)]'
+                  }`}>{tab.shortLabel}</span>
+                </button>
+              )
+            }
+
             return (
               <button
                 key={tab.id}
@@ -2923,6 +4178,146 @@ export default function App() {
         </div>
       </nav>
 
+
+      {/* Modal de Detalle y Gestión de Cliente (CRM) */}
+      {activeMetricModal === 'clientes' && selectedCrmClientId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="relative w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <h3 className="font-black text-sm uppercase text-indigo-500 tracking-wider flex items-center gap-2">
+                <Users size={16} />
+                Gestionar Cliente: {selectedCrmClientId}
+              </h3>
+              <button 
+                onClick={() => {
+                  setActiveMetricModal(null)
+                  setSelectedCrmClientId(null)
+                }}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Nicho de Mercado */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Nicho de Mercado / Vertical de Negocio</label>
+                <CustomSelect 
+                  value={editNiche} 
+                  onChange={(e) => setEditNiche(e.target.value)}
+                  options={[
+                    { id: "retail_clothing", name: "🛍️ Ropa y Retail Tradicional (retail_clothing)" },
+                    { id: "technical_services", name: "⚙️ Tornerías y Mecanizado de Precisión (technical_services)" },
+                    { id: "refrigeration_ac", name: "❄️ Refrigeración y Climatización (refrigeration_ac)" },
+                    { id: "contractors", name: "📐 Contratistas y Construcción (contractors)" },
+                    { id: "machinery_rental", name: "🚜 Alquiler de Maquinaria y Equipos (machinery_rental)" },
+                    { id: "carpentry", name: "🪚 Carpinterías y Muebles (carpentry)" },
+                    { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
+                    { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
+                    { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
+                    { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
+                  ]}
+                />
+              </div>
+
+              {/* Modo de Facturación */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Modelo de Cobro Base</label>
+                <select 
+                  value={editBillingMode} 
+                  onChange={(e) => setEditBillingMode(e.target.value)}
+                  className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-semibold"
+                >
+                  <option value="percentage">Porcentaje sobre Ventas (%)</option>
+                  <option value="fixed_per_service">Monto Fijo por Servicio</option>
+                  <option value="flat_monthly">Pago Mensual Fijo</option>
+                </select>
+              </div>
+
+              {editBillingMode === 'percentage' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tasa de Comisión (%)</label>
+                  <input 
+                    type="number" 
+                    value={editComisionPorcentaje} 
+                    onChange={(e) => setEditComisionPorcentaje(parseFloat(e.target.value) || 0)}
+                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                    step="0.1"
+                  />
+                </div>
+              )}
+
+              {editBillingMode === 'fixed_per_service' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Monto Fijo por Servicio ($ COP)</label>
+                  <input 
+                    type="number" 
+                    value={editMontoFijoServicio} 
+                    onChange={(e) => setEditMontoFijoServicio(parseInt(e.target.value) || 0)}
+                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              )}
+
+              {editBillingMode === 'flat_monthly' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Pago Mensual Fijo ($ COP)</label>
+                  <input 
+                    type="number" 
+                    value={editPagoMensualFijo} 
+                    onChange={(e) => setEditPagoMensualFijo(parseInt(e.target.value) || 0)}
+                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              )}
+
+              {/* Facturación Electrónica DIAN */}
+              <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={editEnableDianBilling} 
+                    onChange={(e) => setEditEnableDianBilling(e.target.checked)}
+                    className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                  />
+                  Habilitar Facturación Electrónica DIAN Directa
+                </label>
+
+                {editEnableDianBilling && (
+                  <div className="space-y-1.5 animate-fade-in pl-6 border-l border-indigo-500/20">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo por Documento DIAN ($ COP)</label>
+                    <input 
+                      type="number" 
+                      value={editCostoPorFacturaDian}
+                      onChange={(e) => setEditCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
+                      className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
+              <button 
+                onClick={() => {
+                  setActiveMetricModal(null)
+                  setSelectedCrmClientId(null)
+                }}
+                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSaveCrmConfig}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all"
+              >
+                Guardar Configuración
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Onboarding / Checklist */}
       {onboardingData && (
@@ -2962,6 +4357,45 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
+              {/* Credenciales de Administrador Autogeneradas */}
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-3">
+                <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-widest">Credenciales del Administrador (Autogeneradas)</span>
+                <div className="text-xs space-y-2">
+                  <div className="flex items-center justify-between gap-3 bg-[var(--color-bg)] p-2.5 rounded-xl border border-[var(--color-border)] min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-[10px] text-[var(--color-text-muted)] font-black uppercase">EMAIL:</span>
+                      <code className="text-[11px] font-mono text-emerald-300 truncate">{onboardingData.adminEmail || `admin@${onboardingData.clientId}.com`}</code>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        copy(onboardingData.adminEmail || `admin@${onboardingData.clientId}.com`)
+                        showToast('Correo copiado al portapapeles', { type: 'success' })
+                      }}
+                      className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg cursor-pointer flex items-center justify-center shrink-0"
+                      title="Copiar Correo"
+                    >
+                      <Copy size={10} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 bg-[var(--color-bg)] p-2.5 rounded-xl border border-[var(--color-border)] min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-[10px] text-[var(--color-text-muted)] font-black uppercase">PASS:</span>
+                      <code className="text-[11px] font-mono text-emerald-300 truncate">{onboardingData.adminPassword || 'Admin2026!'}</code>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        copy(onboardingData.adminPassword || 'Admin2026!')
+                        showToast('Contraseña copiada al portapapeles', { type: 'success' })
+                      }}
+                      className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg cursor-pointer flex items-center justify-center shrink-0"
+                      title="Copiar Contraseña"
+                    >
+                      <Copy size={10} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="p-4 bg-indigo-500/10 border border-indigo-500/25 rounded-2xl space-y-2">
                 <span className="text-[10px] uppercase font-bold text-indigo-400 block tracking-widest">Token de Telemetría Generado</span>
                 <div className="flex items-center justify-between gap-3 bg-[var(--color-bg)] p-3 rounded-xl border border-[var(--color-border)]">
@@ -3087,6 +4521,248 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
               <p className="text-xs text-slate-400 leading-relaxed">
                 Aprovisionando entorno local e instalando dependencias npm... por favor espera un momento.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Perfil */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="w-full max-w-sm bg-slate-900/60 border border-slate-800/80 p-6 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 space-y-6">
+            
+            {/* Header de Modal */}
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <span className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Perfil de Administrador</span>
+              <button 
+                onClick={() => setIsProfileModalOpen(false)}
+                className="p-1 hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-lg cursor-pointer transition-colors"
+                title="Cerrar modal"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Detalles del Perfil */}
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border-2 border-violet-500/40 flex items-center justify-center select-none shadow-[0_0_20px_rgba(139,92,246,0.1)]">
+                <span className="text-xl font-extrabold text-violet-400">
+                  {user?.email ? user.email.slice(0, 2).toUpperCase() : 'AD'}
+                </span>
+              </div>
+              <div className="space-y-1">
+                <p className="font-extrabold text-base text-[var(--color-text)] tracking-tight leading-tight">{user?.email}</p>
+                <p className="text-[10px] text-violet-500 dark:text-violet-400 font-bold uppercase tracking-widest">Root Developer</p>
+              </div>
+            </div>
+
+            {/* Información del Sistema / Base de Datos */}
+            <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-2.5 text-xs text-left">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Base de Datos</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                  dbStatus === 'conectado' && !isSimulated
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                }`}>
+                  {dbStatus === 'conectado' && !isSimulated ? 'Firestore Online' : 'Modo Sandbox'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Entorno</span>
+                <span className="font-semibold text-[var(--color-text)]">Vite + React 19</span>
+              </div>
+            </div>
+
+            {/* Acción de Ajustes / Configuración */}
+            <button 
+              onClick={() => {
+                setIsProfileModalOpen(false)
+                setActiveTab('settings')
+              }}
+              className="w-full py-2.5 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md mb-2"
+            >
+              <Settings size={13} />
+              Ajustes del Sistema
+            </button>
+
+            {/* Acción de Cierre de Sesión */}
+            <button 
+              onClick={() => {
+                setIsProfileModalOpen(false)
+                handleLogout()
+              }}
+              className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+            >
+              <LogOut size={13} />
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer Lateral de Diagnóstico Inteligente */}
+      {selectedDiagnosticError && (
+        <div className="fixed inset-0 z-[80] overflow-hidden select-none">
+          {/* Backdrop con desenfoque */}
+          <div 
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setSelectedDiagnosticError(null)}
+          />
+
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-2xl flex flex-col justify-between select-text animate-slide-in-right">
+              {/* Header */}
+              <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2 py-0.5 bg-slate-800 text-slate-300 font-mono text-[9px] font-black rounded uppercase">
+                      {selectedDiagnosticError.clientId}
+                    </span>
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                      {new Date(selectedDiagnosticError.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-[var(--color-text)] mt-2 flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-red-500" />
+                    Diagnóstico de Incidente
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedDiagnosticError(null)}
+                  className="w-8 h-8 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80 text-[var(--color-text)] flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Contenido (Scrollable) */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Detalle del Error */}
+                <div className="space-y-2">
+                  <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider font-mono">Mensaje de Error:</span>
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl text-xs font-bold font-mono break-words leading-relaxed shadow-sm">
+                    {selectedDiagnosticError.errorMsg}
+                  </div>
+                </div>
+
+                {/* Análisis y Causa Probable */}
+                {(() => {
+                  const errMsg = selectedDiagnosticError.errorMsg || '';
+                  let diagnosis = "Error genérico de ejecución. Se recomienda auditar el stack trace para identificar el origen.";
+                  let solution = "Revisar los imports, variables de estado de React, y asegurar que no haya referencias a objetos undefined.";
+
+                  if (errMsg.includes('Failed to fetch dynamically imported module')) {
+                    diagnosis = "Error de carga del módulo dinámico de la página. Esto ocurre usualmente por desconexión temporal de internet (modo offline) del usuario en el navegador, un caché corrupto del service worker, o si el archivo fue borrado o renombrado físicamente del disco.";
+                    solution = "1. Verifica que el archivo de la página exista en la ruta especificada de la aplicación.\n2. Asegura que el router tenga correctamente declarada la importación perezosa.\n3. Si fue un corte de internet temporal del cliente en producción, no requiere cambios en el código.";
+                  } else if (errMsg.includes('Missing or insufficient permissions') || errMsg.includes('permission-denied')) {
+                    diagnosis = "Acceso denegado por Firestore Central. La consulta o escritura del cliente fue bloqueada por no cumplir con los criterios de seguridad definidos en las reglas de base de datos.";
+                    solution = "1. Revisa las reglas en `firestore.rules` asociadas a la colección afectada.\n2. Verifica si el usuario cuenta con los claims o roles necesarios en su sesión de Firebase Auth.\n3. Asegúrate de invocar la limpieza de listeners `onSnapshot` al cerrar sesión.";
+                  }
+
+                  // Extraer archivo del error/stack trace
+                  let detectedFile = 'N/A';
+                  let detectedLine = 'N/A';
+                  const fileMatch = selectedDiagnosticError.errorMsg.match(/src\/[a-zA-Z0-9_\-\/]+\.[j|t]sx?/);
+                  if (fileMatch) {
+                    detectedFile = fileMatch[0];
+                  } else {
+                    const stackMatch = selectedDiagnosticError.stack?.match(/src\/[a-zA-Z0-9_\-\/]+\.[j|t]sx?/);
+                    if (stackMatch) detectedFile = stackMatch[0];
+                  }
+
+                  const lineMatch = selectedDiagnosticError.stack?.match(/:(\d+):(\d+)/);
+                  if (lineMatch) {
+                    detectedLine = lineMatch[1];
+                  }
+
+                  return (
+                    <>
+                      <div className="space-y-4 bg-violet-500/5 border border-violet-500/15 p-5 rounded-2xl">
+                        <h4 className="font-extrabold text-xs text-[var(--color-text)] flex items-center gap-1.5">
+                          <Activity size={13} className="text-violet-400" />
+                          Análisis del Asistente
+                        </h4>
+                        
+                        <div className="space-y-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
+                          <div>
+                            <span className="font-extrabold text-[var(--color-text)] block mb-0.5">Causa Probable:</span>
+                            <p>{diagnosis}</p>
+                          </div>
+                          <div>
+                            <span className="font-extrabold text-[var(--color-text)] block mb-0.5">Solución Recomendada:</span>
+                            <p className="whitespace-pre-line leading-relaxed">{solution}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Botones de Portapapeles (Prompt e Integraciones) */}
+                      <div className="grid grid-cols-1 gap-2.5">
+                        <button
+                          onClick={async () => {
+                            const promptText = `En el proyecto '${selectedDiagnosticError.clientId}', corrige el error '${selectedDiagnosticError.errorMsg}' que está ocurriendo en el archivo '${detectedFile}' (Línea: ${detectedLine}, Niche: ${selectedDiagnosticError.niche}). Revisa el stack trace:\n${selectedDiagnosticError.stack || 'No stack trace available'}`;
+                            try {
+                              await navigator.clipboard.writeText(promptText);
+                              showToast('Prompt copiado. ¡Pégalo en el chat de Antigravity!', { type: 'success' });
+                            } catch (err) {
+                              showToast('No se pudo copiar el prompt', { type: 'error' });
+                            }
+                          }}
+                          className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                        >
+                          <Copy size={13} />
+                          Copiar Prompt para Antigravity
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(detectedFile);
+                              showToast('Ruta de archivo copiada', { type: 'success' });
+                            } catch (err) {
+                              showToast('Error al copiar ruta', { type: 'error' });
+                            }
+                          }}
+                          className="w-full py-2.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-2)]/80 border border-[var(--color-border)] text-[var(--color-text)] font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                        >
+                          <Database size={12} className="text-slate-400" />
+                          Copiar Ruta de Archivo ({detectedFile.split('/').pop()})
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {/* Stack Trace */}
+                <div className="space-y-2">
+                  <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider font-mono">Stack Trace Completo:</span>
+                  <pre className="bg-[#0c101a] font-mono text-[9px] p-4 rounded-2xl border border-[var(--color-border)] overflow-x-auto text-red-350/90 leading-relaxed shadow-inner select-text select-all">
+                    {selectedDiagnosticError.stack || "Sin stack trace disponible."}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Footer Acciones */}
+              <div className="p-6 border-t border-[var(--color-border)] bg-[var(--color-surface-2)]/30 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setSelectedDiagnosticError(null)}
+                  className="px-4 py-2 border border-[var(--color-border)] text-xs font-bold rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/80 transition-all cursor-pointer"
+                >
+                  Cerrar
+                </button>
+
+                {!selectedDiagnosticError.resolved && (
+                  <button
+                    onClick={async () => {
+                      await handleResolveFailure(selectedDiagnosticError.id);
+                      setSelectedDiagnosticError(null);
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow"
+                  >
+                    Resolver Incidente
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

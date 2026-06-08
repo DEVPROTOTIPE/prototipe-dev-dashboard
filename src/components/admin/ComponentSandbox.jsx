@@ -51,6 +51,7 @@ const ModalTemplateSandbox = React.lazy(() => import('./sandboxes/ModalTemplateS
 const DatePickerSandbox = React.lazy(() => import('./sandboxes/DatePickerSandbox'));
 const ConnectivityToastSandbox = React.lazy(() => import('./sandboxes/ConnectivityToastSandbox'));
 const QuantitySelectorSandbox = React.lazy(() => import('./sandboxes/QuantitySelectorSandbox'));
+const CustomCursorSandbox = React.lazy(() => import('./sandboxes/CustomCursorSandbox'));
 
 const LoaderSpinner = () => (
   <div className="flex flex-col items-center justify-center p-12 space-y-3">
@@ -291,6 +292,11 @@ const SANDBOXES = {
       <QuantitySelectorSandbox />
     </React.Suspense>
   ),
+  'custom_cursor': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <CustomCursorSandbox />
+    </React.Suspense>
+  ),
 };
 
 // ─── Control Panel ────────────────────────────────────────────────────────────
@@ -498,6 +504,9 @@ export const COMPONENT_SANDBOX_MAP = {
   'local storage state': 'use_local_storage_state',
   'facturación comisional del desarrollador (developerbillingpanel)': 'facturacion_comisional',
   'facturación comisional del desarrollador': 'facturacion_comisional',
+  'facturación y firma digital': 'facturacion_comisional',
+  'facturacion y firma digital': 'facturacion_comisional',
+  'developerbillingpanel': 'facturacion_comisional',
   'ruleta de la fortuna de premios': 'ruleta_suerte',
   'ruleta de la fortuna': 'ruleta_suerte',
   'ruleta de la suerte': 'ruleta_suerte',
@@ -635,6 +644,10 @@ export const COMPONENT_SANDBOX_MAP = {
   'selector de cantidad (quantityselector)': 'quantity_selector',
   'selector de cantidad': 'quantity_selector',
   'quantity selector': 'quantity_selector',
+  'cursor personalizado': 'custom_cursor',
+  'cursor personalizado interactivo (customcursor)': 'custom_cursor',
+  'customcursor': 'custom_cursor',
+  'custom_cursor': 'custom_cursor',
 };
 
 export function getSandboxKey(name = '', technicalName = '') {
@@ -665,9 +678,10 @@ export function getSandboxKey(name = '', technicalName = '') {
     if (str.includes('ubicación') || str.includes('ubicacion') || str.includes('savedlocation') || str.includes('saved_location')) return null;
     if (str.includes('auth') || str.includes('profile') || str.includes('guard')) return 'auth_guard_userprofile';
     if (str.includes('skeleton') || str.includes('shimmer')) return 'global_skeleton_loader';
-    if (str.includes('breadcrumb') || str.includes('migas') || str.includes('pan')) return 'breadcrumb_header';
+    if (str.includes('breadcrumb') || str.includes('migas') || str.split(' ').includes('pan')) return 'breadcrumb_header';
     if (str.includes('error') || str.includes('boundary') || str.includes('fallback')) return 'error_boundary_fallback';
     if (str.includes('caja') || str.includes('cierre') || str.includes('arqueo') || str.includes('diaria')) return 'caja_diaria_pos';
+    if (str.includes('cursor') || str.includes('ccursor') || str.includes('puntero')) return 'custom_cursor';
     return null;
   };
   

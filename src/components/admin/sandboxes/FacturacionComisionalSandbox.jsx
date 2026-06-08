@@ -117,7 +117,7 @@ function DeveloperBillingPanel({
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 animate-pulse">
+            <div key={i} className="bg-slate-900 border border-slate-800/50 rounded-2xl p-4 animate-pulse">
               <div className="h-3 bg-slate-800 rounded-full w-16 mb-3" />
               <div className="h-7 bg-slate-800 rounded-full w-24" />
             </div>
@@ -125,7 +125,7 @@ function DeveloperBillingPanel({
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
                 <ShoppingBag size={14} className="text-blue-500" />
@@ -135,7 +135,7 @@ function DeveloperBillingPanel({
             <p className="text-xl font-black text-slate-100">{formatMoney(billingMetrics?.totalMes)}</p>
           </div>
 
-          <div className="bg-slate-900 border border-emerald-500/20 rounded-2xl p-4">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                 <Wallet size={14} className="text-emerald-500" />
@@ -145,7 +145,7 @@ function DeveloperBillingPanel({
             <p className="text-xl font-black text-emerald-500">{formatMoney(billingMetrics?.comisionMes)}</p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
                 <TrendingUp size={14} className="text-purple-500" />
@@ -156,7 +156,7 @@ function DeveloperBillingPanel({
             <p className="text-[10px] text-slate-400 mt-0.5">este mes</p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
                 <BarChart3 size={14} className="text-amber-500" />
@@ -169,11 +169,11 @@ function DeveloperBillingPanel({
         </div>
       )}
 
-      <div className="bg-slate-900 rounded-2xl border border-slate-850 overflow-hidden">
+      <div className="bg-slate-900 rounded-2xl border border-slate-800/50 overflow-hidden">
         <div className="px-5 py-4">
-          <p className="text-sm font-bold text-slate-200 mb-1">Modelo de Facturación SaaS</p>
+          <p className="text-sm font-bold text-slate-200 mb-1">Modelo de Facturación de Instancias</p>
           <p className="text-xs text-slate-400 mb-4">Configuración del esquema de monetización del cliente.</p>
-          <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
+          <div className="p-3.5 bg-slate-950 border border-slate-800/50 rounded-xl space-y-2.5">
             <div className="flex justify-between items-center text-xs">
               <span className="font-semibold text-slate-400">Método Activo:</span>
               <span className="font-bold text-emerald-500 uppercase">
@@ -182,7 +182,7 @@ function DeveloperBillingPanel({
                 {billingMetrics?.billingMode === 'flat_monthly' && 'Pago Mensual Fijo'}
               </span>
             </div>
-            <div className="flex justify-between items-center text-xs border-t border-slate-850 pt-2.5">
+            <div className="flex justify-between items-center text-xs border-t border-slate-800/50 pt-2.5">
               <span className="font-semibold text-slate-400">Tarifa Pactada:</span>
               <span className="font-bold text-slate-200">
                 {billingMetrics?.billingMode === 'percentage' && `${billingMetrics?.comisionPorcentaje}%`}
@@ -191,7 +191,7 @@ function DeveloperBillingPanel({
               </span>
             </div>
             {billingMetrics?.enableDianBilling && (
-              <div className="flex justify-between items-center text-xs border-t border-slate-850 pt-2.5">
+              <div className="flex justify-between items-center text-xs border-t border-slate-800/50 pt-2.5">
                 <span className="font-semibold text-slate-400">Facturación DIAN:</span>
                 <span className="font-bold text-amber-500">{formatMoney(billingMetrics?.costoPorFacturaDian)} por factura</span>
               </div>
@@ -201,12 +201,12 @@ function DeveloperBillingPanel({
       </div>
 
       {!isLoading && billingMetrics && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-850 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-850">
+        <div className="bg-slate-900 rounded-2xl border border-slate-800/50 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-800/50">
             <p className="text-sm font-bold text-slate-200">Resumen de comisiones</p>
             <p className="text-xs text-slate-400">Totales calculados sobre pedidos completados</p>
           </div>
-          <div className="divide-y divide-slate-850">
+          <div className="divide-y divide-slate-800/50">
             {[
               { label: 'Ventas del mes', value: formatMoney(billingMetrics.totalMes), sub: `${billingMetrics.pedidosMes} pedidos completados` },
               { label: 'Comisión del mes', value: formatMoney(billingMetrics.comisionMes), highlight: true },
@@ -226,7 +226,7 @@ function DeveloperBillingPanel({
       )}
 
       {!isLoading && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-850 p-5 space-y-4">
+        <div className="bg-slate-900 rounded-2xl border border-slate-800/50 p-5 space-y-4">
           <div>
             <p className="text-sm font-bold text-slate-200 mb-1">Generar Recibo y Firma de Conformidad</p>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -250,8 +250,8 @@ function DeveloperBillingPanel({
             onClick={() => setIsSignatureModalOpen(false)}
           />
           
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative max-w-sm w-full space-y-4 z-10 text-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-3xl p-6 shadow-2xl relative max-w-sm w-full space-y-4 z-10 text-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
               <div>
                 <h3 className="text-sm font-bold">Firma de Conformidad</h3>
                 <p className="text-[10px] text-slate-400">Dibuja la firma táctil del cliente en el recuadro</p>
@@ -264,7 +264,7 @@ function DeveloperBillingPanel({
               </button>
             </div>
 
-            <div className="relative border border-slate-800 rounded-2xl overflow-hidden bg-white">
+            <div className="relative border border-slate-800/50 rounded-2xl overflow-hidden bg-white">
               <canvas
                 ref={canvasRef}
                 width={330}
@@ -283,7 +283,7 @@ function DeveloperBillingPanel({
             <div className="flex gap-2">
               <button
                 onClick={clearCanvas}
-                className="flex-1 h-10 border border-slate-800 hover:bg-slate-850 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 h-10 border border-slate-800/50 hover:bg-slate-800 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Trash2 size={14} /> Limpiar
               </button>
