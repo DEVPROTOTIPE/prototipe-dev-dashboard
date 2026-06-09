@@ -3,6 +3,7 @@ import { useAlertConfirm } from '../common/AlertConfirmContext';
 import {
   Sliders, ToggleLeft, ToggleRight, Package, ShoppingBag, Receipt, Search, Info
 } from 'lucide-react';
+import CustomSelect from '../ui/CustomSelect';
 
 // ─── Importaciones Dinámicas (Playgrounds Modularizados) ────────────────────
 const AuthGuardUserProfileSandbox = React.lazy(() => import('./sandboxes/AuthGuardUserProfileSandbox'));
@@ -359,13 +360,13 @@ function ControlPanel({ controls }) {
             </button>
           )}
           {ctrl.type === 'select' && (
-            <select
-              value={ctrl.value}
-              onChange={e => ctrl.onChange(e.target.value)}
-              className="bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text)] text-[10px] rounded-xl px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/40"
-            >
-              {ctrl.options.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            <div className="w-32 shrink-0">
+              <CustomSelect
+                value={ctrl.value}
+                onChange={ctrl.onChange}
+                options={ctrl.options.map(o => ({ value: o, label: String(o) }))}
+              />
+            </div>
           )}
           {(ctrl.type === 'text' || ctrl.type === 'number') && (
             <input

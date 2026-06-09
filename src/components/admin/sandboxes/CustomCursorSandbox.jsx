@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import CustomCursor from '../../../App'; // Importamos el CustomCursor que está en App.jsx para probarlo directamente
 // Nota: En una integración limpia se importaría de su propio archivo UI. Como estamos en la consola, probamos la implementación local de App.jsx.
+import CustomSelect from '../../ui/CustomSelect';
 
 export default function CustomCursorSandbox() {
   const [isActive, setIsActive] = useState(false);
   const [cursorColor, setCursorColor] = useState('#8b5cf6');
   const [cursorSize, setCursorSize] = useState(40);
   const [ringOpacity, setRingOpacity] = useState(0.6);
+  const [cursorOption, setCursorOption] = useState('1');
 
   const colors = [
     { name: 'Violeta Eléctrico', hex: '#8b5cf6' },
@@ -128,10 +130,16 @@ export default function CustomCursorSandbox() {
             className="px-3 py-2 text-xs bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl focus:border-violet-500 outline-none text-[var(--color-text)] placeholder-[var(--color-text-muted)] max-w-[200px]"
           />
 
-          <select className="px-3 py-2 text-xs bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl focus:border-violet-500 outline-none text-[var(--color-text)] cursor-pointer">
-            <option>Opción 1</option>
-            <option>Opción 2</option>
-          </select>
+          <div className="w-32">
+            <CustomSelect
+              value={cursorOption}
+              onChange={setCursorOption}
+              options={[
+                { value: '1', label: 'Opción 1' },
+                { value: '2', label: 'Opción 2' }
+              ]}
+            />
+          </div>
         </div>
 
         {/* Nota informativa */}

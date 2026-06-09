@@ -47,7 +47,12 @@ import {
   DollarSign,
   Hash,
   Send,
-  Trash2
+  Trash2,
+  FlaskConical,
+  Play,
+  StopCircle,
+  CircleCheck,
+  CircleX
 } from 'lucide-react'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
@@ -78,6 +83,9 @@ import { useAlertConfirm } from './components/common/AlertConfirmContext'
 import DarkModeToggle from './components/ui/DarkModeToggle'
 import ComponentLibraryView from './components/admin/ComponentLibraryView'
 import Pagination from './components/ui/Pagination'
+import E2EPanel from './components/admin/E2EPanel'
+import CoreManagerPanel from './components/admin/CoreManagerPanel'
+
 
 
 // Variables de entorno para conectar al Firebase Central de Control
@@ -503,13 +511,15 @@ function CustomSelect({ value, onChange, options, className }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`bg-[var(--color-surface-2)]/40 hover:bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none flex items-center justify-between transition-colors focus:border-indigo-500 cursor-pointer ${className || ''}`}
+        className={`bg-[var(--color-surface-2)]/60 hover:bg-[var(--color-surface-2)] border rounded-xl px-3 py-2 text-xs font-semibold w-full text-[var(--color-text)] outline-none flex items-center justify-between transition-all cursor-pointer select-none ${
+          isOpen ? 'border-indigo-500/40' : 'border-[var(--color-border)] hover:border-indigo-500/30'
+        } ${className || ''}`}
       >
-        <span>{selectedLabel}</span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown size={12} className={`text-[var(--color-text-muted)] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto animate-scale-up">
+      {isOpen && options.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-xl shadow-black/30 py-1 max-h-60 overflow-y-auto backdrop-blur-md animate-scale-up origin-top">
           {options.map(opt => {
             const id = opt.id !== undefined ? opt.id : opt
             const label = opt.name || opt.label || opt.id || opt
@@ -522,13 +532,15 @@ function CustomSelect({ value, onChange, options, className }) {
                   onChange({ target: { value: id } })
                   setIsOpen(false)
                 }}
-                className={`w-full text-left px-3 py-2 text-xs transition-colors cursor-pointer block ${
-                  isSelected 
-                    ? 'bg-indigo-600 text-white font-bold' 
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-left transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-indigo-500/10 text-indigo-300'
                     : 'text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
                 }`}
               >
-                {label}
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-indigo-400' : 'bg-[var(--color-border)]'}`} />
+                <span className="truncate">{label}</span>
+                {isSelected && <Check size={11} className="ml-auto text-indigo-400" />}
               </button>
             )
           })}
@@ -937,7 +949,7 @@ export default function App() {
   const handleClientNameChange = (val) => {
     setNewClientName(val)
     const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    setTargetPath(val.trim() ? `D:\\Aplicaciones\\App-${slug}` : '')
+    setTargetPath(val.trim() ? `D:\\PROTOTIPE\\Instancias Clientes\\App-${slug}` : '')
   }
 
   // Reintentar solo el aprovisionamiento físico en disco (CLI) cuando Firestore ya fue exitoso
@@ -1993,7 +2005,7 @@ export default function App() {
                           type="text" 
                           value={targetPath}
                           onChange={(e) => setTargetPath(e.target.value)}
-                          placeholder="D:\Aplicaciones\App-ventas-smartfix"
+                          placeholder="D:\PROTOTIPE\Instancias Clientes\App-ventas-smartfix"
                           className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
                         />
                       </div>
@@ -3280,6 +3292,8 @@ export default function App() {
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo' },
+    { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
+    { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
   ]
 
   // Proyecciones de ingresos calculadas
@@ -4674,6 +4688,16 @@ export default function App() {
             </div>
           )}
 
+          {/* ===== TAB: E2E TESTS ===== */}
+          {activeTab === 'e2e' && (
+            <E2EPanel />
+          )}
+
+          {/* ===== TAB: GESTIÓN DE CORES ===== */}
+          {activeTab === 'cores' && (
+            <CoreManagerPanel showToast={(msg, type) => showToast(msg, { type })} />
+          )}
+
           {/* ===== TAB: SETTINGS ===== */}
           {activeTab === 'settings' && (
             <div className="space-y-6 tab-content-enter">
@@ -5015,7 +5039,7 @@ export default function App() {
       {/* BOTTOM NAVIGATION - Móvil */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl pb-safe animate-slide-up">
         <div className="flex items-center justify-around px-2 py-1.5">
-          {NAV_TABS.map(tab => {
+          {NAV_TABS.filter(tab => tab.id !== 'e2e' && tab.id !== 'cores').map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             const isCenterAction = tab.id === 'onboarding'
@@ -5110,15 +5134,15 @@ export default function App() {
               {/* Modo de Facturación */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Modelo de Cobro Base</label>
-                <select 
-                  value={editBillingMode} 
-                  onChange={(e) => setEditBillingMode(e.target.value)}
-                  className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-semibold"
-                >
-                  <option value="percentage">Porcentaje sobre Ventas (%)</option>
-                  <option value="fixed_per_service">Monto Fijo por Servicio</option>
-                  <option value="flat_monthly">Pago Mensual Fijo</option>
-                </select>
+                <CustomSelect
+                  value={editBillingMode}
+                  onChange={(val) => setEditBillingMode(val)}
+                  options={[
+                    { value: "percentage", label: "Porcentaje sobre Ventas (%)" },
+                    { value: "fixed_per_service", label: "Monto Fijo por Servicio" },
+                    { value: "flat_monthly", label: "Pago Mensual Fijo" }
+                  ]}
+                />
               </div>
 
               {editBillingMode === 'percentage' && (
@@ -5460,6 +5484,30 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                 <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Entorno</span>
                 <span className="font-semibold text-[var(--color-text)]">Vite + React 19</span>
               </div>
+            </div>
+
+            {/* Accesos a Herramientas de Desarrollador en Móvil */}
+            <div className="lg:hidden grid grid-cols-2 gap-2 w-full mb-2">
+              <button 
+                onClick={() => {
+                  setIsProfileModalOpen(false)
+                  setActiveTab('cores')
+                }}
+                className="py-2.5 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+              >
+                <Layers size={13} />
+                Cores
+              </button>
+              <button 
+                onClick={() => {
+                  setIsProfileModalOpen(false)
+                  setActiveTab('e2e')
+                }}
+                className="py-2.5 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+              >
+                <FlaskConical size={13} />
+                Tests E2E
+              </button>
             </div>
 
             {/* Acción de Ajustes / Configuración */}

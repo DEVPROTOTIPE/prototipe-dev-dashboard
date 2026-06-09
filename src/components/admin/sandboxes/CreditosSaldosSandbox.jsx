@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DollarSign, User, PlusCircle, CheckCircle } from 'lucide-react';
+import CustomSelect from '../../ui/CustomSelect';
 
 export default function CreditosSaldosSandbox() {
   const [clients, setClients] = useState([
@@ -66,13 +67,13 @@ export default function CreditosSaldosSandbox() {
       <div className="pt-2 border-t border-slate-900 space-y-2 text-xs">
         <h4 className="text-[10px] font-black uppercase text-indigo-400">Registrar Abono de Cuota</h4>
         <div className="flex gap-2">
-          <select
-            value={paymentInput.clientId}
-            onChange={e => setPaymentInput(prev => ({ ...prev, clientId: e.target.value }))}
-            className="flex-1 bg-slate-900 border border-slate-800 text-slate-200 rounded-xl px-2.5 py-1 focus:outline-none"
-          >
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <div className="flex-1 min-w-[140px]">
+            <CustomSelect
+              value={paymentInput.clientId}
+              onChange={val => setPaymentInput(prev => ({ ...prev, clientId: val }))}
+              options={clients.map(c => ({ value: c.id, label: c.name }))}
+            />
+          </div>
           <input
             type="number"
             placeholder="Monto a abonar..."

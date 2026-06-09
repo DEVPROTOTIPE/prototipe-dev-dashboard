@@ -366,7 +366,7 @@ export default function ComponentLibraryView({ showToast }) {
             </p>
           </div>
           <div className="p-3 bg-[var(--color-bg)]/80 rounded-xl border border-[var(--color-border)] text-left font-mono text-[10px] text-red-300">
-            cd D:\Aplicaciones\Prototipe-CLI && node server.js
+            cd D:\PROTOTIPE\Prototipe-CLI && node server.js
           </div>
           <button onClick={fetchLibrary} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer">
             Reintentar

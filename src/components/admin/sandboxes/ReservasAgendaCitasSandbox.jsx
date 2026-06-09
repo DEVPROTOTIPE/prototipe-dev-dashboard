@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, User, Sparkles } from 'lucide-react';
+import CustomSelect from '../../ui/CustomSelect';
 
 export default function ReservasAgendaCitasSandbox() {
   const professionals = [
@@ -55,13 +56,13 @@ export default function ReservasAgendaCitasSandbox() {
           <span className="text-[10px] text-indigo-400 font-black uppercase tracking-wider block">Agenda de Servicios</span>
           <span className="text-[9px] text-slate-500 block">Presiona horas libres para agendar o cita para cancelar.</span>
         </div>
-        <select
-          value={selectedProf}
-          onChange={e => setSelectedProf(e.target.value)}
-          className="bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl px-2.5 py-1 focus:ring-1 focus:ring-indigo-500 max-w-xs focus:outline-none"
-        >
-          {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <div className="w-56">
+          <CustomSelect
+            value={selectedProf}
+            onChange={setSelectedProf}
+            options={professionals.map(p => ({ value: p.id, label: p.name }))}
+          />
+        </div>
       </div>
 
       <div className="flex items-center justify-between bg-slate-900/60 p-2 border border-slate-800/80 rounded-xl">
