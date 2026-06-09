@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { 
   TrendingUp, 
   Users, 
@@ -616,6 +616,9 @@ export default function App() {
   const [historyPage, setHistoryPage] = useState(1)
   const [showArchivedHistory, setShowArchivedHistory] = useState(false)
   const [selectedDiagnosticError, setSelectedDiagnosticError] = useState(null)
+  const [codeSnippet, setCodeSnippet] = useState(null)
+  const [loadingCode, setLoadingCode] = useState(false)
+  const [codeError, setCodeError] = useState(null)
 
   // Estados Interactivos del Mockup de Smartphone en Vista Previa
   const [mockActiveTab, setMockActiveTab] = useState('inicio')
@@ -658,6 +661,71 @@ export default function App() {
     link.href = `https://fonts.googleapis.com/css2?family=${googleFont.replace(' ', '+')}:wght@400;600;800&display=swap`;
   }, [googleFont]);
 
+  // Carga reactiva de fragmento de código para diagnóstico de errores
+  useEffect(() => {
+    if (!selectedDiagnosticError) {
+      setCodeSnippet(null);
+      setCodeError(null);
+      return;
+    }
+
+    const getFileAndLine = () => {
+      const text = `${selectedDiagnosticError.errorMsg || ''}\n${selectedDiagnosticError.stack || ''}`;
+      const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i;
+      const srcMatch = text.match(srcRegex);
+      if (srcMatch) return { file: srcMatch[1], line: parseInt(srcMatch[2]) || null };
+      
+      const stackLines = (selectedDiagnosticError.stack || '').split('\n');
+      for (const line of stackLines) {
+        if (line.includes('node_modules') || line.includes('installHook.js') || line.includes('react-dom') || line.includes('react.development')) {
+          continue;
+        }
+        const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
+        const match = line.match(fileLineRegex);
+        if (match) {
+          let file = match[1];
+          if (file === 'App.jsx') file = 'src/App.jsx';
+          return { file, line: parseInt(match[2]) || null };
+        }
+      }
+      return { file: null, line: null };
+    };
+
+    const { file, line } = getFileAndLine();
+    if (!file || file === 'N/A') {
+      setCodeSnippet(null);
+      setCodeError('No se pudo identificar una ruta de archivo válida en el error.');
+      return;
+    }
+
+    setLoadingCode(true);
+    setCodeError(null);
+
+    fetch(`http://localhost:3001/api/project/file?clientId=${encodeURIComponent(selectedDiagnosticError.clientId)}&relativePath=${encodeURIComponent(file)}`)
+      .then(res => {
+        if (!res.ok) throw new Error('El archivo no está accesible en el servidor local o la CLI Bridge no está corriendo.');
+        return res.json();
+      })
+      .then(data => {
+        if (data.success) {
+          setCodeSnippet({
+            content: data.content,
+            file: data.filePath,
+            targetLine: line
+          });
+        } else {
+          throw new Error(data.error || 'Fallo desconocido.');
+        }
+      })
+      .catch(err => {
+        console.error('Error al cargar fragmento de código:', err);
+        setCodeError(err.message);
+      })
+      .finally(() => {
+        setLoadingCode(false);
+      });
+  }, [selectedDiagnosticError]);
+
   // Control de Tema Claro/Oscuro
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
 
@@ -667,6 +735,10 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState('todos')
   const [isSimulated, setIsSimulated] = useState(false)
   const [dbStatus, setDbStatus] = useState('conectando')
+  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? window.navigator.onLine : true)
+  const [telemetryClientFilter, setTelemetryClientFilter] = useState('todos')
+  const [telemetryTypeFilter, setTelemetryTypeFilter] = useState('todos')
+  const [telemetrySearchQuery, setTelemetrySearchQuery] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [selectedReport, setSelectedReport] = useState(null)
@@ -716,6 +788,54 @@ export default function App() {
   const [waComision, setWaComision] = useState('')
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [editingTemplateBody, setEditingTemplateBody] = useState('')
+
+  // Listado unificado de clientes que envían telemetría
+  const telemetryClientsList = useMemo(() => {
+    const ids = new Set([
+      ...clientesSaas.map(c => c.id),
+      ...reports.map(r => r.clientId),
+      ...failures.map(f => f.clientId),
+      ...systemLogs.map(l => l.client).filter(Boolean)
+    ])
+    return Array.from(ids).map(id => {
+      const failuresCount = failures.filter(f => f.clientId === id && !f.resolved).length
+      const billingCount = reports.filter(r => r.clientId === id).length
+      const config = clientesSaas.find(c => c.id === id) || {}
+      return {
+        id,
+        name: config.clientName || id,
+        failuresCount,
+        billingCount,
+        niche: config.niche || 'general',
+        billingMode: config.billingMode || 'percentage'
+      }
+    })
+  }, [clientesSaas, reports, failures, systemLogs])
+
+  // Filtrado avanzado de logs de la consola de telemetría
+  const filteredTelemetryLogs = useMemo(() => {
+    return systemLogs.filter(log => {
+      // Filtro por Cliente
+      const matchesClient = telemetryClientFilter === 'todos' || (log.client && log.client.toLowerCase() === telemetryClientFilter.toLowerCase());
+      
+      // Filtro por Tipo de Log
+      let matchesType = true;
+      if (telemetryTypeFilter === 'error') {
+        matchesType = log.type === 'error';
+      } else if (telemetryTypeFilter === 'billing') {
+        matchesType = log.type === 'success' && (log.message.includes('facturación') || log.message.includes('cobro') || log.message.includes('Billing') || log.message.includes('reportes'));
+      } else if (telemetryTypeFilter === 'info_warning') {
+        matchesType = log.type === 'info' || log.type === 'warning';
+      }
+      
+      // Filtro por caja de búsqueda de texto
+      const matchesSearch = !telemetrySearchQuery || 
+                            log.message.toLowerCase().includes(telemetrySearchQuery.toLowerCase()) || 
+                            (log.client && log.client.toLowerCase().includes(telemetrySearchQuery.toLowerCase()));
+      
+      return matchesClient && matchesType && matchesSearch;
+    });
+  }, [systemLogs, telemetryClientFilter, telemetryTypeFilter, telemetrySearchQuery])
 
   const getClientRate = (clientId) => {
     const configObj = clientesSaas.find(c => c.id.toLowerCase() === clientId.toLowerCase())
@@ -944,6 +1064,25 @@ export default function App() {
     }
   }
 
+  // Network connection status listeners
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleOnline = () => {
+      setIsOnline(true)
+      addLog("Conexión de red restablecida. Consola de telemetría en línea.", "success")
+    }
+    const handleOffline = () => {
+      setIsOnline(false)
+      addLog("Sin conexión a internet. Operando en modo local/desconectado.", "error")
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   // Auth y Firebase Listeners
   useEffect(() => {
     if (isSimulated) {
@@ -1008,8 +1147,13 @@ export default function App() {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setReports(data)
             setIsLoading(false)
-            const clientsList = Array.from(new Set(data.map(d => d.clientId || 'desconocido'))).join(', ')
-            addLog(`Sincronizados ${data.length} reportes de facturación de clientes en vivo. Clientes: [${clientsList}]`, "success")
+            // Log additions dynamically
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === "added") {
+                const docData = change.doc.data()
+                addLog(`Reporte de facturación periodico [${docData.periodo}] registrado por valor de $${Number(docData.comisionValor || 0).toLocaleString()} (Ventas: $${Number(docData.totalVentas || 0).toLocaleString()}).`, "success", docData.clientId)
+              }
+            })
           }, (error) => {
             console.warn("Fallo al leer datos reales. Cargando sandbox local:", error)
             loadSimulatedData()
@@ -1043,11 +1187,12 @@ export default function App() {
           unsubFailures = onSnapshot(qFailures, (snapshot) => {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setFailures(data)
-            const activeFailures = data.filter(f => !f.resolved)
-            if (activeFailures.length > 0) {
-              const clientIds = Array.from(new Set(activeFailures.map(f => f.clientId || 'desconocido'))).join(', ')
-              addLog(`⚠️ Detectados ${activeFailures.length} fallos activos en aplicaciones de clientes: [${clientIds}].`, "error")
-            }
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === "added") {
+                const docData = change.doc.data()
+                addLog(`FALLO DETECTADO: "${docData.errorMsg || 'Error genérico'}" en ruta ${docData.environment?.url || 'N/A'}.`, "error", docData.clientId)
+              }
+            })
           }, (error) => {
             console.warn("Fallo al escuchar app_failures:", error)
           })
@@ -1377,14 +1522,29 @@ export default function App() {
       ? clientesSaas[Math.floor(Math.random() * clientesSaas.length)]
       : { id: 'ventas-smartfix', niche: 'Ropa y Calzado' }
 
+    const tokenDoc = telemetryTokens.find(t => t.clientId === targetCli.id)
+    const activeToken = tokenDoc ? tokenDoc.id : (telemetryTokens[0]?.id || '')
+
     const newFailure = {
       clientId: targetCli.id || 'desconocido',
+      token: activeToken,
       niche: targetCli.niche || 'General',
       timestamp: new Date().toISOString(),
       errorMsg: randomError.msg,
       stack: randomError.stack,
       deviceInfo: `Chrome/124.0.0 (Windows NT 10.0; Win64; x64) WebView2`,
-      resolved: false
+      resolved: false,
+      environment: {
+        url: `https://${targetCli.id || 'ventas'}.grupocontrol.com/tienda`,
+        userAgent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0`,
+        screenResolution: "1920x1080",
+        viewport: "1440x900",
+        language: "es-ES"
+      },
+      user: {
+        uid: "usr-simulated-" + Math.floor(Math.random() * 1000),
+        email: "simulado@test.com"
+      }
     }
 
     if (isSimulated) {
@@ -1492,7 +1652,7 @@ export default function App() {
 
   // Crear reporte prueba
   const handleCreateTestReport = async () => {
-    const targetClient = isSimulated ? 'cliente-simulado-' + Math.floor(Math.random() * 10) : CLIENT_ID
+    const targetClient = isSimulated ? 'cliente-simulado-' + Math.floor(Math.random() * 10) : (reports[0]?.clientId || 'ventas-smartfix')
     const testPeriod = new Date().toISOString().substring(0, 7)
     const reportId = `${targetClient}_${testPeriod}`
     const sales = Math.floor(Math.random() * 8000000) + 2000000
@@ -3473,73 +3633,136 @@ export default function App() {
                               <span className="text-xs font-black text-violet-650 dark:text-violet-400 font-mono">${client.totalCommission.toLocaleString('es-CO')}</span>
                               {client.pendingCount > 0 ? (
                                 <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 block mt-0.5">{client.pendingCount} pend.</span>
-                              ) : (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 block mt-0.5">Al día</span>
-                              )}
+                              ) : null}
                             </div>
                           </div>
                         )
-                      })}
+                      })}`
                     </div>
                   )}
                 </div>
 
-                {/* Consola de Telemetría (Estilo Ventana de Comandos Real) */}
+                {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
                 <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden">
                   {/* Top Bar de Ventana de Comandos */}
                   <div className="bg-[var(--color-surface-2)]/60 px-4 py-2 border-b border-[var(--color-border)] flex items-center justify-between shrink-0 select-none">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 block" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 block" />
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 block" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500/85 block" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/85 block" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/85 block" />
                     </div>
                     <span className="text-[10px] font-mono text-[var(--color-text-muted)] tracking-wider">telemetry_monitor.sh</span>
                     <span className="w-6" />
                   </div>
                   
-                  <div className="p-5 flex flex-col flex-1">
-                    <div className="space-y-1 mb-4">
-                      <span className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Live Monitor</span>
-                      <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
-                        <Activity size={16} className="text-violet-400 animate-pulse" />
-                        Telemetría
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div className="p-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl flex items-center gap-2">
-                        <span className="relative flex h-2 w-2 shrink-0">
-                          <span className={`animate-radar-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-                          <span className={`relative inline-flex rounded-full h-2 w-2 ${dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                        </span>
-                        <div className="min-w-0">
-                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Canal DB</span>
-                          <span className="text-[10px] font-bold text-[var(--color-text)] truncate block">{dbStatus === 'conectado' && !isSimulated ? 'Firestore' : 'Sandbox'}</span>
-                        </div>
+                  <div className="p-5 flex flex-col flex-1 gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Live Monitor</span>
+                        <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
+                          <Activity size={16} className="text-violet-400 animate-pulse" />
+                          Telemetría
+                        </h3>
                       </div>
-                      <div className="p-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl flex items-center gap-2">
-                        <span className="relative flex h-2 w-2 shrink-0">
-                          <span className={`animate-radar-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${systemLogs.length > 0 ? (systemLogs[0].type === 'error' ? 'bg-red-400' : systemLogs[0].type === 'warning' ? 'bg-amber-400' : 'bg-emerald-400') : 'bg-slate-400'}`}></span>
-                          <span className={`relative inline-flex rounded-full h-2 w-2 ${systemLogs.length > 0 ? (systemLogs[0].type === 'error' ? 'bg-red-500' : systemLogs[0].type === 'warning' ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-slate-500'}`}></span>
+                      <span className="flex h-2.5 w-2.5 relative">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                          !isOnline ? 'bg-red-400' : (isSimulated ? 'bg-amber-400' : 'bg-emerald-400')
+                        }`}></span>
+                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                          !isOnline ? 'bg-red-500' : (isSimulated ? 'bg-amber-500' : 'bg-emerald-500')
+                        }`}></span>
+                      </span>
+                    </div>
+
+                    {/* Canal DB & Status Info Row */}
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="p-2 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl flex items-center gap-1.5 min-w-0">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${!isOnline ? 'bg-red-500' : (dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-500' : 'bg-amber-500')}`} />
+                        <span className="truncate font-semibold text-[var(--color-text-muted)]">
+                          {!isOnline ? 'Offline' : (dbStatus === 'conectado' && !isSimulated ? 'Firestore' : 'Sandbox')}
                         </span>
-                        <div className="min-w-0">
-                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Status</span>
-                          <span className="text-[10px] font-bold text-[var(--color-text)] truncate block">{systemLogs.length > 0 ? systemLogs[0].type : 'Inactivo'}</span>
-                        </div>
+                      </div>
+                      <div className="p-2 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl flex items-center gap-1.5 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        <span className="truncate font-semibold text-[var(--color-text-muted)] uppercase">
+                          {telemetryTypeFilter === 'todos' ? 'Todos' : telemetryTypeFilter}
+                        </span>
                       </div>
                     </div>
-                    
-                    <div className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl p-3 h-[220px] overflow-y-auto scrollbar-thin flex flex-col gap-2">
-                      {systemLogs.length === 0 ? (
-                        <div className="text-[var(--color-text-muted)] italic text-xs text-center my-auto flex items-center justify-center gap-1">
+
+                    {/* Interactive Filters Bar */}
+                    <div className="space-y-2">
+                      {/* Tabs de tipo de log */}
+                      <div className="flex bg-slate-950/40 p-0.5 rounded-xl border border-slate-900 justify-between">
+                        {[
+                          { id: 'todos', label: 'Todos' },
+                          { id: 'error', label: 'Fallas' },
+                          { id: 'billing', label: 'Cobros' },
+                          { id: 'info_warning', label: 'Sistema' }
+                        ].map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => { setTelemetryTypeFilter(t.id); setLogPage(1); }}
+                            className={`flex-1 text-center py-1 rounded-lg text-[8px] font-bold transition-all cursor-pointer ${
+                              telemetryTypeFilter === t.id 
+                                ? 'bg-indigo-650 text-white shadow-sm' 
+                                : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Buscador de logs compacto */}
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="Buscar en logs..." 
+                          value={telemetrySearchQuery}
+                          onChange={(e) => { setTelemetrySearchQuery(e.target.value); setLogPage(1); }}
+                          className="h-7 pl-7 pr-6 w-full bg-slate-950/40 border border-[var(--color-border)] text-[9px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900/40 transition-all"
+                        />
+                        <Search size={10} className="absolute left-2.5 top-2.5 text-slate-500" />
+                        {telemetrySearchQuery && (
+                          <button 
+                            onClick={() => setTelemetrySearchQuery('')}
+                            className="absolute right-2 top-2 text-[8px] font-bold text-slate-500 hover:text-white"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Active client filter badge */}
+                    {telemetryClientFilter !== 'todos' && (
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full self-start">
+                        <span className="text-[8px] font-bold uppercase text-indigo-400">Cliente:</span>
+                        <span className="text-[8px] font-extrabold text-[var(--color-text)] font-mono truncate max-w-[90px]">{telemetryClientFilter}</span>
+                        <button 
+                          onClick={() => setTelemetryClientFilter('todos')}
+                          className="text-[7px] text-indigo-300 hover:text-white ml-1 font-bold cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Terminal logs list */}
+                    <div className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl p-3 h-[240px] overflow-y-auto scrollbar-thin flex flex-col gap-2">
+                      {filteredTelemetryLogs.length === 0 ? (
+                        <div className="text-[var(--color-text-muted)] italic text-xs text-center my-auto flex flex-col items-center justify-center gap-1 select-none">
+                          <Activity size={18} className="text-slate-650 dark:text-slate-755 animate-pulse mb-1" />
                           <span>Sin transmisiones registradas</span>
-                          <span className="w-1.5 h-3 bg-violet-400 animate-cursor-blink inline-block" />
+                          <span className="text-[8px] text-slate-500">Prueba cambiando los filtros</span>
                         </div>
                       ) : (
                         (() => {
                           const LOGS_PER_PAGE = 5
-                          const totalLogPages = Math.ceil(systemLogs.length / LOGS_PER_PAGE) || 1
+                          const totalLogPages = Math.ceil(filteredTelemetryLogs.length / LOGS_PER_PAGE) || 1
                           const currentPage = Math.min(logPage, totalLogPages)
-                          const paginatedLogs = systemLogs.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE)
+                          const paginatedLogs = filteredTelemetryLogs.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE)
                           return paginatedLogs.map((log, index) => {
                             const isClickable = log.type === 'error';
                             const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 active:scale-[0.99] transition-all' : '';
@@ -3549,14 +3772,28 @@ export default function App() {
                             return (
                               <div 
                                 key={index} 
-                                onClick={isClickable ? () => setActiveTab('errors') : undefined}
-                                className={`p-2 rounded-xl border ${cardStyle} ${hoverStyle} text-[10px] flex flex-col gap-0.5`}
+                                onClick={isClickable ? () => { setSelectedErrorClientFilter(log.client || 'todos'); setActiveTab('errors'); } : undefined}
+                                className={`p-2 rounded-xl border ${cardStyle} ${hoverStyle} text-[9px] flex flex-col gap-1`}
                               >
                                 <div className="flex items-center justify-between">
-                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${badgeStyle}`}>{label}</span>
-                                  <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{log.timestamp}</span>
+                                  <div className="flex items-center gap-1">
+                                    <span className={`px-1 py-0.5 rounded text-[7px] font-bold ${badgeStyle}`}>{label}</span>
+                                    {log.client && (
+                                      <span 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTelemetryClientFilter(log.client);
+                                        }}
+                                        className="px-1 py-0.2 bg-slate-500/10 border border-slate-500/20 text-slate-400 hover:text-indigo-400 rounded text-[7px] font-mono cursor-pointer"
+                                        title="Filtrar por este cliente"
+                                      >
+                                        {log.client}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[7.5px] text-[var(--color-text-muted)] font-mono">{log.timestamp}</span>
                                 </div>
-                                <p className="font-mono leading-relaxed break-words">
+                                <p className="font-mono leading-relaxed break-words pl-0.5">
                                   {log.message}
                                   {index === 0 && <span className="w-1.5 h-3 bg-violet-400 animate-cursor-blink inline-block ml-1" />}
                                 </p>
@@ -3566,21 +3803,42 @@ export default function App() {
                         })()
                       )}
                     </div>
-                    <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
-                      <button onClick={() => { setSystemLogs([]); setLogPage(1) }} className="text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Limpiar</button>
-                      {systemLogs.length > 5 && (
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <button disabled={logPage === 1} onClick={() => setLogPage(p => Math.max(p - 1, 1))} className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] disabled:opacity-30 cursor-pointer font-bold">◀</button>
-                          <span className="font-mono text-[9px] text-[var(--color-text-muted)]">{logPage}/{Math.ceil(systemLogs.length / 5)}</span>
-                          <button disabled={logPage >= Math.ceil(systemLogs.length / 5)} onClick={() => setLogPage(p => p + 1)} className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] disabled:opacity-30 cursor-pointer font-bold">▶</button>
+
+                    {/* Pagination & Limpiar */}
+                    <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
+                      <button 
+                        onClick={() => { setSystemLogs([]); setLogPage(1) }} 
+                        className="text-[9px] font-bold text-slate-500 hover:text-slate-350 transition-colors cursor-pointer"
+                      >
+                        Limpiar
+                      </button>
+                      {filteredTelemetryLogs.length > 5 && (
+                        <div className="flex items-center gap-1.5 text-[9px]">
+                          <button 
+                            disabled={logPage === 1} 
+                            onClick={() => setLogPage(p => Math.max(p - 1, 1))} 
+                            className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] disabled:opacity-30 cursor-pointer font-bold"
+                          >
+                            ◀
+                          </button>
+                          <span className="font-mono text-[8.5px] text-[var(--color-text-muted)]">
+                            {logPage}/{Math.ceil(filteredTelemetryLogs.length / 5)}
+                          </span>
+                          <button 
+                            disabled={logPage >= Math.ceil(filteredTelemetryLogs.length / 5)} 
+                            onClick={() => setLogPage(p => p + 1)} 
+                            className="px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-border)] disabled:opacity-30 cursor-pointer font-bold"
+                          >
+                            ▶
+                          </button>
                         </div>
                       )}
-                    </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* SIMULADOR DE PROYECCIONES DE INGRESOS */}
+            {/* SIMULADOR DE PROYECCIONES DE INGRESOS */}
               <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-border)] transition-colors duration-300">
                 <div className="flex items-center justify-between mb-5">
                   <div>
@@ -4467,39 +4725,285 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              {/* Logs completos */}
-              <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
-                    <Terminal size={15} className="text-indigo-400" />
-                    Consola del Sistema
-                  </h3>
-                  <button onClick={() => { setSystemLogs([]); setLogPage(1) }} className="text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">Limpiar</button>
-                </div>
-                <div className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl p-3 h-[300px] overflow-y-auto scrollbar-thin flex flex-col gap-2">
-                  {systemLogs.length === 0 ? (
-                    <div className="text-[var(--color-text-muted)] italic text-xs text-center my-auto">Sin transmisiones registradas.</div>
-                  ) : (
-                    systemLogs.map((log, index) => {
-                      const isClickable = log.type === 'error';
-                      const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 active:scale-[0.99] transition-all' : '';
-                      const cardStyle = { info: 'bg-[var(--color-surface-2)]/45 text-[var(--color-text-muted)] border-[var(--color-border)]', warning: 'bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20', error: 'bg-red-500/5 text-red-700 dark:text-red-400 border-red-500/20', success: 'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' }[log.type]
+              {/* Panel de Telemetría Centralizada Multi-Cliente (Premium Matrix) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Columna 1: Tarjetas de Clientes Activos */}
+                <div className="space-y-4">
+                  <div className="bg-[var(--color-surface)] p-5 rounded-3xl border border-[var(--color-border)] shadow-md">
+                    <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
+                      <Users size={16} className="text-indigo-400" />
+                      Instancias Activas ({telemetryClientsList.length})
+                    </h3>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                      Monitoreo de estado por cliente. Haz clic en una tarjeta para filtrar sus logs de telemetría.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                    {telemetryClientsList.map(client => {
+                      const isSelected = telemetryClientFilter.toLowerCase() === client.id.toLowerCase();
+                      const hasFailures = client.failuresCount > 0;
+                      
                       return (
                         <div 
-                          key={index} 
-                          onClick={isClickable ? () => setActiveTab('errors') : undefined}
-                          className={`p-2 rounded-xl border ${cardStyle} ${hoverStyle} text-[10px] flex flex-col gap-0.5`}
+                          key={client.id}
+                          onClick={() => setTelemetryClientFilter(isSelected ? 'todos' : client.id)}
+                          className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer relative overflow-hidden select-none ${
+                            isSelected 
+                              ? 'bg-gradient-to-br from-indigo-500/15 via-[var(--color-surface-2)] to-indigo-500/5 border-indigo-500/40 shadow-md scale-[1.01]' 
+                              : 'bg-[var(--color-surface)] border-[var(--color-border)] hover:border-slate-700/50 hover:bg-[var(--color-surface-2)]/30'
+                          }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[8px] font-bold uppercase">{log.type}</span>
-                            <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{log.timestamp}</span>
+                          {/* Top row: Client name & Status dot */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base select-none shrink-0">
+                                {client.niche === 'wellness_podology' ? '🦶' :
+                                 client.niche === 'retail_clothing' ? '👕' :
+                                 client.niche === 'technical_services' ? '🛠️' :
+                                 client.niche === 'refrigeration_ac' ? '❄️' :
+                                 client.niche === 'contractors' ? '👷' :
+                                 client.niche === 'machinery_rental' ? '🚜' :
+                                 client.niche === 'carpentry' ? '🪚' :
+                                 client.niche === 'laundry' ? '🧺' :
+                                 client.niche === 'furniture_repair' ? '🛋️' :
+                                 client.niche === 'grocery_food' ? '🛒' : '📦'}
+                              </span>
+                              <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate select-all">{client.id}</h4>
+                            </div>
+                            <span className="flex h-2.5 w-2.5 relative shrink-0">
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                                hasFailures ? 'bg-red-400' : 'bg-emerald-400'
+                              }`}></span>
+                              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                                hasFailures ? 'bg-red-500' : 'bg-emerald-500'
+                              }`}></span>
+                            </span>
                           </div>
-                          <p className="font-mono leading-relaxed break-words">{log.message}</p>
+
+                          {/* Client Nickname */}
+                          {client.name !== client.id && (
+                            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate font-medium">{client.name}</p>
+                          )}
+
+                          {/* Quick indicators */}
+                          <div className="grid grid-cols-2 gap-2 mt-3.5">
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedErrorClientFilter(client.id);
+                                setActiveTab('errors');
+                              }}
+                              className={`p-2 rounded-xl border flex items-center justify-between text-[10px] font-bold transition-all hover:scale-[1.03] active:scale-[0.98] ${
+                                hasFailures 
+                                  ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20' 
+                                  : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)]'
+                              }`}
+                              title="Ver diagnósticos en pestaña errores"
+                            >
+                              <span>⚠️ Fallos</span>
+                              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${hasFailures ? 'bg-red-500 text-white font-black' : 'bg-[var(--color-surface-2)] text-[var(--color-text)]'}`}>
+                                {client.failuresCount}
+                              </span>
+                            </div>
+
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchQuery(client.id);
+                                setStatusFilter('todos');
+                                setActiveTab('billing');
+                              }}
+                              className="p-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl flex items-center justify-between text-[10px] font-bold text-[var(--color-text-muted)] transition-all hover:scale-[1.03] active:scale-[0.98] hover:bg-[var(--color-surface-2)]"
+                              title="Ver facturas en pestaña facturación"
+                            >
+                              <span>💳 Cobros</span>
+                              <span className="px-1.5 py-0.5 bg-[var(--color-surface-2)] text-[var(--color-text)] rounded-md text-[9px]">
+                                {client.billingCount}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      )
-                    })
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* Columna 2 y 3: Consola de logs estilo terminal UNIX */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="bg-[var(--color-surface)] p-6 rounded-3xl border border-[var(--color-border)] shadow-xl relative overflow-hidden flex flex-col h-full justify-between">
+                    {/* Efecto de brillo de terminal sutil en el fondo */}
+                    <div className="absolute -top-[20%] -left-[10%] w-[300px] h-[300px] bg-indigo-500/5 blur-[80px] pointer-events-none rounded-full z-0" />
+                    <div className="absolute -bottom-[20%] -right-[10%] w-[300px] h-[300px] bg-emerald-500/5 blur-[80px] pointer-events-none rounded-full z-0" />
+                    
+                    <div className="relative z-1 space-y-4 flex-1 flex flex-col">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[var(--color-border)]/65 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
+                            <Terminal size={16} />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
+                             Live System Telemetry Console
+                              <span className="flex h-2 w-2 relative">
+                                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                                  !isOnline ? 'bg-red-400' : (isSimulated ? 'bg-amber-400' : 'bg-emerald-400')
+                                }`}></span>
+                                <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                                  !isOnline ? 'bg-red-500' : (isSimulated ? 'bg-amber-500' : 'bg-emerald-500')
+                                }`}></span>
+                              </span>
+                            </h3>
+                            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 font-mono">
+                              telemetry_monitor.sh • {!isOnline ? 'Network Offline' : (isSimulated ? 'Sandbox Mode' : 'Connected to Firestore Central')}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Botones de acción y filtros rápidos */}
+                        <div className="flex items-center gap-2 self-end md:self-auto">
+                          <button 
+                            onClick={() => { setSystemLogs([]); setLogPage(1) }} 
+                            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg border border-slate-700/60 transition-all cursor-pointer select-none active:scale-95 whitespace-nowrap"
+                          >
+                            Limpiar Terminal
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Barra de Filtros Interactivos de la Terminal */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-slate-950/40 p-3 rounded-2xl border border-[var(--color-border)]/70">
+                        {/* Tabs de tipo de log */}
+                        <div className="flex flex-wrap gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+                          {[
+                            { id: 'todos', label: 'Todos' },
+                            { id: 'error', label: 'Fallas (FAIL)' },
+                            { id: 'billing', label: 'Cobros (BILLING)' },
+                            { id: 'info_warning', label: 'Sistema' }
+                          ].map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => { setTelemetryTypeFilter(t.id); setLogPage(1); }}
+                              className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer ${
+                                telemetryTypeFilter === t.id 
+                                  ? 'bg-indigo-650 text-white shadow-sm' 
+                                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                              }`}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Buscador de logs */}
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="Buscar en logs..." 
+                            value={telemetrySearchQuery}
+                            onChange={(e) => { setTelemetrySearchQuery(e.target.value); setLogPage(1); }}
+                            className="h-8 pl-8 pr-3 w-full md:w-48 bg-slate-900/80 border border-slate-850 text-[10px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900 transition-all"
+                          />
+                          <Activity size={12} className="absolute left-3 top-2.5 text-slate-500 animate-pulse" />
+                          {telemetrySearchQuery && (
+                            <button 
+                              onClick={() => setTelemetrySearchQuery('')}
+                              className="absolute right-2.5 top-2.5 text-[9px] font-bold text-slate-500 hover:text-white"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Badge de Cliente Activo */}
+                      {telemetryClientFilter !== 'todos' && (
+                        <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/25 rounded-full animate-in slide-in-from-left duration-250">
+                          <span className="text-[8px] font-bold uppercase text-indigo-400 tracking-wider">Filtrando:</span>
+                          <span className="text-[9px] font-extrabold text-[var(--color-text)] font-mono">{telemetryClientFilter}</span>
+                          <button 
+                            onClick={() => setTelemetryClientFilter('todos')}
+                            className="w-3.5 h-3.5 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 flex items-center justify-center text-[8px] text-indigo-300 font-bold ml-1 cursor-pointer transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Terminal Screen */}
+                      <div className="bg-[#0b0f19] border border-[var(--color-border)]/80 rounded-2xl p-4 h-[350px] overflow-y-auto scrollbar-thin flex flex-col gap-2.5 shadow-inner select-text flex-1">
+                        {filteredTelemetryLogs.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center my-auto space-y-2 select-none">
+                            <Activity size={24} className="text-slate-650 dark:text-slate-700 animate-pulse" />
+                            <div className="text-[var(--color-text-muted)] italic text-xs font-mono">
+                              ~/telemetry $ await_stream_signal...
+                            </div>
+                            <p className="text-[9px] text-slate-600">No hay registros que coincidan con los filtros activos.</p>
+                          </div>
+                        ) : (
+                          filteredTelemetryLogs.map((log, index) => {
+                            const isClickable = log.type === 'error';
+                            const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 hover:border-red-500/30 active:scale-[0.99] transition-all' : '';
+                            
+                            const statusConfig = {
+                              info: { label: 'INFO', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                              warning: { label: 'WARN', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                              error: { label: 'FAIL', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+                              success: { label: ' OK ', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+                            }[log.type] || { label: 'LOG', color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' };
+
+                            return (
+                              <div 
+                                key={index} 
+                                className={`p-3 rounded-xl border bg-slate-900/40 border-slate-800/40 flex flex-col gap-1.5 transition-all ${hoverStyle}`}
+                              >
+                                <div className="flex items-center justify-between border-b border-slate-800/40 pb-1.5">
+                                  <div className="flex items-center gap-2 select-none">
+                                    <span className={`px-2 py-0.5 rounded font-mono text-[8px] font-black uppercase border tracking-wider ${statusConfig.color}`}>
+                                      {statusConfig.label}
+                                    </span>
+                                    {log.client && (
+                                      <span 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTelemetryClientFilter(log.client);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/40 hover:text-indigo-300 text-slate-400 font-mono text-[8px] rounded uppercase cursor-pointer select-all transition-colors"
+                                        title="Filtrar por este cliente"
+                                      >
+                                        {log.client}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[8px] text-slate-500 font-mono select-none">{log.timestamp}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-4">
+                                  <p className="font-mono text-[10px] text-slate-300 leading-relaxed break-words pl-1 flex-1">
+                                    <span className="text-slate-500 mr-1 select-none">➔</span>
+                                    {log.message}
+                                  </p>
+                                  {isClickable && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedErrorClientFilter(log.client || 'todos');
+                                        setActiveTab('errors');
+                                      }}
+                                      className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded text-[8px] font-bold font-mono transition-colors cursor-pointer shrink-0"
+                                    >
+                                      Diagnosticar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -4943,11 +5447,13 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
               <div className="flex justify-between items-center">
                 <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Base de Datos</span>
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
-                  dbStatus === 'conectado' && !isSimulated
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                  !isOnline 
+                    ? 'bg-red-500/10 text-red-400 border-red-500/25'
+                    : (dbStatus === 'conectado' && !isSimulated
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/25')
                 }`}>
-                  {dbStatus === 'conectado' && !isSimulated ? 'Firestore Online' : 'Modo Sandbox'}
+                  {!isOnline ? 'Offline' : (dbStatus === 'conectado' && !isSimulated ? 'Firestore Online' : 'Modo Sandbox')}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -5042,21 +5548,60 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                     solution = "1. Revisa las reglas en `firestore.rules` asociadas a la colección afectada.\n2. Verifica si el usuario cuenta con los claims o roles necesarios en su sesión de Firebase Auth.\n3. Asegúrate de invocar la limpieza de listeners `onSnapshot` al cerrar sesión.";
                   }
 
-                  // Extraer archivo del error/stack trace
+                  // Extraer archivo del error/stack trace de manera robusta
                   let detectedFile = 'N/A';
                   let detectedLine = 'N/A';
-                  const fileMatch = selectedDiagnosticError.errorMsg.match(/src\/[a-zA-Z0-9_\-\/]+\.[j|t]sx?/);
-                  if (fileMatch) {
-                    detectedFile = fileMatch[0];
-                  } else {
-                    const stackMatch = selectedDiagnosticError.stack?.match(/src\/[a-zA-Z0-9_\-\/]+\.[j|t]sx?/);
-                    if (stackMatch) detectedFile = stackMatch[0];
-                  }
-
-                  const lineMatch = selectedDiagnosticError.stack?.match(/:(\d+):(\d+)/);
-                  if (lineMatch) {
-                    detectedLine = lineMatch[1];
-                  }
+                  
+                  const getFileAndLine = () => {
+                    const text = `${selectedDiagnosticError.errorMsg || ''}\n${selectedDiagnosticError.stack || ''}`;
+                    
+                    // 1. Buscar archivos que contengan la ruta src/
+                    const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i;
+                    const srcMatch = text.match(srcRegex);
+                    if (srcMatch) {
+                      return { file: srcMatch[1], line: srcMatch[2] };
+                    }
+                    
+                    // 2. Buscar en las líneas del stack trace omitiendo librerías comunes
+                    const stackLines = (selectedDiagnosticError.stack || '').split('\n');
+                    for (const line of stackLines) {
+                      if (line.includes('node_modules') || line.includes('installHook.js') || line.includes('react-dom') || line.includes('react.development')) {
+                        continue;
+                      }
+                      const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
+                      const match = line.match(fileLineRegex);
+                      if (match) {
+                        let file = match[1];
+                        // Autocompletar si es App.jsx suelto a src/App.jsx
+                        if (file === 'App.jsx') file = 'src/App.jsx';
+                        return { file, line: match[2] };
+                      }
+                    }
+                    
+                    // 3. Match general sobre el mensaje de error completo
+                    const generalRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
+                    const genMatch = text.match(generalRegex);
+                    if (genMatch) {
+                      let file = genMatch[1];
+                      if (file === 'App.jsx') file = 'src/App.jsx';
+                      return { file, line: genMatch[2] };
+                    }
+                    
+                    // 4. Último recurso: buscar nombre de archivo sin línea
+                    const simpleFileRegex = /([\w\-\/.]+\.[jt]sx?)/i;
+                    const simpleMatch = text.match(simpleFileRegex);
+                    if (simpleMatch) {
+                      let file = simpleMatch[1];
+                      if (file === 'App.jsx') file = 'src/App.jsx';
+                      return { file, line: 'N/A' };
+                    }
+                    
+                    return { file: 'N/A', line: 'N/A' };
+                  };
+                  
+                  const extracted = getFileAndLine();
+                  detectedFile = extracted.file;
+                  detectedLine = extracted.line;
 
                   return (
                     <>
@@ -5114,6 +5659,135 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                     </>
                   );
                 })()}
+
+                {/* Visor de Código en Vivo */}
+                <div className="space-y-2">
+                  <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider font-mono flex items-center gap-1.5">
+                    <Terminal size={10} className="text-violet-400" /> Visor de Código en Vivo:
+                  </span>
+                  
+                  {loadingCode && (
+                    <div className="p-6 bg-[#0c101a] border border-[var(--color-border)] rounded-2xl flex flex-col items-center justify-center gap-2.5 min-h-[140px]">
+                      <Activity size={18} className="text-indigo-400 animate-spin" />
+                      <span className="text-[10px] text-[var(--color-text-muted)] font-mono">Conectando con CLI Bridge...</span>
+                    </div>
+                  )}
+
+                  {codeError && (
+                    <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl text-[10px] font-mono text-amber-500 leading-relaxed">
+                      ⚠️ {codeError}
+                    </div>
+                  )}
+
+                  {!loadingCode && !codeError && codeSnippet && (
+                    <div className="bg-[#0c101a] border border-[var(--color-border)] rounded-2xl overflow-hidden flex flex-col shadow-inner">
+                      {/* Header del visor */}
+                      <div className="bg-[#070b12] px-3.5 py-2 border-b border-[var(--color-border)] flex items-center justify-between font-mono text-[9px] text-slate-400">
+                        <span className="truncate">{codeSnippet.file.split(/[\\/]/).slice(-2).join('/')}</span>
+                        {codeSnippet.targetLine && (
+                          <span className="text-violet-400 font-extrabold shrink-0 bg-violet-500/10 px-1.5 py-0.5 rounded border border-violet-500/20">
+                            Línea: {codeSnippet.targetLine}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Contenedor del código */}
+                      <div className="p-3.5 overflow-x-auto text-[9.5px] font-mono leading-relaxed text-slate-300 max-h-[260px] overflow-y-auto scrollbar-thin">
+                        <pre className="grid grid-cols-1">
+                          {(() => {
+                            const lines = codeSnippet.content.split('\n');
+                            const target = codeSnippet.targetLine;
+                            const startIdx = target ? Math.max(0, target - 6) : 0;
+                            const endIdx = target ? Math.min(lines.length - 1, target + 5) : lines.length - 1;
+                            
+                            const snippetLines = [];
+                            for (let i = startIdx; i <= endIdx; i++) {
+                              const lineNum = i + 1;
+                              const isTarget = lineNum === target;
+                              snippetLines.push(
+                                <div 
+                                  key={i} 
+                                  className={`flex items-start select-text ${isTarget ? 'bg-red-500/15 text-red-200 border-l-2 border-red-500 pl-1 -ml-1 py-0.5 font-bold' : ''}`}
+                                >
+                                  <span className={`w-8 text-right select-none text-[8.5px] pr-2.5 font-mono ${isTarget ? 'text-red-400' : 'text-slate-650'}`}>
+                                    {lineNum}
+                                  </span>
+                                  <span className="whitespace-pre break-all font-mono">
+                                    {lines[i]}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return snippetLines;
+                          })()}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Contexto Enriquecido de Telemetría (Environment & User) */}
+                {selectedDiagnosticError.environment && (
+                  <div className="space-y-3 bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-4 rounded-2xl text-xs">
+                    <h4 className="font-extrabold text-xs text-[var(--color-text)] flex items-center gap-1.5 border-b border-[var(--color-border)] pb-2 mb-2">
+                      <Smartphone size={13} className="text-indigo-400" />
+                      Entorno de Ejecución
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[var(--color-text-muted)] font-mono text-[10px]">
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] block">Resolución:</span>
+                        <span>{selectedDiagnosticError.environment.screenResolution || 'Desconocida'}</span>
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] block">Viewport:</span>
+                        <span>{selectedDiagnosticError.environment.viewport || 'Desconocido'}</span>
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] block">Idioma:</span>
+                        <span>{selectedDiagnosticError.environment.language || 'Desconocido'}</span>
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] block">Página Activa:</span>
+                        <a 
+                          href={selectedDiagnosticError.environment.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-indigo-400 hover:underline break-all block"
+                        >
+                          {selectedDiagnosticError.environment.url ? new URL(selectedDiagnosticError.environment.url).pathname : 'Ver URL'}
+                        </a>
+                      </div>
+                    </div>
+                    {selectedDiagnosticError.environment.userAgent && (
+                      <div className="mt-2 text-[9px] font-mono bg-slate-900/60 p-2 rounded-xl text-slate-400 break-all select-all">
+                        <span className="font-bold text-[var(--color-text-muted)] block mb-1">User Agent:</span>
+                        {selectedDiagnosticError.environment.userAgent}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Datos de Usuario */}
+                {selectedDiagnosticError.user && (
+                  <div className="space-y-2 bg-indigo-500/5 border border-indigo-500/15 p-4 rounded-2xl text-xs">
+                    <h4 className="font-extrabold text-xs text-[var(--color-text)] flex items-center gap-1.5 border-b border-[var(--color-border)]/30 pb-2 mb-2">
+                      <User size={13} className="text-indigo-400" />
+                      Usuario Sesión
+                    </h4>
+                    <div className="space-y-1.5 text-[var(--color-text-muted)] font-mono text-[10px]">
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] mr-1">UID:</span>
+                        <span className="select-all">{selectedDiagnosticError.user.uid || 'N/A'}</span>
+                      </div>
+                      {selectedDiagnosticError.user.email && (
+                        <div>
+                          <span className="font-extrabold text-[var(--color-text)] mr-1">Email:</span>
+                          <span className="select-all">{selectedDiagnosticError.user.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Stack Trace */}
                 <div className="space-y-2">
