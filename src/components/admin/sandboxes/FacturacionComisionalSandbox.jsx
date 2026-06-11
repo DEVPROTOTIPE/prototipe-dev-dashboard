@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Receipt, X, ShoppingBag, Wallet, TrendingUp, BarChart3, Trash2, Save } from 'lucide-react';
+import { Receipt, X, ShoppingBag, Wallet, TrendingUp, BarChart3, Trash2, Save, Activity, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { SandboxLayout } from './SandboxLayout';
 
 function DeveloperBillingPanel({
@@ -13,6 +13,8 @@ function DeveloperBillingPanel({
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const formatMoney = (value) => {
     return `$${Number(value || 0).toLocaleString('es-CO', { 
@@ -235,11 +237,91 @@ function DeveloperBillingPanel({
           </div>
           <button
             onClick={handleOpenSignature}
-            className="w-full h-11 px-5 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer shadow-sm"
+            className="w-full h-11 px-5 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer shadow-sm border-none"
           >
             <Receipt size={16} />
             Firmar y Exportar Recibo del Mes
           </button>
+        </div>
+      )}
+
+      {!isLoading && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800/50 p-5 space-y-4">
+          <div>
+            <p className="text-sm font-bold text-slate-200 mb-1">Telemetría y Diagnóstico de Canal</p>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Envía un error simulado o fuerza la sincronización de telemetría para comprobar la conexión activa con la consola central.
+            </p>
+          </div>
+          
+          {message && (
+            <div className={`p-4 rounded-xl flex items-start gap-3 text-left border ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-green-500/10 border-green-500/20 text-green-500'}`}>
+              {message.type === 'error' ? <AlertTriangle size={18} className="shrink-0" /> : <CheckCircle size={18} className="shrink-0" />}
+              <span className="text-xs font-bold leading-relaxed">{message.text}</span>
+            </div>
+          )}
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={async () => {
+                setLoading(true);
+                setMessage(null);
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 1200));
+                  setMessage({
+                    type: 'success',
+                    text: '¡Reporte de error de prueba (Sandbox Mock) simulado con éxito! Evento registrado en la simulación.'
+                  });
+                } catch (err) {
+                  setMessage({
+                    type: 'error',
+                    text: `Fallo al reportar: ${err.message}`
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full sm:w-auto px-6 min-h-11 py-2.5 bg-rose-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-600 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-sm border-none text-center"
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin shrink-0" />
+              ) : (
+                <AlertTriangle size={16} className="shrink-0" />
+              )}
+              <span className="text-center leading-tight">Enviar Error de Prueba</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                setLoading(true);
+                setMessage(null);
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  setMessage({
+                    type: 'success',
+                    text: '¡Telemetría de facturación (Billing Sandbox Mock) simulada con éxito!'
+                  });
+                } catch (err) {
+                  setMessage({
+                    type: 'error',
+                    text: `Fallo al reportar telemetría: ${err.message}`
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full sm:w-auto px-6 min-h-11 py-2.5 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-sm border-none text-center"
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin shrink-0" />
+              ) : (
+                <Activity size={16} className="shrink-0" />
+              )}
+              <span className="text-center leading-tight">Enviar Telemetría de Facturación</span>
+            </button>
+          </div>
         </div>
       )}
 

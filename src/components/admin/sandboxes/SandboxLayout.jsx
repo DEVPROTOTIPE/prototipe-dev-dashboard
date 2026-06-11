@@ -49,18 +49,18 @@ export function ControlPanel({ controls }) {
 
 export function SandboxLayout({ title, description, controls, children }) {
   return (
-    <div className="space-y-4 h-full">
+    <div className="space-y-4">
       <div>
         <h4 className="text-xs font-black text-[var(--color-text)]">{title}</h4>
         <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 leading-relaxed">{description}</p>
       </div>
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-4">
         {/* Preview Area */}
-        <div className="flex-1 flex items-center justify-center min-h-[180px] bg-[var(--color-bg)]/40 border border-dashed border-[var(--color-border)] rounded-2xl p-6 relative">
+        <div className="min-h-[180px] bg-[var(--color-bg)]/40 border border-dashed border-[var(--color-border)] rounded-2xl p-6 relative flex items-center justify-center">
           <div className="absolute top-2 left-3">
             <span className="text-[8px] font-mono text-[var(--color-text-muted)] uppercase tracking-widest">preview</span>
           </div>
-          <div className="w-full max-w-xs">{children}</div>
+          <div className="max-w-full">{children}</div>
         </div>
         {/* Controls */}
         <ControlPanel controls={controls} />
