@@ -52,8 +52,11 @@ import {
   Play,
   StopCircle,
   CircleCheck,
-  CircleX
+  CircleX,
+  GitCommit,
+  Upload
 } from 'lucide-react'
+import GitBackupPanel from './components/admin/GitBackupPanel'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
   getFirestore, 
@@ -85,7 +88,60 @@ import ComponentLibraryView from './components/admin/ComponentLibraryView'
 import Pagination from './components/ui/Pagination'
 import E2EPanel from './components/admin/E2EPanel'
 import CoreManagerPanel from './components/admin/CoreManagerPanel'
+import ComponentSandbox, { getSandboxKey } from './components/admin/ComponentSandbox'
 
+const MOCK_CATALOG = {
+  retail_clothing: [
+    { id: 'c1', name: 'Camiseta Oversize Algodón', price: 59900, emoji: '👕' },
+    { id: 'c2', name: 'Jeans Slim Fit Denim', price: 120000, emoji: '👖' },
+    { id: 'c3', name: 'Chaqueta Impermeable Acolchada', price: 180000, emoji: '🧥' }
+  ],
+  technical_services: [
+    { id: 't1', name: 'Mecanizado de Eje Rotatorio', price: 350000, emoji: '⚙️' },
+    { id: 't2', name: 'Fabricación de Buje de Bronce', price: 85000, emoji: '🔩' },
+    { id: 't3', name: 'Rectificación de Volante de Motor', price: 120000, emoji: '🚗' }
+  ],
+  refrigeration_ac: [
+    { id: 'r1', name: 'Mantenimiento Preventivo Split', price: 95000, emoji: '❄️' },
+    { id: 'r2', name: 'Instalación de Aire Acondicionado', price: 320000, emoji: '🌬️' },
+    { id: 'r3', name: 'Recarga de Gas Refrigerante R410a', price: 140000, emoji: '🧪' }
+  ],
+  contractors: [
+    { id: 'ct1', name: 'Instalación Drywall (m2)', price: 45000, emoji: '📐' },
+    { id: 'ct2', name: 'Pintura de Fachada Exterior', price: 280000, emoji: '🎨' },
+    { id: 'ct3', name: 'Enchape Cerámico Baño/Cocina', price: 60000, emoji: '🧱' }
+  ],
+  machinery_rental: [
+    { id: 'm1', name: 'Alquiler Mini-Excavadora (Día)', price: 450000, emoji: '🚜' },
+    { id: 'm2', name: 'Alquiler Planta Eléctrica 5kW', price: 150000, emoji: '⚡' },
+    { id: 'm3', name: 'Alquiler Mezcladora Concreto', price: 80000, emoji: '🌀' }
+  ],
+  carpentry: [
+    { id: 'cp1', name: 'Fabricación de Closet (m2)', price: 250000, emoji: '🪚' },
+    { id: 'cp2', name: 'Restauración de Puerta Madera', price: 110000, emoji: '🚪' },
+    { id: 'cp3', name: 'Mesa de Centro Madera Maciza', price: 190000, emoji: '🪵' }
+  ],
+  laundry: [
+    { id: 'l1', name: 'Lavado/Secado Edredón Plumas', price: 28000, emoji: '🧺' },
+    { id: 'l2', name: 'Lavado/Aplanchado Traje Formal', price: 22000, emoji: '👔' },
+    { id: 'l3', name: 'Tintura de Prenda Algodón', price: 18000, emoji: '🎨' }
+  ],
+  furniture_repair: [
+    { id: 'f1', name: 'Tapizado de Sofá 3 Puestos', price: 680000, emoji: '🛋️' },
+    { id: 'f2', name: 'Restauración Barniz Silla', price: 75000, emoji: '🪑' },
+    { id: 'f3', name: 'Reparación Rieles de Cajonera', price: 45000, emoji: '🔧' }
+  ],
+  wellness_podology: [
+    { id: 'w1', name: 'Perfilaxis Podológica Completa', price: 90000, emoji: '🦶' },
+    { id: 'w2', name: 'Tratamiento Onicomicosis (Láser)', price: 120000, emoji: '🔦' },
+    { id: 'w3', name: 'Masaje Relajante Espalda/Cuello', price: 75000, emoji: '💆' }
+  ],
+  grocery_food: [
+    { id: 'g1', name: 'Canasta de Verduras Orgánicas', price: 35000, emoji: '🍎' },
+    { id: 'g2', name: 'Café Tostado Especial (500g)', price: 24000, emoji: '☕' },
+    { id: 'g3', name: 'Aceite de Oliva Extra Virgen', price: 42000, emoji: '🫒' }
+  ]
+};
 
 
 // Variables de entorno para conectar al Firebase Central de Control
@@ -550,6 +606,209 @@ function CustomSelect({ value, onChange, options, className }) {
   )
 }
 
+function hexToRgb(hex) {
+  if (!hex || typeof hex !== 'string') return { r: 0, g: 0, b: 0 };
+  let cleaned = hex.trim().replace('#', '');
+  if (cleaned.length === 3) {
+    cleaned = cleaned.split('').map(c => c + c).join('');
+  }
+  if (cleaned.length !== 6) return { r: 0, g: 0, b: 0 };
+  const num = parseInt(cleaned, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+function getRelativeLuminance(rgb) {
+  const a = [rgb.r, rgb.g, rgb.b].map((v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+}
+
+function getContrastRatio(hex1, hex2) {
+  const rgb1 = hexToRgb(hex1);
+  const rgb2 = hexToRgb(hex2);
+  const l1 = getRelativeLuminance(rgb1);
+  const l2 = getRelativeLuminance(rgb2);
+  const brightest = Math.max(l1, l2);
+  const darkest = Math.min(l1, l2);
+  return (brightest + 0.05) / (darkest + 0.05);
+}
+
+function getContrastFeedback(ratio) {
+  if (ratio >= 7) return { text: 'AAA (Excelente)', badgeClass: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400', isPass: true };
+  if (ratio >= 4.5) return { text: 'AA (Óptimo)', badgeClass: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400', isPass: true };
+  if (ratio >= 3) return { text: 'AA Grande (Regular)', badgeClass: 'bg-amber-500/10 border border-amber-500/20 text-amber-400', isPass: true };
+  return { text: 'Fail (Bajo Contraste)', badgeClass: 'bg-red-500/10 border border-red-500/20 text-red-400', isPass: false };
+}
+
+const PALETTE_CATEGORIES = [
+  {
+    id: "retail_clothing",
+    name: "🛍️ Ropa y Retail Tradicional",
+    palettes: [
+      { name: 'Royal Indigo', primary: '#6366f1', secondary: '#a855f7', bg: '#070b13', text: '#f8fafc' },
+      { name: 'Soft Rose', primary: '#f43f5e', secondary: '#fb7185', bg: '#0f0507', text: '#fff1f2' },
+      { name: 'Elegant Lilac', primary: '#8b5cf6', secondary: '#d8b4fe', bg: '#0a0410', text: '#fdf4ff' },
+      { name: 'Nordic Sage', primary: '#14b8a6', secondary: '#99f6e4', bg: '#05100f', text: '#f0fdfa' },
+      { name: 'Midnight Chic', primary: '#f43f5e', secondary: '#ec4899', bg: '#09090b', text: '#fafafa' },
+      { name: 'Luxury Gold', primary: '#d97706', secondary: '#fde047', bg: '#110d06', text: '#fefdfa' },
+      { name: 'Classic Denim', primary: '#2563eb', secondary: '#93c5fd', bg: '#0a1128', text: '#f0fdfa' },
+      { name: 'Peach Pastel', primary: '#fb923c', secondary: '#ffedd5', bg: '#1c0d02', text: '#fffcf9' },
+      { name: 'Vibrant Fuchsia', primary: '#d946ef', secondary: '#f5d0fe', bg: '#0f0312', text: '#fdf4ff' },
+      { name: 'Urban Olive', primary: '#84cc16', secondary: '#bef264', bg: '#101407', text: '#f7fee7' }
+    ]
+  },
+  {
+    id: "technical_services",
+    name: "⚙️ Tornerías y Mecanizado de Precisión",
+    palettes: [
+      { name: 'Steel Precision', primary: '#475569', secondary: '#94a3b8', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Industrial Amber', primary: '#f59e0b', secondary: '#d97706', bg: '#0f0f0c', text: '#fffdfa' },
+      { name: 'Titanium Blue', primary: '#0284c7', secondary: '#38bdf8', bg: '#080f1e', text: '#f0f9ff' },
+      { name: 'Iron Red', primary: '#b91c1c', secondary: '#f87171', bg: '#110606', text: '#fef2f2' },
+      { name: 'Carbon Dark', primary: '#1e293b', secondary: '#64748b', bg: '#020617', text: '#f1f5f9' },
+      { name: 'Laser Green', primary: '#22c55e', secondary: '#86efac', bg: '#021608', text: '#f0fdf4' },
+      { name: 'Brass Glow', primary: '#ca8a04', secondary: '#fef08a', bg: '#161305', text: '#fefdf0' },
+      { name: 'Copper Oxide', primary: '#ea580c', secondary: '#fdba74', bg: '#180b05', text: '#fff7ed' },
+      { name: 'Graphite Matte', primary: '#52525b', secondary: '#a1a1aa', bg: '#09090b', text: '#f4f4f5' },
+      { name: 'Cobalt Tough', primary: '#1d4ed8', secondary: '#60a5fa', bg: '#050b18', text: '#eff6ff' }
+    ]
+  },
+  {
+    id: "refrigeration_ac",
+    name: "❄️ Refrigeración y Climatización",
+    palettes: [
+      { name: 'Arctic Ice', primary: '#0ea5e9', secondary: '#38bdf8', bg: '#030f1d', text: '#f0f9ff' },
+      { name: 'Cyan Thermal', primary: '#06b6d4', secondary: '#22d3ee', bg: '#021114', text: '#ecfeff' },
+      { name: 'Deep Glacier', primary: '#2563eb', secondary: '#60a5fa', bg: '#08132e', text: '#eff6ff' },
+      { name: 'Frost Teal', primary: '#0d9488', secondary: '#5eead4', bg: '#021110', text: '#f2fbf9' },
+      { name: 'Winter Blue', primary: '#1e40af', secondary: '#93c5fd', bg: '#0b1836', text: '#f8fafc' },
+      { name: 'Breeze Green', primary: '#10b981', secondary: '#6ee7b7', bg: '#031810', text: '#f0fdf4' },
+      { name: 'Airflow Silver', primary: '#64748b', secondary: '#cbd5e1', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Polar Aurora', primary: '#06b6d4', secondary: '#34d399', bg: '#031214', text: '#f0fdfa' },
+      { name: 'Thermal Balance', primary: '#0284c7', secondary: '#f97316', bg: '#060f1b', text: '#f0f9ff' },
+      { name: 'Neon Frost', primary: '#00f0ff', secondary: '#7000ff', bg: '#05030f', text: '#f6f3ff' }
+    ]
+  },
+  {
+    id: "contractors",
+    name: "📐 Contratistas y Construcción",
+    palettes: [
+      { name: 'Safety Orange', primary: '#f97316', secondary: '#fdba74', bg: '#160d06', text: '#fffaf5' },
+      { name: 'Hard Hat Yellow', primary: '#eab308', secondary: '#fef08a', bg: '#141103', text: '#fefdf0' },
+      { name: 'Cement Gray', primary: '#4b5563', secondary: '#9ca3af', bg: '#111827', text: '#f9fafb' },
+      { name: 'Structure Blue', primary: '#1d4ed8', secondary: '#93c5fd', bg: '#0b122c', text: '#f0f7ff' },
+      { name: 'Forest Timber', primary: '#15803d', secondary: '#86efac', bg: '#051608', text: '#f0fdf4' },
+      { name: 'Brick Red', primary: '#b91c1c', secondary: '#fca5a5', bg: '#1a0505', text: '#fff5f5' },
+      { name: 'Asphalt Dark', primary: '#1f2937', secondary: '#6b7280', bg: '#030712', text: '#f9fafb' },
+      { name: 'Copper Pipes', primary: '#d97706', secondary: '#fbbf24', bg: '#130f04', text: '#fefdf5' },
+      { name: 'Slate Roof', primary: '#334155', secondary: '#475569', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Safety Green', primary: '#84cc16', secondary: '#bef264', bg: '#0e1405', text: '#f7fee7' }
+    ]
+  },
+  {
+    id: "machinery_rental",
+    name: "🚜 Alquiler de Maquinaria y Equipos",
+    palettes: [
+      { name: 'Caterpillar Yellow', primary: '#eab308', secondary: '#ca8a04', bg: '#0d0b01', text: '#fefdf0' },
+      { name: 'Deere Green', primary: '#16a34a', secondary: '#ca8a04', bg: '#061208', text: '#f0fdf4' },
+      { name: 'Kubota Orange', primary: '#ea580c', secondary: '#f97316', bg: '#140904', text: '#fff7ed' },
+      { name: 'Heavy Steel', primary: '#374151', secondary: '#9ca3af', bg: '#111827', text: '#f9fafb' },
+      { name: 'Warning Amber', primary: '#f59e0b', secondary: '#fbbf24', bg: '#161105', text: '#fffbeb' },
+      { name: 'Hydraulic Blue', primary: '#0252cf', secondary: '#2563eb', bg: '#080d1e', text: '#f0f7ff' },
+      { name: 'Industrial Black', primary: '#111827', secondary: '#4b5563', bg: '#030712', text: '#f9fafb' },
+      { name: 'Safety Contrast', primary: '#d97706', secondary: '#475569', bg: '#0e0d06', text: '#fefdfa' },
+      { name: 'High Vis Green', primary: '#a3e635', secondary: '#84cc16', bg: '#0c1203', text: '#f7fee7' },
+      { name: 'Rust Steel', primary: '#9a3412', secondary: '#c2410c', bg: '#180803', text: '#fff7ed' }
+    ]
+  },
+  {
+    id: "carpentry",
+    name: "🪚 Carpinterías y Muebles",
+    palettes: [
+      { name: 'Cedar Wood', primary: '#854d0e', secondary: '#a16207', bg: '#130c04', text: '#fefcf0' },
+      { name: 'Mahogany Red', primary: '#7f1d1d', secondary: '#991b1b', bg: '#160404', text: '#fff5f5' },
+      { name: 'Pine Fresh', primary: '#166534', secondary: '#15803d', bg: '#061208', text: '#f0fdf4' },
+      { name: 'Natural Oak', primary: '#b45309', secondary: '#d97706', bg: '#170e05', text: '#fefaf0' },
+      { name: 'Charcoal Modern', primary: '#1e293b', secondary: '#475569', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Warm Chestnut', primary: '#c2410c', secondary: '#ea580c', bg: '#190d05', text: '#fff7ed' },
+      { name: 'Birch Minimal', primary: '#d97706', secondary: '#fcd34d', bg: '#181308', text: '#fefdf5' },
+      { name: 'Forest Green', primary: '#065f46', secondary: '#0f766e', bg: '#030f0c', text: '#f2fbf9' },
+      { name: 'Varnish Gold', primary: '#ca8a04', secondary: '#fbbf24', bg: '#141103', text: '#fefdf0' },
+      { name: 'Nordic Slate', primary: '#9ca3af', secondary: '#4b5563', bg: '#111827', text: '#e5e7eb' }
+    ]
+  },
+  {
+    id: "laundry",
+    name: "🧺 Lavanderías y Tintorerías",
+    palettes: [
+      { name: 'Clean Breeze', primary: '#06b6d4', secondary: '#0891b2', bg: '#041113', text: '#ecfeff' },
+      { name: 'Soft Lavender', primary: '#a855f7', secondary: '#c084fc', bg: '#0d0515', text: '#faf5ff' },
+      { name: 'Oxygen Blue', primary: '#2563eb', secondary: '#60a5fa', bg: '#0b132c', text: '#eff6ff' },
+      { name: 'Fresh Mint', primary: '#10b981', secondary: '#a7f3d0', bg: '#031710', text: '#ecfdf5' },
+      { name: 'Suds White', primary: '#3b82f6', secondary: '#60a5fa', bg: '#0c101d', text: '#f8fafc' },
+      { name: 'Sunny Cotton', primary: '#fbbf24', secondary: '#fef08a', bg: '#161103', text: '#fefdf0' },
+      { name: 'Marine Splash', primary: '#0ea5e9', secondary: '#67e8f9', bg: '#040f1a', text: '#f0fdfa' },
+      { name: 'Gentle Rose', primary: '#ec4899', secondary: '#fbcfe8', bg: '#170511', text: '#fdf2f8' },
+      { name: 'Pure Linen', primary: '#64748b', secondary: '#cbd5e1', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Citrus Fresh', primary: '#84cc16', secondary: '#a3e635', bg: '#0d1403', text: '#f7fee7' }
+    ]
+  },
+  {
+    id: "furniture_repair",
+    name: "🛋️ Restauración y Tapicería de Muebles",
+    palettes: [
+      { name: 'Vintage Leather', primary: '#7c2d12', secondary: '#9a3412', bg: '#140905', text: '#fff7ed' },
+      { name: 'Velvet Plum', primary: '#701a75', secondary: '#86198f', bg: '#140316', text: '#fdf4ff' },
+      { name: 'Classic Walnut', primary: '#5c2c16', secondary: '#78350f', bg: '#100803', text: '#fffbeb' },
+      { name: 'Brass Detail', primary: '#b45309', secondary: '#fbbf24', bg: '#160e03', text: '#fefdf0' },
+      { name: 'Emerald Weave', primary: '#047857', secondary: '#059669', bg: '#02120e', text: '#ecfdf5' },
+      { name: 'Linen Beige', primary: '#ca8a04', secondary: '#fde047', bg: '#161304', text: '#fffbeb' },
+      { name: 'Antique Indigo', primary: '#312e81', secondary: '#4338ca', bg: '#080718', text: '#e0e7ff' },
+      { name: 'Sage Weave', primary: '#15803d', secondary: '#4ade80', bg: '#051608', text: '#f0fdf4' },
+      { name: 'Bronze Classic', primary: '#854d0e', secondary: '#d97706', bg: '#150f04', text: '#fffbf0' },
+      { name: 'Terracotta Earth', primary: '#c2410c', secondary: '#f97316', bg: '#170903', text: '#fffaf0' }
+    ]
+  },
+  {
+    id: "wellness_podology",
+    name: "💆 Estética, Podología y Bienestar",
+    palettes: [
+      { name: 'Zen Teal', primary: '#0d9488', secondary: '#2dd4bf', bg: '#031312', text: '#f2fbf9' },
+      { name: 'Rose Petal', primary: '#ec4899', secondary: '#f472b6', bg: '#170511', text: '#fdf2f8' },
+      { name: 'Lavender Calm', primary: '#8b5cf6', secondary: '#a78bfa', bg: '#0b0518', text: '#f5f3ff' },
+      { name: 'Sakura Blossom', primary: '#db2777', secondary: '#f472b6', bg: '#170410', text: '#fff1f2' },
+      { name: 'Eucalyptus Fresh', primary: '#10b981', secondary: '#34d399', bg: '#031610', text: '#ecfdf5' },
+      { name: 'Orchid Dream', primary: '#d946ef', secondary: '#f5d0fe', bg: '#120316', text: '#fdf4ff' },
+      { name: 'Mineral Clay', primary: '#475569', secondary: '#cbd5e1', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Warm Peach', primary: '#f97316', secondary: '#fdba74', bg: '#170d06', text: '#fffaf0' },
+      { name: 'Soft Sky', primary: '#0ea5e9', secondary: '#38bdf8', bg: '#080f1e', text: '#f0f9ff' },
+      { name: 'Pure Herbal', primary: '#15803d', secondary: '#a3e635', bg: '#051608', text: '#f7fee7' }
+    ]
+  },
+  {
+    id: "grocery_food",
+    name: "🍎 Minimarkets y Alimentos",
+    palettes: [
+      { name: 'Tomato Fresh', primary: '#ef4444', secondary: '#f87171', bg: '#1a0505', text: '#fff5f5' },
+      { name: 'Organic Green', primary: '#16a34a', secondary: '#4ade80', bg: '#051508', text: '#f0fdf4' },
+      { name: 'Banana Sweet', primary: '#eab308', secondary: '#fde047', bg: '#131001', text: '#fefdf0' },
+      { name: 'Blueberry Rich', primary: '#1d4ed8', secondary: '#3b82f6', bg: '#050a1b', text: '#eff6ff' },
+      { name: 'Citrus Orange', primary: '#f97316', secondary: '#fb923c', bg: '#170c04', text: '#fffaf0' },
+      { name: 'Carrot Glow', primary: '#ea580c', secondary: '#fdba74', bg: '#160802', text: '#fff7ed' },
+      { name: 'Apple Green', primary: '#84cc16', secondary: '#bef264', bg: '#0f1505', text: '#f7fee7' },
+      { name: 'Cacao Brown', primary: '#78350f', secondary: '#b45309', bg: '#140a04', text: '#fffbeb' },
+      { name: 'Clean Dairy', primary: '#0ea5e9', secondary: '#38bdf8', bg: '#09101d', text: '#f0f9ff' },
+      { name: 'Wine Red', primary: '#991b1b', secondary: '#f87171', bg: '#180404', text: '#fff5f5' }
+    ]
+  }
+];
+
 export default function App() {
   const { showAlert, showConfirm } = useAlertConfirm()
   const { toast, showToast, hideToast } = useToast()
@@ -581,6 +840,11 @@ export default function App() {
   // Estados de edición para CRM de clientes
   const [editNiche, setEditNiche] = useState('retail_clothing')
   const [editBillingMode, setEditBillingMode] = useState('percentage')
+  const [crmTab, setCrmTab] = useState('config') // 'config' | 'drift'
+  const [driftData, setDriftData] = useState(null)
+  const [driftLoading, setDriftLoading] = useState(false)
+  const [activeDiffFile, setActiveDiffFile] = useState(null)
+  const [syncingFile, setSyncingFile] = useState({})
   const [editComisionPorcentaje, setEditComisionPorcentaje] = useState(1.5)
   const [editMontoFijoServicio, setEditMontoFijoServicio] = useState(500)
   const [editPagoMensualFijo, setEditPagoMensualFijo] = useState(50000)
@@ -605,7 +869,13 @@ export default function App() {
   const [isFetchingConfig, setIsFetchingConfig] = useState(false)
   const [fbVapidKey, setFbVapidKey] = useState('')
   const [autoProvisionFirebase, setAutoProvisionFirebase] = useState(false)
-  // Guarda datos del cliente cuando Firestore OK pero CLI falla — permite reintentar solo el paso físico
+  // Logo & Validation States (Mejoras de Robustez)
+  const [logoFilename, setLogoFilename] = useState('')
+  const [logoBase64, setLogoBase64] = useState('')
+  const [logoLocalPath, setLogoLocalPath] = useState('')
+  const [isValidatingCredentials, setIsValidatingCredentials] = useState(false)
+  const [credentialsValidationError, setCredentialsValidationError] = useState(null)
+  const [isCredentialsValidated, setIsCredentialsValidated] = useState(false)
   const [pendingCliProvisioning, setPendingCliProvisioning] = useState(null)
 
   // Onboarding & Branding premium states
@@ -622,6 +892,7 @@ export default function App() {
   const [costoPorFacturaDian, setCostoPorFacturaDian] = useState(150)
   const [customRequirements, setCustomRequirements] = useState('')
   const [wizardTab, setWizardTab] = useState('server')
+  const [expandedPaletteCategory, setExpandedPaletteCategory] = useState('retail_clothing')
   const [isFontModalOpen, setIsFontModalOpen] = useState(false)
   const [fontSearchQuery, setFontSearchQuery] = useState('')
   const [fontCategoryFilter, setFontCategoryFilter] = useState('all')
@@ -745,6 +1016,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
+  const [localServers, setLocalServers] = useState({})
   const [isSimulated, setIsSimulated] = useState(false)
   const [dbStatus, setDbStatus] = useState('conectando')
   const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? window.navigator.onLine : true)
@@ -765,10 +1037,51 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [livePreviewComponent, setLivePreviewComponent] = useState(null)
+
   const [failures, setFailures] = useState([])
   const [selectedErrorClientFilter, setSelectedErrorClientFilter] = useState('todos')
   const [expandedErrorId, setExpandedErrorId] = useState(null)
   const [errorsPage, setErrorsPage] = useState(1)
+  
+  // --- MODAL DE SIMULACIÓN DE FALLOS AVANZADO ---
+  const [isSimulateFailureModalOpen, setIsSimulateFailureModalOpen] = useState(false)
+  const [simFailureClientId, setSimFailureClientId] = useState('')
+  const [simFailureManualClientId, setSimFailureManualClientId] = useState('')
+  const [simFailureNiche, setSimFailureNiche] = useState('Ropa y Calzado')
+  const [simFailureErrorType, setSimFailureErrorType] = useState('0')
+  const [simFailureCustomMsg, setSimFailureCustomMsg] = useState('')
+  const [simFailureCustomStack, setSimFailureCustomStack] = useState('')
+  const [simFailureType, setSimFailureType] = useState('error')
+  const [simFailureSource, setSimFailureSource] = useState('automatic')
+
+  // --- CRM: BATCH SYNC Y DEPLOY TERMINAL ---
+  const [isBulkSyncModalOpen, setIsBulkSyncModalOpen] = useState(false)
+  const [bulkSyncFiles, setBulkSyncFiles] = useState({})
+  const [bulkSyncLoading, setBulkSyncLoading] = useState(false)
+
+  const [isDeployTerminalOpen, setIsDeployTerminalOpen] = useState(false)
+  const [deployTerminalClientId, setDeployTerminalClientId] = useState('')
+  const [deployLogs, setDeployLogs] = useState([])
+  const [deployState, setDeployState] = useState('idle') // idle | running | success | failed
+  const [deployProgressPercent, setDeployProgressPercent] = useState(0)
+  const [deployAuditScore, setDeployAuditScore] = useState(null)
+  const [deployError, setDeployError] = useState(null)
+  const [deployForce, setDeployForce] = useState(false)
+
+  // --- CRM: GLOBAL BATCH SYNC Y DEPLOY QUEUES ---
+  const [isGlobalSyncConfigModalOpen, setIsGlobalSyncConfigModalOpen] = useState(false)
+  const [globalSyncCheckedClients, setGlobalSyncCheckedClients] = useState({})
+  const [isGlobalSyncProcessActive, setIsGlobalSyncProcessActive] = useState(false)
+  const [globalSyncCurrentClient, setGlobalSyncCurrentClient] = useState('')
+
+  const [isGlobalDeployConfigModalOpen, setIsGlobalDeployConfigModalOpen] = useState(false)
+  const [globalDeployCheckedClients, setGlobalDeployCheckedClients] = useState({})
+  const [deployQueue, setDeployQueue] = useState([])
+  const [deployQueueIndex, setDeployQueueIndex] = useState(-1)
+
+  const [isGlobalTelemetryModalOpen, setIsGlobalTelemetryModalOpen] = useState(false)
+  const [globalTelemetryCheckedClients, setGlobalTelemetryCheckedClients] = useState({})
 
   // --- SIMULADOR DE PROYECCIONES DE INGRESOS ---
   const [projNewClients, setProjNewClients] = useState(3)
@@ -863,6 +1176,29 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  // Cola Reactiva de Despliegue Global
+  useEffect(() => {
+    if (deployQueueIndex >= 0 && deployQueueIndex < deployQueue.length) {
+      const nextClientId = deployQueue[deployQueueIndex];
+      addLog(`[Cola Global] Iniciando despliegue de (${deployQueueIndex + 1}/${deployQueue.length}): ${nextClientId}...`, "info");
+      handleDeployClient(nextClientId, false);
+    } else if (deployQueueIndex >= deployQueue.length && deployQueue.length > 0) {
+      addLog(`[Cola Global] Proceso de despliegue en lote completado.`, "success");
+      showToast("Despliegue global finalizado.", { type: 'success' });
+      setDeployQueue([]);
+      setDeployQueueIndex(-1);
+    }
+  }, [deployQueueIndex]);
+
+  useEffect(() => {
+    if (deployQueueIndex >= 0 && (deployState === 'success' || deployState === 'failed')) {
+      const timer = setTimeout(() => {
+        setDeployQueueIndex(prev => prev + 1);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [deployState, deployQueueIndex]);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark')
   }
@@ -912,6 +1248,64 @@ export default function App() {
       .catch(err => console.warn("No se pudo cargar catálogo de la biblioteca para recomendaciones:", err))
   }, [])
 
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      const base64Str = event.target.result.split(',')[1]
+      setLogoFilename(file.name)
+      setLogoBase64(base64Str)
+      
+      try {
+        addLog(`Subiendo y optimizando logo: ${file.name}...`, "info")
+        const res = await fetch('http://localhost:3001/api/upload-logo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, base64: base64Str })
+        })
+        const data = await res.json()
+        if (data.success) {
+          setLogoLocalPath(data.filePath)
+          showToast(data.message, { type: 'success' })
+          addLog(`Logo procesado con éxito en el servidor. Ruta física: ${data.filePath}`, "info")
+        } else {
+          showToast(`Error al procesar logo: ${data.error}`, { type: 'error' })
+        }
+      } catch (err) {
+        showToast(`Fallo al conectar con el optimizador: ${err.message}`, { type: 'error' })
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const validateFirebaseCreds = async () => {
+    if (!fbApiKey.trim() || !fbProjectId.trim()) return
+    setIsValidatingCredentials(true)
+    setCredentialsValidationError(null)
+    setIsCredentialsValidated(false)
+    try {
+      const res = await fetch('http://localhost:3001/api/firebase/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: fbApiKey.trim(), projectId: fbProjectId.trim() })
+      })
+      const data = await res.json()
+      if (data.valid) {
+        setIsCredentialsValidated(true)
+        showToast(data.warning || 'Credenciales de Firebase validadas con éxito.', { type: 'success' })
+      } else {
+        setCredentialsValidationError(data.error)
+        showToast(data.error, { type: 'warning' })
+      }
+    } catch (err) {
+      setCredentialsValidationError(`Error de red: ${err.message}`)
+    } finally {
+      setIsValidatingCredentials(false)
+    }
+  }
+
   // Auto-detectar credenciales Firebase desde el CLI Bridge local
   const handleAutoDetectConfig = async () => {
     const cleanProjectId = fbProjectId.trim()
@@ -920,6 +1314,8 @@ export default function App() {
       return
     }
     setIsFetchingConfig(true)
+    setIsCredentialsValidated(false)
+    setCredentialsValidationError(null)
     addLog(`Auto-detectando credenciales Firebase para proyecto: ${cleanProjectId}...`, 'info')
     try {
       const res = await fetch(
@@ -929,12 +1325,15 @@ export default function App() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Error desconocido del servidor CLI.')
       }
-      const { config } = data
+      const { config, vapidKey } = data
       setFbApiKey((config.apiKey || '').trim())
       setFbAuthDomain((config.authDomain || '').trim())
       setFbStorageBucket((config.storageBucket || '').trim())
       setFbMessagingSenderId((config.messagingSenderId || '').trim())
       setFbAppId((config.appId || '').trim())
+      if (vapidKey) {
+        setFbVapidKey(vapidKey)
+      }
       addLog(`✓ Credenciales Firebase auto-detectadas y cargadas para ${cleanProjectId}.`, 'success')
       showToast('Configuración de Firebase auto-detectada y rellenada ✓', { type: 'success' })
     } catch (err) {
@@ -1411,6 +1810,170 @@ export default function App() {
     }
   }
 
+  // --- CHEQUEO Y CONTROL DE SERVIDORES DE DESARROLLO LOCAL POR CLIENTE ---
+  useEffect(() => {
+    if (activeTab === 'crm' && clientesSaas.length > 0) {
+      clientesSaas.forEach(async (c) => {
+        try {
+          const res = await fetch(`http://127.0.0.1:3001/api/project/dev/status?clientId=${c.id}`);
+          const data = await res.json();
+          if (data.success) {
+            setLocalServers(prev => ({
+              ...prev,
+              [c.id]: { running: data.running, url: data.url || '', loading: false }
+            }));
+          }
+        } catch (err) {
+          console.error("Error al obtener status local:", err);
+        }
+      });
+    }
+  }, [activeTab, clientesSaas]);
+
+  const handleStartLocalServer = async (clientId) => {
+    setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: true } }));
+    addLog(`[Local Server] Iniciando npm run dev para ${clientId}...`, 'info');
+    try {
+      const res = await fetch('http://127.0.0.1:3001/api/project/dev/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLocalServers(prev => ({
+          ...prev,
+          [clientId]: { running: true, url: data.url, loading: false }
+        }));
+        addLog(`[Local Server] Servidor local iniciado para ${clientId} en ${data.url}`, 'success');
+        showToast(`Servidor local de ${clientId} iniciado`, { type: 'success' });
+      } else {
+        throw new Error(data.error || 'Error desconocido');
+      }
+    } catch (err) {
+      setLocalServers(prev => ({ ...prev, [clientId]: { running: false, url: '', loading: false } }));
+      addLog(`[Local Server Error] Falló al iniciar servidor local para ${clientId}: ${err.message}`, 'error');
+      showToast(`Error al iniciar servidor local para ${clientId}`, { type: 'error' });
+    }
+  };
+
+  const handleStopLocalServer = async (clientId) => {
+    setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: true } }));
+    addLog(`[Local Server] Deteniendo servidor local de ${clientId}...`, 'info');
+    try {
+      const res = await fetch('http://127.0.0.1:3001/api/project/dev/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLocalServers(prev => ({
+          ...prev,
+          [clientId]: { running: false, url: '', loading: false }
+        }));
+        addLog(`[Local Server] Servidor local detenido para ${clientId}`, 'info');
+        showToast(`Servidor local de ${clientId} detenido`, { type: 'info' });
+      } else {
+        throw new Error(data.error || 'Error desconocido');
+      }
+    } catch (err) {
+      setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: false } }));
+      addLog(`[Local Server Error] Falló al detener servidor para ${clientId}: ${err.message}`, 'error');
+      showToast(`Error al detener servidor para ${clientId}`, { type: 'error' });
+    }
+  };
+
+  // Solicitar telemetría de un cliente específico
+  const handleRequestClientTelemetry = async (clientId) => {
+    addLog(`Solicitando reporte de telemetría a ${clientId}...`, "info")
+    
+    if (isSimulated) {
+      addLog(`[Sandbox] Telemetría solicitada para ${clientId}. (Simulado)`, "success")
+      showToast(`[Sandbox] Telemetría solicitada para ${clientId}`, { type: 'success' })
+      return
+    }
+
+    const centralApp = getCentralApp()
+    if (!centralApp) {
+      addLog("Error: No se pudo inicializar la aplicación central.", "error")
+      return
+    }
+    const dbInstance = getFirestore(centralApp)
+
+    try {
+      const clientRef = doc(dbInstance, 'clientes_control', clientId.toLowerCase())
+      await updateDoc(clientRef, {
+        triggerTelemetryReport: Date.now()
+      })
+      addLog(`[Firestore] Telemetría solicitada exitosamente para ${clientId}.`, "success")
+      showToast(`Telemetría solicitada para ${clientId}`, { type: 'success' })
+    } catch (err) {
+      console.error("Error solicitando telemetría:", err)
+      addLog(`Error al solicitar telemetría para ${clientId}: ${err.message}`, "error")
+      showToast(`Error al solicitar telemetría: ${err.message}`, { type: 'error' })
+    }
+  }
+
+  // Solicitar telemetría de todos los clientes a nivel global (Abre modal de personalización)
+  const handleRequestAllTelemetry = () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    if (active.length === 0) {
+      showToast("No hay clientes activos para solicitar telemetría", { type: 'error' });
+      return;
+    }
+    const initialChecked = {};
+    active.forEach(c => {
+      initialChecked[c.id] = true;
+    });
+    setGlobalTelemetryCheckedClients(initialChecked);
+    setIsGlobalTelemetryModalOpen(true);
+  };
+
+  const handleExecuteGlobalTelemetry = async () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    const selectedIds = active.filter(c => globalTelemetryCheckedClients[c.id]).map(c => c.id);
+
+    if (selectedIds.length === 0) {
+      showToast("Debe seleccionar al menos un cliente para solicitar telemetría", { type: 'error' });
+      return;
+    }
+
+    setIsGlobalTelemetryModalOpen(false);
+    addLog(`Solicitando reporte de telemetría para ${selectedIds.length} clientes...`, "info");
+    
+    if (isSimulated) {
+      addLog(`[Sandbox] Telemetría global solicitada para: ${selectedIds.join(', ')}. (Simulado)`, "success");
+      showToast(`[Sandbox] Telemetría global solicitada`, { type: 'success' });
+      return;
+    }
+
+    const centralApp = getCentralApp();
+    if (!centralApp) {
+      addLog("Error: No se pudo inicializar la aplicación central.", "error");
+      return;
+    }
+    const dbInstance = getFirestore(centralApp);
+
+    try {
+      const timestamp = Date.now();
+      const promises = selectedIds.map(clientId => {
+        const clientRef = doc(dbInstance, 'clientes_control', clientId.toLowerCase());
+        return updateDoc(clientRef, {
+          triggerTelemetryReport: timestamp
+        });
+      });
+      await Promise.all(promises);
+      addLog(`[Firestore] Telemetría solicitada para ${selectedIds.length} clientes: ${selectedIds.join(', ')}.`, "success");
+      showToast(`Telemetría solicitada para ${selectedIds.length} clientes`, { type: 'success' });
+    } catch (err) {
+      console.error("Error solicitando telemetría global:", err);
+      addLog(`Error al solicitar telemetría global: ${err.message}`, "error");
+      showToast(`Error al solicitar telemetría global: ${err.message}`, { type: 'error' });
+    }
+  };
+
+
   // Guardar configuración modificada en CRM
   const handleSaveCrmConfig = async () => {
     if (!selectedCrmClientId) return;
@@ -1463,6 +2026,238 @@ export default function App() {
     }
   }
 
+  const loadDriftData = async (clientId) => {
+    setDriftLoading(true)
+    setDriftData(null)
+    try {
+      const res = await fetch(`http://localhost:3001/api/project/drift?clientId=${clientId}`)
+      const data = await res.json()
+      if (data.success) {
+        setDriftData(data)
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      showToast(`Error al cargar desviación del Core: ${err.message}`, { type: 'error' })
+    } finally {
+      setDriftLoading(false)
+    }
+  }
+
+  const handleSyncFile = async (clientId, filename) => {
+    setSyncingFile(p => ({ ...p, [filename]: true }))
+    try {
+      const res = await fetch('http://localhost:3001/api/project/sync-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, file: filename })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast(`Sincronizado: ${filename}`, { type: 'success' })
+        await loadDriftData(clientId)
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      showToast(`Error al sincronizar: ${err.message}`, { type: 'error' })
+    } finally {
+      setSyncingFile(p => ({ ...p, [filename]: false }))
+    }
+  }
+
+  const isFileSensitive = (filename) => {
+    const sens = ['index.html', 'package.json', 'tailwind.config.js', 'postcss.config.js', 'vite.config.js', 'firestore.rules', 'firestore.indexes.json', 'storage.rules', '.firebaserc', 'firebase.json'];
+    const lower = filename.toLowerCase();
+    if (sens.includes(lower)) return true;
+    if (lower.startsWith('public/')) return true;
+    return false;
+  };
+
+  const handleBulkSync = async (clientId, selectedFiles) => {
+    setBulkSyncLoading(true)
+    try {
+      const res = await fetch('http://localhost:3001/api/project/sync-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, files: selectedFiles })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast(`Sincronizados ${selectedFiles.length} archivos con éxito`, { type: 'success' })
+        setIsBulkSyncModalOpen(false)
+        await loadDriftData(clientId)
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      showToast(`Error en sincronización masiva: ${err.message}`, { type: 'error' })
+    } finally {
+      setBulkSyncLoading(false)
+    }
+  }
+
+  const handleDeployClient = (clientId, force = false) => {
+    setDeployLogs([]);
+    setDeployError(null);
+    setDeployAuditScore(null);
+    setDeployTerminalClientId(clientId);
+    setDeployState('running');
+    setDeployProgressPercent(5);
+    setIsDeployTerminalOpen(true);
+
+    const eventSource = new EventSource(`http://localhost:3001/api/project/deploy?clientId=${clientId}&force=${force}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'log') {
+          setDeployLogs(prev => [...prev, data.line]);
+          
+          if (data.line.includes('Compilando aplicación local')) {
+            setDeployProgressPercent(25);
+          } else if (data.line.includes('Compilación exitosa')) {
+            setDeployProgressPercent(50);
+          } else if (data.line.includes('auditoría física')) {
+            setDeployProgressPercent(70);
+          } else if (data.line.includes('Subiendo a Firebase Hosting')) {
+            setDeployProgressPercent(85);
+          } else if (data.line.includes('Despliegue completado con éxito')) {
+            setDeployProgressPercent(100);
+            setDeployState('success');
+          }
+        } else if (data.type === 'result') {
+          if (data.success) {
+            setDeployState('success');
+            setDeployProgressPercent(100);
+            showToast(`¡Despliegue exitoso para ${clientId}!`, { type: 'success' });
+          } else {
+            setDeployState('failed');
+            setDeployError(data.error);
+            showToast(`Fallo en despliegue de ${clientId}`, { type: 'error' });
+          }
+          eventSource.close();
+        } else if (data.type === 'audit_failed') {
+          setDeployState('failed');
+          setDeployAuditScore(data.score);
+          setDeployLogs(prev => [...prev, `❌ AUDITORÍA DE CALIDAD FALLÓ (Puntaje: ${data.score}/100)`]);
+          showToast(`Despliegue cancelado por puntaje de auditoría bajo: ${data.score}`, { type: 'error' });
+          eventSource.close();
+        }
+      } catch (err) {
+        console.error("Error parsing deploy message:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("Deploy EventSource error:", err);
+      setDeployState('failed');
+      setDeployError("Conexión interrumpida con el servidor de compilación");
+      eventSource.close();
+    };
+  };
+
+  const handleGlobalSyncSafeFiles = () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    if (active.length === 0) {
+      showToast("No hay clientes activos para sincronizar", { type: 'error' });
+      return;
+    }
+    const initialChecked = {};
+    active.forEach(c => {
+      initialChecked[c.id] = true;
+    });
+    setGlobalSyncCheckedClients(initialChecked);
+    setIsGlobalSyncConfigModalOpen(true);
+  };
+
+  const handleExecuteGlobalSync = async () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    const selectedIds = active.filter(c => globalSyncCheckedClients[c.id]).map(c => c.id);
+    
+    if (selectedIds.length === 0) {
+      showToast("Debe seleccionar al menos un cliente para sincronizar", { type: 'error' });
+      return;
+    }
+    
+    setIsGlobalSyncConfigModalOpen(false);
+    setIsGlobalSyncProcessActive(true);
+    addLog(`[Sincronización Global] Iniciando análisis y sincronización para ${selectedIds.length} clientes...`, "info");
+    showToast("Iniciando sincronización...", { type: 'info' });
+    let totalSynced = 0;
+    
+    for (const clientId of selectedIds) {
+      setGlobalSyncCurrentClient(clientId);
+      try {
+        const res = await fetch(`http://localhost:3001/api/project/drift?clientId=${clientId}`);
+        const drift = await res.json();
+        
+        if (drift.success && drift.differences.length > 0) {
+          const safeFiles = drift.differences
+            .filter(d => !isFileSensitive(d.file))
+            .map(d => d.file);
+            
+          if (safeFiles.length > 0) {
+            addLog(`Sincronizando ${safeFiles.length} archivos seguros para: ${clientId}...`, "info");
+            const syncRes = await fetch('http://localhost:3001/api/project/sync-files', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clientId, files: safeFiles })
+            });
+            const syncData = await syncRes.json();
+            if (syncData.success) {
+              totalSynced += safeFiles.length;
+              addLog(`✔ Sincronización completa para ${clientId}.`, "success");
+            }
+          } else {
+            addLog(`Sincronización para ${clientId}: Sin archivos core pendientes de actualizar.`, "info");
+          }
+        } else {
+          addLog(`Sincronización para ${clientId}: Paridad total con el Core de referencia.`, "success");
+        }
+      } catch (err) {
+        addLog(`❌ Error sincronizando ${clientId}: ${err.message}`, "error");
+      }
+    }
+    
+    setIsGlobalSyncProcessActive(false);
+    setGlobalSyncCurrentClient('');
+    if (totalSynced > 0) {
+      showToast(`Sincronización global completada: ${totalSynced} archivos seguros actualizados.`, { type: 'success' });
+    } else {
+      showToast("Sincronización global terminada sin cambios pendientes.", { type: 'info' });
+    }
+  };
+
+  const handleGlobalDeployAll = () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    if (active.length === 0) {
+      showToast("No hay clientes activos para desplegar", { type: 'error' });
+      return;
+    }
+    const initialChecked = {};
+    active.forEach(c => {
+      initialChecked[c.id] = true;
+    });
+    setGlobalDeployCheckedClients(initialChecked);
+    setIsGlobalDeployConfigModalOpen(true);
+  };
+
+  const handleExecuteGlobalDeploy = () => {
+    const active = clientesSaas.filter(c => !c.archived);
+    const selectedIds = active.filter(c => globalDeployCheckedClients[c.id]).map(c => c.id);
+    
+    if (selectedIds.length === 0) {
+      showToast("Debe seleccionar al menos un cliente para desplegar", { type: 'error' });
+      return;
+    }
+    
+    setIsGlobalDeployConfigModalOpen(false);
+    addLog(`[Cola Global] Iniciando despliegue de hosting para ${selectedIds.length} clientes seleccionados.`, "info");
+    setDeployQueue(selectedIds);
+    setDeployQueueIndex(0);
+  };
+
   const handleArchiveClient = async (clientId) => {
     if (isSimulated) {
       setClientesSaas(prev => prev.map(c => c.id.toLowerCase() === clientId.toLowerCase() ? { ...c, archived: true } : c))
@@ -1512,42 +2307,63 @@ export default function App() {
   }
 
   // SIMULAR Y GESTIONAR ERRORES CENTRALIZADOS
-  const handleSimulateFailure = async () => {
-    const errorTypes = [
-      {
-        msg: "TypeError: Cannot read properties of undefined (reading 'split')",
-        stack: "TypeError: Cannot read properties of undefined (reading 'split')\n    at CategoriasView.jsx:42:15\n    at renderWithHooks (react-dom.development.js:15486:18)\n    at updateFunctionComponent (react-dom.development.js:17356:15)",
-      },
-      {
-        msg: "FirebaseError: [code=unavailable]: The service is temporarily unavailable.",
-        stack: "FirebaseError: The service is temporarily unavailable.\n    at index.esm2017.js:520:25\n    at async fetchCollection (uploadService.js:12:15)\n    at async handleInit (App.jsx:320:10)",
-      },
-      {
-        msg: "ReferenceError: process is not defined",
-        stack: "ReferenceError: process is not defined\n    at index.js:12:5\n    at Object.module.exports (main.js:2:1)\n    at __webpack_require__ (bootstrap:19:1)",
-      }
-    ]
-    const randomError = errorTypes[Math.floor(Math.random() * errorTypes.length)]
-    
-    // Obtener cliente aleatorio o fallback
-    const targetCli = clientesSaas.length > 0 
-      ? clientesSaas[Math.floor(Math.random() * clientesSaas.length)]
-      : { id: 'ventas-smartfix', niche: 'Ropa y Calzado' }
+  const handleSimulateFailure = async (customParams = null) => {
+    let errorMsg = ""
+    let stack = ""
+    let targetClientId = ""
+    let niche = ""
+    let type = "error"
+    let source = "automatic"
 
-    const tokenDoc = telemetryTokens.find(t => t.clientId === targetCli.id)
+    if (customParams) {
+      errorMsg = customParams.errorMsg
+      stack = customParams.stack
+      targetClientId = customParams.clientId
+      niche = customParams.niche
+      type = customParams.type
+      source = customParams.source
+    } else {
+      const errorTypes = [
+        {
+          msg: "TypeError: Cannot read properties of undefined (reading 'split')",
+          stack: "TypeError: Cannot read properties of undefined (reading 'split')\n    at CategoriasView.jsx:42:15\n    at renderWithHooks (react-dom.development.js:15486:18)",
+        },
+        {
+          msg: "FirebaseError: [code=unavailable]: The service is temporarily unavailable.",
+          stack: "FirebaseError: The service is temporarily unavailable.\n    at index.esm2017.js:520:25",
+        },
+        {
+          msg: "ReferenceError: process is not defined",
+          stack: "ReferenceError: process is not defined\n    at index.js:12:5",
+        }
+      ]
+      const randomError = errorTypes[Math.floor(Math.random() * errorTypes.length)]
+      const targetCli = clientesSaas.length > 0 
+        ? clientesSaas[Math.floor(Math.random() * clientesSaas.length)]
+        : { id: 'ventas-smartfix', niche: 'Ropa y Calzado' }
+      
+      errorMsg = randomError.msg
+      stack = randomError.stack
+      targetClientId = targetCli.id
+      niche = targetCli.niche
+    }
+
+    const tokenDoc = telemetryTokens.find(t => t.clientId === targetClientId)
     const activeToken = tokenDoc ? tokenDoc.id : (telemetryTokens[0]?.id || '')
 
     const newFailure = {
-      clientId: targetCli.id || 'desconocido',
+      clientId: targetClientId || 'desconocido',
       token: activeToken,
-      niche: targetCli.niche || 'General',
+      niche: niche || 'General',
       timestamp: new Date().toISOString(),
-      errorMsg: randomError.msg,
-      stack: randomError.stack,
+      errorMsg: errorMsg,
+      stack: stack,
       deviceInfo: `Chrome/124.0.0 (Windows NT 10.0; Win64; x64) WebView2`,
       resolved: false,
+      type: type,
+      source: source,
       environment: {
-        url: `https://${targetCli.id || 'ventas'}.grupocontrol.com/tienda`,
+        url: `https://${targetClientId || 'ventas'}.grupocontrol.com/tienda`,
         userAgent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0`,
         screenResolution: "1920x1080",
         viewport: "1440x900",
@@ -1853,7 +2669,7 @@ export default function App() {
   // RENDER PANEL PRINCIPAL
   if (isOnboardingActive) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans pb-12 overflow-x-hidden transition-colors duration-300">
+      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans pb-12 overflow-x-clip transition-colors duration-300">
         {/* Background decorativos */}
         <div className="absolute top-0 right-0 w-[50%] h-[400px] rounded-full bg-gradient-to-b from-violet-500/5 to-cyan-500/0 blur-[150px] pointer-events-none opacity-50 dark:opacity-100" />
         
@@ -1875,10 +2691,10 @@ export default function App() {
         </nav>
 
         <div className="max-w-7xl mx-auto px-6 mt-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             {/* WIZARD PANEL (Left) */}
-            <div className="lg:col-span-7 bg-[var(--color-surface)] p-6 rounded-3xl shadow-sm border border-[var(--color-border)] flex flex-col gap-6">
+            <div className="lg:col-span-7 self-start bg-[var(--color-surface)] p-6 rounded-3xl shadow-sm border border-[var(--color-border)] flex flex-col gap-6">
               <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
                 <div>
                   <h2 className="text-lg font-black text-[var(--color-text)] flex items-center gap-2">
@@ -2068,7 +2884,11 @@ export default function App() {
                               <input 
                                 type="text" 
                                 value={fbProjectId}
-                                onChange={(e) => setFbProjectId(e.target.value.replace(/\s+/g, '').toLowerCase())}
+                                onChange={(e) => {
+                                  setFbProjectId(e.target.value.replace(/\s+/g, '').toLowerCase());
+                                  setIsCredentialsValidated(false);
+                                  setCredentialsValidationError(null);
+                                }}
                                 placeholder="proyecto-cliente"
                                 className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
                               />
@@ -2089,7 +2909,11 @@ export default function App() {
                               <input 
                                 type="text" 
                                 value={fbApiKey}
-                                onChange={(e) => setFbApiKey(e.target.value)}
+                                onChange={(e) => {
+                                  setFbApiKey(e.target.value);
+                                  setIsCredentialsValidated(false);
+                                  setCredentialsValidationError(null);
+                                }}
                                 placeholder="AIzaSy..."
                                 className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
                               />
@@ -2138,14 +2962,70 @@ export default function App() {
 
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">VAPID Key de Web Push (Manual)</label>
-                            <input 
-                              type="text" 
-                              value={fbVapidKey}
-                              onChange={(e) => setFbVapidKey(e.target.value)}
-                              placeholder="BDd3L1s..."
-                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                            />
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                value={fbVapidKey}
+                                onChange={(e) => setFbVapidKey(e.target.value)}
+                                placeholder="BDd3L1s..."
+                                className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch('http://localhost:3001/api/vapid/generate');
+                                    const data = await res.json();
+                                    if (data.publicKey) {
+                                      setFbVapidKey(data.publicKey);
+                                      showToast('Clave VAPID generada ✓', { type: 'success' });
+                                    } else {
+                                      throw new Error(data.error || 'Respuesta vacía del servidor');
+                                    }
+                                  } catch (e) {
+                                    showToast(`Error al generar: ${e.message}`, { type: 'error' });
+                                  }
+                                }}
+                                className="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-400 border border-indigo-500/25 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                              >
+                                Generar
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Validar Credenciales Firebase (Mejora 1) */}
+                          <div className="flex items-center gap-3 p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-xl justify-between">
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-bold text-[var(--color-text)] block">Validar Credenciales</span>
+                              <span className="text-[9px] text-[var(--color-text-muted)] block">Prueba la API Key y el Project ID contra Google Firebase.</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={validateFirebaseCreds}
+                              disabled={isValidatingCredentials || !fbApiKey.trim() || !fbProjectId.trim()}
+                              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-bold transition-all cursor-pointer"
+                            >
+                              {isValidatingCredentials ? 'Validando...' : 'Comprobar Conexión'}
+                            </button>
+                          </div>
+
+                          {credentialsValidationError && (
+                            <div className="p-3 bg-rose-500/10 border border-rose-500/25 rounded-xl">
+                              <p className="text-[10px] text-rose-400 font-bold leading-relaxed">⚠️ {credentialsValidationError}</p>
+                            </div>
+                          )}
+
+                          {isCredentialsValidated && !credentialsValidationError && (
+                            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-1.5 animate-fade-in">
+                              <span className="text-[9px] text-emerald-400 font-bold">🟢 Conexión validada con éxito. Credenciales listas y autorizadas.</span>
+                            </div>
+                          )}
+
+                          {!isCredentialsValidated && !credentialsValidationError && fbApiKey.trim() && fbProjectId.trim() && !isValidatingCredentials && (
+                            <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-1.5 animate-fade-in">
+                              <span className="text-[9px] text-amber-400 font-bold">🟡 Credenciales listas para comprobar (presiona "Comprobar Conexión").</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2154,48 +3034,126 @@ export default function App() {
 
                 {wizardTab === 'branding' && (
                   <div className="space-y-6 animate-fade-in">
-                    {/* Paletas de Colores Preestablecidas */}
-                    <div className="space-y-2">
+                    {/* Paletas de Colores Preestablecidas (Por Categorías de Nicho) */}
+                    <div className="space-y-3">
                       <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paletas de Colores de Marca Recomendadas</span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {[
-                          { name: 'Royal Indigo', primary: '#6366f1', secondary: '#a855f7', bg: '#070b13', text: '#f8fafc' },
-                          { name: 'Esmeralda Tech', primary: '#10b981', secondary: '#06b6d4', bg: '#06130e', text: '#ecfdf5' },
-                          { name: 'Cyberpunk Neon', primary: '#ff007f', secondary: '#00f0ff', bg: '#0c0714', text: '#fdf6ff' },
-                          { name: 'Sunset Glow', primary: '#f97316', secondary: '#ef4444', bg: '#140c0b', text: '#fffcfb' },
-                          { name: 'Crimson Rose', primary: '#e11d48', secondary: '#be123c', bg: '#18080f', text: '#fff1f2' },
-                          { name: 'Amber Warm', primary: '#f59e0b', secondary: '#d97706', bg: '#15120c', text: '#fffdfa' },
-                          { name: 'Ocean Wave', primary: '#0ea5e9', secondary: '#3b82f6', bg: '#080f1e', text: '#f0f7ff' },
-                          { name: 'Slate Clean', primary: '#475569', secondary: '#94a3b8', bg: '#0f172a', text: '#f8fafc' }
-                        ].map((preset, pIdx) => {
-                          const isSelected = primaryColor === preset.primary && secondaryColor === preset.secondary && bgColor === preset.bg && textColor === preset.text;
+                      
+                      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                        {PALETTE_CATEGORIES.map((category) => {
+                          const isOpen = expandedPaletteCategory === category.id;
                           return (
-                            <button
-                              key={pIdx}
-                              type="button"
-                              onClick={() => {
-                                setPrimaryColor(preset.primary);
-                                setSecondaryColor(preset.secondary);
-                                setBgColor(preset.bg);
-                                setTextColor(preset.text);
-                                showToast(`Aplicada paleta: ${preset.name}`, { type: 'success' });
-                              }}
-                              className={`p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                                isSelected 
-                                  ? 'bg-indigo-600/15 border-indigo-500 shadow-md scale-[1.02]' 
-                                  : 'bg-[var(--color-surface-2)]/30 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/60'
+                            <div 
+                              key={category.id} 
+                              className={`border rounded-2xl overflow-hidden transition-all duration-200 ${
+                                isOpen 
+                                  ? 'border-indigo-500/40 bg-indigo-500/[0.02]' 
+                                  : 'border-[var(--color-border)] bg-[var(--color-surface-2)]/10 hover:border-indigo-500/20'
                               }`}
                             >
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: preset.primary }} />
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: preset.secondary }} />
-                                <div className="w-2.5 h-2.5 rounded-full border border-white/10" style={{ backgroundColor: preset.bg }} />
-                                <div className="w-2.5 h-2.5 rounded-full border border-black/10" style={{ backgroundColor: preset.text }} />
-                              </div>
-                              <span className="text-[10px] font-bold block text-[var(--color-text)] truncate">{preset.name}</span>
-                            </button>
+                              {/* Header del acordeón */}
+                              <button
+                                type="button"
+                                onClick={() => setExpandedPaletteCategory(isOpen ? null : category.id)}
+                                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--color-surface-2)]/30 hover:bg-[var(--color-surface-2)]/60 transition-colors text-xs font-bold text-[var(--color-text)] cursor-pointer select-none"
+                              >
+                                <span className="flex items-center gap-2">{category.name}</span>
+                                <ChevronDown 
+                                  size={14} 
+                                  className={`text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+
+                              {/* Contenido (grilla de paletas) */}
+                              {isOpen && (
+                                <div className="p-4 bg-[var(--color-surface)]/20 border-t border-[var(--color-border)] animate-scale-up origin-top">
+                                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    {category.palettes.map((preset, pIdx) => {
+                                      const isSelected = primaryColor === preset.primary && secondaryColor === preset.secondary && bgColor === preset.bg && textColor === preset.text;
+                                      return (
+                                        <button
+                                          key={pIdx}
+                                          type="button"
+                                          onClick={() => {
+                                            setPrimaryColor(preset.primary);
+                                            setSecondaryColor(preset.secondary);
+                                            setBgColor(preset.bg);
+                                            setTextColor(preset.text);
+                                            showToast(`Aplicada paleta: ${preset.name}`, { type: 'success' });
+                                          }}
+                                          className={`p-2 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                                            isSelected 
+                                              ? 'bg-indigo-600/20 border-indigo-500 shadow-md scale-[1.02]' 
+                                              : 'bg-[var(--color-surface-2)]/40 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-1 mb-1.5 justify-start">
+                                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.primary }} title="Primario" />
+                                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.secondary }} title="Secundario" />
+                                            <div className="w-2.5 h-2.5 rounded-full border border-white/10 shadow-sm" style={{ backgroundColor: preset.bg }} title="Fondo" />
+                                            <div className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.text }} title="Texto" />
+                                          </div>
+                                          <span className="text-[9px] font-bold block text-[var(--color-text)] truncate" title={preset.name}>{preset.name}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-[var(--color-border)] my-2" />
+
+                    {/* Logo de Marca y Favicon (Mejora 2) */}
+                    <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Logo Corporativo de Marca</span>
+                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">PWA & Favicon Auto-Ready</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Selector de Archivo Físico */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Subir Archivo de Logo (SVG, PNG, JPG)</label>
+                          <div className="relative group flex flex-col items-center justify-center border-2 border-dashed border-[var(--color-border)] hover:border-indigo-500/50 rounded-xl p-4 transition-all bg-[var(--color-bg)]/40 hover:bg-[var(--color-bg)]/70 text-center cursor-pointer">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <svg className="w-6 h-6 text-[var(--color-text-muted)] mb-1.5 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            <span className="text-[10px] font-bold text-[var(--color-text)]">
+                              {logoFilename ? logoFilename : 'Seleccionar o arrastrar logo'}
+                            </span>
+                            <span className="text-[8px] text-[var(--color-text-muted)] mt-0.5">Si supera los 2MB, se auto-optimizará a 512px.</span>
+                          </div>
+                        </div>
+
+                        {/* O ingresar ruta absoluta manualmente */}
+                        <div className="space-y-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">O ingresa la Ruta Absoluta del Archivo (Local)</label>
+                            <input 
+                              type="text" 
+                              value={logoLocalPath}
+                              onChange={(e) => setLogoLocalPath(e.target.value)}
+                              placeholder="C:\Users\Sergio\Pictures\logo.svg"
+                              className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                            />
+                          </div>
+                          {logoLocalPath && (
+                            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+                              <span className="text-[8px] font-bold text-emerald-400 font-mono truncate">RUTA DE LOGO GUARDADA</span>
+                              <span className="text-[9px] text-emerald-400 font-bold">✓ Listo</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -2359,6 +3317,68 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
+                    <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
+                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Contraste Botón Primario */}
+                        {(() => {
+                          const ratio = getContrastRatio(primaryColor, '#ffffff');
+                          const feedback = getContrastFeedback(ratio);
+                          return (
+                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
+                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
+                                  {feedback.text}
+                                </span>
+                                <div 
+                                  className="px-2 py-1 rounded text-[9px] font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: primaryColor }}
+                                >
+                                  Botón Primario
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Contraste Fondo vs Texto */}
+                        {(() => {
+                          const ratio = getContrastRatio(bgColor, textColor);
+                          const feedback = getContrastFeedback(ratio);
+                          return (
+                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
+                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
+                                  {feedback.text}
+                                </span>
+                                <div 
+                                  className="p-1 rounded text-[8px] border font-medium truncate max-w-[120px]"
+                                  style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
+                                >
+                                  Texto de Ejemplo
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -2452,36 +3472,60 @@ export default function App() {
                                 </div>
                       </div>
 
-                      {/* Selector de Recomendaciones de la Biblioteca */}
+                      {/* Selector de Recomendaciones de la Biblioteca — Premium Toggle Cards */}
                       <div className="border-t border-[var(--color-border)] pt-3.5 space-y-2">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Recomendaciones de Biblioteca y Módulos</label>
-                        <div className="bg-[var(--color-bg)]/80 border border-[var(--color-border)] rounded-xl p-3 max-h-56 overflow-y-auto space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Recomendaciones de Biblioteca y Módulos</label>
+                          {selectedRecomendations.length > 0 && (
+                            <span className="text-[9px] font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-full px-2 py-0.5">
+                              {selectedRecomendations.length} seleccionado{selectedRecomendations.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        <div className="bg-[var(--color-bg)]/60 border border-[var(--color-border)] rounded-xl p-2.5 max-h-64 overflow-y-auto space-y-3 scrollbar-thin">
                           {libraryList.length === 0 ? (
-                            <span className="text-[10px] text-[var(--color-text-muted)] italic block">Cargando catálogo de componentes...</span>
+                            <div className="flex items-center gap-2 py-3 justify-center">
+                              <div className="w-3 h-3 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+                              <span className="text-[10px] text-[var(--color-text-muted)] italic">Cargando catálogo de componentes...</span>
+                            </div>
                           ) : (
                             libraryList.map((cat, catIdx) => {
                               if (!cat.components || cat.components.length === 0) return null;
                               return (
                                 <div key={catIdx} className="space-y-1.5">
-                                  <span className="text-[10px] uppercase font-extrabold text-indigo-400 tracking-wider flex items-center gap-1">
-                                    {cat.isModule ? '📦' : '📂'} {cat.name}
-                                  </span>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-2">
+                                  {/* Category header */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[9px] uppercase font-extrabold tracking-widest" style={{ color: cat.isModule ? '#a78bfa' : '#60a5fa' }}>
+                                      {cat.isModule ? '📦' : '📂'} {cat.name}
+                                    </span>
+                                    <div className="flex-1 h-px bg-[var(--color-border)]" />
+                                    <span className="text-[8px] text-[var(--color-text-muted)] font-mono">{cat.components.length}</span>
+                                  </div>
+                                  {/* Component toggle cards */}
+                                  <div className="grid grid-cols-2 gap-1.5">
                                     {cat.components.map((comp, compIdx) => {
                                       const isSelected = selectedRecomendations.some(r => r.link === comp.link);
+                                      const isModule = comp.resourceType === 'module' || cat.isModule;
                                       return (
-                                        <label
+                                        <div
                                           key={compIdx}
-                                          className={`flex items-start gap-2 p-2 rounded-lg border text-left cursor-pointer transition-colors select-none ${
-                                            isSelected
-                                              ? 'bg-indigo-600/10 border-indigo-500/30'
-                                              : 'bg-[var(--color-surface-2)]/20 border-transparent hover:border-[var(--color-border)]'
-                                          }`}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => {
+                                          role="button"
+                                          tabIndex={0}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              setSelectedRecomendations(prev => prev.filter(r => r.link !== comp.link));
+                                            } else {
+                                              setSelectedRecomendations(prev => [...prev, {
+                                                name: comp.name,
+                                                technicalName: comp.technicalName,
+                                                link: comp.link,
+                                                resourceType: comp.resourceType
+                                              }]);
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                              e.preventDefault();
                                               if (isSelected) {
                                                 setSelectedRecomendations(prev => prev.filter(r => r.link !== comp.link));
                                               } else {
@@ -2492,16 +3536,69 @@ export default function App() {
                                                   resourceType: comp.resourceType
                                                 }]);
                                               }
-                                            }}
-                                            className="w-3.5 h-3.5 mt-0.5 rounded accent-indigo-600 focus:ring-0 focus:outline-none shrink-0"
-                                          />
-                                          <div className="leading-none">
-                                            <span className="text-[10px] font-bold text-[var(--color-text)] block">{comp.name}</span>
+                                            }
+                                          }}
+                                          className={`relative flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left cursor-pointer transition-all duration-200 group select-none overflow-hidden focus:outline-none focus:ring-1 focus:ring-indigo-500/40 ${
+                                            isSelected
+                                              ? 'bg-indigo-600/15 border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                                              : 'bg-[var(--color-surface-2)]/25 border-[var(--color-border)]/50 hover:bg-[var(--color-surface-2)]/50 hover:border-[var(--color-border)]'
+                                          }`}
+                                        >
+                                          {/* Glow top edge when selected */}
+                                          {isSelected && (
+                                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent" />
+                                          )}
+
+                                          {/* Check indicator + badge row */}
+                                          <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${
+                                                isModule
+                                                  ? 'text-violet-400 bg-violet-500/10 border-violet-500/20'
+                                                  : 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+                                              }`}>
+                                                {isModule ? '📦 Módulo' : '📂 Comp.'}
+                                              </span>
+                                              {getSandboxKey(comp.name, comp.technicalName) && (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setLivePreviewComponent(comp);
+                                                  }}
+                                                  className="flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                                                  title="Ver demo en vivo"
+                                                >
+                                                  <Play size={8} fill="currentColor" />
+                                                  Demo
+                                                </button>
+                                              )}
+                                            </div>
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 shrink-0 ${
+                                              isSelected
+                                                ? 'bg-indigo-600 border-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.5)]'
+                                                : 'border-[var(--color-border)] group-hover:border-indigo-500/40'
+                                            }`}>
+                                              {isSelected && (
+                                                <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+                                                  <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Name */}
+                                          <div className="w-full">
+                                            <span className={`text-[10px] font-bold block leading-tight ${isSelected ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}>
+                                              {comp.name}
+                                            </span>
                                             {comp.technicalName && (
-                                              <span className="text-[8px] font-mono text-[var(--color-text-muted)] block mt-0.5">{comp.technicalName}</span>
+                                              <span className="text-[8px] font-mono text-[var(--color-text-muted)]/60 block mt-0.5 truncate">
+                                                {comp.technicalName}
+                                              </span>
                                             )}
                                           </div>
-                                        </label>
+                                        </div>
                                       );
                                     })}
                                   </div>
@@ -2564,6 +3661,7 @@ export default function App() {
                       template: selectedTemplate,
                       projectName: newClientName.trim(),
                       targetPath,
+                      logoPath: logoLocalPath,
                       telemetryToken,
                       autoProvisionFirebase,
                       paletteChoice: 'custom',
@@ -2802,8 +3900,9 @@ export default function App() {
             </div>
 
             {/* MOCKUP PREVIEW PANEL (Right) */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center bg-[var(--color-surface)]/50 p-6 rounded-3xl border border-[var(--color-border)] shadow-sm sticky top-24">
-              <div className="text-center mb-4">
+            <div className="lg:col-span-5 relative h-full">
+              <div className="flex flex-col items-center justify-center bg-[var(--color-surface)]/50 p-5 rounded-3xl border border-[var(--color-border)] shadow-sm sticky top-24">
+              <div className="text-center mb-3">
                 <span className="text-[9px] uppercase font-bold text-indigo-400 tracking-wider flex items-center justify-center gap-1">
                   <Smartphone size={10} />
                   Vista Previa Interactiva
@@ -2813,19 +3912,19 @@ export default function App() {
 
               {/* Smartphone mockup */}
               <div 
-                className="w-[280px] h-[550px] rounded-[36px] p-2.5 relative shadow-2xl transition-all duration-300 ease-in-out border border-slate-700/50 flex flex-col"
+                className="w-[240px] h-[480px] rounded-[30px] p-2 relative shadow-2xl transition-all duration-300 ease-in-out border border-slate-700/50 flex flex-col"
                 style={{ 
                   backgroundColor: mockTheme === 'dark' ? bgColor : '#ffffff', 
                   color: mockTheme === 'dark' ? textColor : '#0f172a',
                   fontFamily: `'${googleFont}', sans-serif`,
-                  boxShadow: `0 25px 50px -12px ${primaryColor}20, 0 0 2px 2px ${primaryColor}40`
+                  boxShadow: `0 20px 40px -10px ${primaryColor}20, 0 0 2px 2px ${primaryColor}40`
                 }}
               >
                 {/* Glass reflection effect overlay */}
-                <div className="absolute inset-0 rounded-[36px] bg-gradient-to-tr from-white/0 via-white/5 to-white/10 pointer-events-none z-20" />
+                <div className="absolute inset-0 rounded-[30px] bg-gradient-to-tr from-white/0 via-white/5 to-white/10 pointer-events-none z-20" />
 
                 {/* Inner Screen Container */}
-                <div className="h-full w-full flex flex-col justify-between relative overflow-hidden rounded-[28px] p-3 pt-6">
+                <div className="h-full w-full flex flex-col justify-between relative overflow-hidden rounded-[22px] p-3 pt-5">
                   
                   {/* Dynamic Island / Camera Notch */}
                   <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-900 rounded-full z-40 flex items-center justify-center">
@@ -3045,6 +4144,52 @@ export default function App() {
                       </div>
                     )}
 
+                    {mockActiveTab === 'catalogo' && (
+                      <div className="space-y-3 animate-fade-in">
+                        <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">
+                          {['technical_services', 'refrigeration_ac', 'contractors', 'machinery_rental', 'laundry', 'furniture_repair', 'wellness_podology'].includes(niche) ? '📌 Servicios de la Marca' : '🏷️ Catálogo de Productos'}
+                        </span>
+                        
+                        <div className="space-y-2 max-h-[260px] overflow-y-auto pr-0.5 scrollbar-none">
+                          {(MOCK_CATALOG[niche] || MOCK_CATALOG.retail_clothing).map((item) => (
+                            <div 
+                              key={item.id} 
+                              className="p-2 rounded-xl bg-slate-500/5 border border-slate-500/10 flex items-center justify-between gap-2 transition-all hover:bg-slate-500/10"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-sm shrink-0">{item.emoji}</span>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-[8.5px] leading-tight truncate">{item.name}</p>
+                                  <p className="text-[8px] font-mono opacity-85 mt-0.5" style={{ color: primaryColor }}>
+                                    ${item.price.toLocaleString('es-CO')}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMockOrders([
+                                    {
+                                      id: Date.now(),
+                                      title: item.name,
+                                      time: 'Hace un momento',
+                                      val: item.price
+                                    },
+                                    ...mockOrders
+                                  ]);
+                                  showToast(`Añadido: ${item.name}`, { type: 'success' });
+                                }}
+                                className="px-2 py-1 rounded-lg text-[8px] font-bold text-white transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
+                                style={{ backgroundColor: primaryColor }}
+                              >
+                                + Registrar
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {mockActiveTab === 'ajustes' && (
                       <div className="space-y-3">
                         <span className="text-[8px] opacity-70 uppercase font-bold tracking-wider block">Ajustes de Branding</span>
@@ -3121,6 +4266,17 @@ export default function App() {
                     </button>
                     <button 
                       type="button"
+                      onClick={() => setMockActiveTab('catalogo')}
+                      className="flex flex-col items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+                      style={{ color: mockActiveTab === 'catalogo' ? primaryColor : 'inherit', opacity: mockActiveTab === 'catalogo' ? 1 : 0.6 }}
+                    >
+                      <span>📦</span>
+                      <span className="font-bold">
+                        {['technical_services', 'refrigeration_ac', 'contractors', 'machinery_rental', 'laundry', 'furniture_repair', 'wellness_podology'].includes(niche) ? 'Servicios' : 'Catálogo'}
+                      </span>
+                    </button>
+                    <button 
+                      type="button"
                       onClick={() => setMockActiveTab('ventas')}
                       className="flex flex-col items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
                       style={{ color: mockActiveTab === 'ventas' ? primaryColor : 'inherit', opacity: mockActiveTab === 'ventas' ? 1 : 0.6 }}
@@ -3140,6 +4296,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -3281,6 +4438,86 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* Modal de Previsualización en Vivo */}
+        {livePreviewComponent && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+            <div 
+              className="absolute inset-0 bg-transparent" 
+              onClick={() => setLivePreviewComponent(null)} 
+            />
+            <div className="w-full max-w-4xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl shadow-2xl flex flex-col h-[85vh] relative z-10 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Play size={8} fill="currentColor" /> Previsualización en Vivo
+                  </span>
+                  <span className="text-xs font-black text-[var(--color-text)]">
+                    {livePreviewComponent.name}
+                  </span>
+                  {livePreviewComponent.technicalName && (
+                    <span className="text-[9px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-2)]/50 px-2 py-0.5 rounded border border-[var(--color-border)]/50">
+                      {livePreviewComponent.technicalName}
+                    </span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => setLivePreviewComponent(null)}
+                  className="p-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-xl cursor-pointer transition-all active:scale-95"
+                  title="Cerrar previsualización"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Sandbox Render Container */}
+              <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]/40 scrollbar-thin">
+                <ComponentSandbox 
+                  componentName={livePreviewComponent.name} 
+                  technicalName={livePreviewComponent.technicalName} 
+                />
+              </div>
+              
+              {/* Footer */}
+              <div className="px-6 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] z-10 flex items-center justify-end gap-3 shadow-md">
+                <button
+                  type="button"
+                  onClick={() => setLivePreviewComponent(null)}
+                  className="px-4 py-2 border border-[var(--color-border)] text-xs font-bold rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/80 transition-all cursor-pointer"
+                >
+                  Cerrar
+                </button>
+                {(() => {
+                  const isSelected = selectedRecomendations.some(r => r.link === livePreviewComponent.link);
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedRecomendations(prev => prev.filter(r => r.link !== livePreviewComponent.link));
+                        } else {
+                          setSelectedRecomendations(prev => [...prev, {
+                            name: livePreviewComponent.name,
+                            technicalName: livePreviewComponent.technicalName,
+                            link: livePreviewComponent.link,
+                            resourceType: livePreviewComponent.resourceType
+                          }]);
+                        }
+                      }}
+                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow ${
+                        isSelected 
+                          ? 'bg-red-650/80 hover:bg-red-600 text-white' 
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                      }`}
+                    >
+                      {isSelected ? 'Remover de Recomendaciones' : 'Añadir a Recomendaciones'}
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -3292,6 +4529,7 @@ export default function App() {
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo' },
+    { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
     { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
   ]
@@ -3358,7 +4596,7 @@ export default function App() {
 
   // RENDER PANEL PRINCIPAL
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans overflow-x-hidden selection:bg-violet-500/30 selection:text-violet-200 transition-colors duration-300 flex flex-col md:cursor-none">
+    <div className="h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans overflow-hidden selection:bg-violet-500/30 selection:text-violet-200 transition-colors duration-300 flex flex-col md:cursor-none">
       {/* Cursor personalizado — solo desktop */}
       <CustomCursor />
 
@@ -3918,11 +5156,28 @@ export default function App() {
                   </h1>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Directorio completo, configuración de facturación y portal de cada cliente.</p>
                 </div>
-                <button onClick={() => setActiveTab('onboarding')}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-[0.98] cursor-pointer shrink-0">
-                  <Plus size={14} />
-                  Nuevo Cliente
-                </button>
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                  <button onClick={handleGlobalSyncSafeFiles}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    <RefreshCw size={13} className="animate-pulse" />
+                    Sincronización Global Core (Safe)
+                  </button>
+                  <button onClick={handleGlobalDeployAll}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    <Activity size={13} />
+                    Despliegue Global Hosting
+                  </button>
+                  <button onClick={handleRequestAllTelemetry}
+                    className="px-3.5 py-2 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    <Activity size={13} />
+                    Obtener Telemetría Global
+                  </button>
+                  <button onClick={() => setActiveTab('onboarding')}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-[0.98] cursor-pointer shrink-0">
+                    <Plus size={13} />
+                    Nuevo Cliente
+                  </button>
+                </div>
               </div>
               {/* Contenido CRM existente — modal de métrica reutilizado inline */}
               <div className="space-y-3">
@@ -3943,31 +5198,78 @@ export default function App() {
                         <p className="text-[10px] text-[var(--color-text-muted)]">{client.reportCount} reportes · {client.pendingCount} pendientes</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6 text-center">
-                      <div>
-                        <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Ventas</span>
-                        <span className="text-xs font-black font-mono text-[var(--color-text)]">${client.totalSales.toLocaleString('es-CO')}</span>
+                    <div className="flex items-center justify-between w-full md:w-auto gap-3 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[var(--color-border)] md:border-t-0">
+                      <div className="flex items-center gap-6 pr-2">
+                        <div className="text-left md:text-center">
+                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Ventas</span>
+                          <span className="text-xs font-black font-mono text-[var(--color-text)]">${client.totalSales.toLocaleString('es-CO')}</span>
+                        </div>
+                        <div className="text-left md:text-center">
+                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
+                          <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
-                        <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
+                      <div className="flex items-center gap-2">
+                        {/* BOTÓN DESPLEGAR EN LOCAL */}
+                        {(() => {
+                          const server = localServers[client.name] || { running: false, url: '', loading: false };
+                          if (server.loading) {
+                            return (
+                              <button disabled
+                                className="px-3 py-1.5 bg-violet-600/10 text-violet-450 dark:text-violet-400 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all opacity-50 shrink-0 border border-violet-500/10">
+                                <RefreshCw size={11} className="animate-spin" />
+                                Procesando...
+                              </button>
+                            );
+                          }
+                          if (server.running) {
+                            return (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <a href={server.url} target="_blank" rel="noopener noreferrer"
+                                  className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-sm border-none flex items-center">
+                                  <ArrowUpRight size={11} className="mr-0.5" />
+                                  Ir a Local
+                                </a>
+                                <button onClick={() => handleStopLocalServer(client.name)}
+                                  className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-red-500/10 hover:border-red-500/30">
+                                  <StopCircle size={11} />
+                                  Detener
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <button onClick={() => handleStartLocalServer(client.name)}
+                              className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 text-violet-650 dark:text-violet-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-violet-500/10 hover:border-violet-500/30 shrink-0">
+                              <Play size={11} />
+                              Desplegar en Local
+                            </button>
+                          );
+                        })()}
+                        <button onClick={() => handleRequestClientTelemetry(client.name)}
+                          className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 shrink-0">
+                          <Activity size={11} className="animate-pulse" />
+                          Obtener Telemetría
+                        </button>
+                        <button onClick={() => { 
+                          const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
+                          setEditNiche(cfg.niche || 'retail_clothing');
+                          setEditBillingMode(cfg.billingMode || 'percentage');
+                          setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
+                          setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
+                          setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
+                          setEditEnableDianBilling(!!cfg.enableDianBilling);
+                          setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+                          setCrmTab('config');
+                          setDriftData(null);
+                          setSelectedCrmClientId(client.name); 
+                          setActiveMetricModal('clientes'); 
+                        }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-sm shrink-0 border-none">
+                          Gestionar
+                          <ChevronRight size={11} />
+                        </button>
                       </div>
-                      <button onClick={() => { 
-                        const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
-                        setEditNiche(cfg.niche || 'retail_clothing');
-                        setEditBillingMode(cfg.billingMode || 'percentage');
-                        setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
-                        setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
-                        setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
-                        setEditEnableDianBilling(!!cfg.enableDianBilling);
-                        setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
-                        setSelectedCrmClientId(client.name); 
-                        setActiveMetricModal('clientes'); 
-                      }}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
-                        Gestionar
-                        <ChevronRight size={12} />
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -4493,29 +5795,37 @@ export default function App() {
                   </h1>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Monitoreo en tiempo real de fallos e incidentes en aplicaciones de clientes.</p>
                 </div>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-row items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto">
                   <button 
-                    onClick={handleSimulateFailure}
-                    className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 text-violet-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+                    onClick={() => {
+                      setSimFailureClientId(clientesSaas[0]?.id || 'ventas-smartfix');
+                      setSimFailureNiche(clientesSaas[0]?.niche || 'Ropa y Calzado');
+                      setSimFailureManualClientId('');
+                      setSimFailureErrorType('0');
+                      setSimFailureCustomMsg('');
+                      setSimFailureCustomStack('');
+                      setIsSimulateFailureModalOpen(true);
+                    }}
+                    className="flex-1 sm:flex-none justify-center px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 text-violet-400 text-[10px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 active:scale-95 shadow-sm shrink-0"
                   >
                     <Activity size={13} className="animate-pulse" />
-                    Simular Fallo
+                    Simular<span className="hidden sm:inline"> Fallo</span>
                   </button>
                   <button 
                     onClick={handleResolveAllFailures}
                     disabled={failures.filter(f => !f.resolved).length === 0}
-                    className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+                    className="flex-1 sm:flex-none justify-center px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[10px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm shrink-0"
                   >
                     <CheckCircle size={13} />
-                    Resolver Todos
+                    Resolver<span className="hidden sm:inline"> Todos</span>
                   </button>
                   <button 
                     onClick={handleClearAllFailures}
                     disabled={failures.length === 0}
-                    className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/25 text-red-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
+                    className="flex-1 sm:flex-none justify-center px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/25 text-red-400 text-[10px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm shrink-0"
                   >
                     <Trash2 size={13} />
-                    Vaciar Historial
+                    Vaciar<span className="hidden sm:inline"> Historial</span>
                   </button>
                 </div>
               </div>
@@ -4620,6 +5930,15 @@ export default function App() {
                                   <span className="text-[10px] text-slate-500 font-mono">
                                     • {new Date(fail.timestamp).toLocaleString()}
                                   </span>
+                                  {fail.source === 'manual' ? (
+                                    <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[8px] font-black uppercase rounded border border-amber-500/20">
+                                      Manual
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 text-[8px] font-black uppercase rounded border border-indigo-500/20">
+                                      Automático
+                                    </span>
+                                  )}
                                   {fail.resolved ? (
                                     <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase rounded border border-emerald-500/20">
                                       Resuelto
@@ -4696,6 +6015,11 @@ export default function App() {
           {/* ===== TAB: GESTIÓN DE CORES ===== */}
           {activeTab === 'cores' && (
             <CoreManagerPanel showToast={(msg, type) => showToast(msg, { type })} />
+          )}
+
+          {/* ===== TAB: CONTROL GIT ===== */}
+          {activeTab === 'git' && (
+            <GitBackupPanel showToast={showToast} />
           )}
 
           {/* ===== TAB: SETTINGS ===== */}
@@ -4927,7 +6251,7 @@ export default function App() {
                             placeholder="Buscar en logs..." 
                             value={telemetrySearchQuery}
                             onChange={(e) => { setTelemetrySearchQuery(e.target.value); setLogPage(1); }}
-                            className="h-8 pl-8 pr-3 w-full md:w-48 bg-slate-900/80 border border-slate-850 text-[10px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900 transition-all"
+                            className="h-8 pl-8 pr-3 w-full md:w-48 bg-slate-900/80 border border-slate-800 text-[10px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900 transition-all"
                           />
                           <Activity size={12} className="absolute left-3 top-2.5 text-slate-500 animate-pulse" />
                           {telemetrySearchQuery && (
@@ -4961,7 +6285,7 @@ export default function App() {
                           <div className="flex flex-col items-center justify-center my-auto space-y-2 select-none">
                             <Activity size={24} className="text-slate-650 dark:text-slate-700 animate-pulse" />
                             <div className="text-[var(--color-text-muted)] italic text-xs font-mono">
-                              ~/telemetry $ await_stream_signal...
+                              ~/telemetria $ escuchando_eventos_en_vivo...
                             </div>
                             <p className="text-[9px] text-slate-600">No hay registros que coincidan con los filtros activos.</p>
                           </div>
@@ -5038,8 +6362,8 @@ export default function App() {
 
       {/* BOTTOM NAVIGATION - Móvil */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl pb-safe animate-slide-up">
-        <div className="flex items-center justify-around px-2 py-1.5">
-          {NAV_TABS.filter(tab => tab.id !== 'e2e' && tab.id !== 'cores').map(tab => {
+        <div className="grid grid-cols-5 items-center justify-items-center px-1 py-1.5">
+          {NAV_TABS.filter(tab => tab.id !== 'e2e' && tab.id !== 'cores' && tab.id !== 'git').map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             const isCenterAction = tab.id === 'onboarding'
@@ -5050,7 +6374,7 @@ export default function App() {
                   key={tab.id}
                   id={`bottom-tab-${tab.id}`}
                   onClick={() => setActiveTab(tab.id)}
-                  className="relative -mt-3.5 flex flex-col items-center cursor-pointer transition-all duration-300 active:scale-95 group min-w-[64px]"
+                  className="relative -mt-3.5 flex flex-col items-center cursor-pointer transition-all duration-300 active:scale-95 group w-full"
                 >
                   <div className={`w-13 h-13 rounded-full flex items-center justify-center bg-gradient-to-tr from-violet-600 via-indigo-600 to-cyan-500 border border-violet-400/20 text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] onboarding-center-btn ${
                     isActive ? 'scale-105 animate-pulse-glow' : 'animate-center-float'
@@ -5069,7 +6393,7 @@ export default function App() {
                 key={tab.id}
                 id={`bottom-tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer min-w-[52px] ${
+                className={`flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all duration-200 cursor-pointer w-full ${
                   isActive ? 'text-indigo-400' : 'text-[var(--color-text-muted)]'
                 }`}
               >
@@ -5109,120 +6433,321 @@ export default function App() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              {/* Nicho de Mercado */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Nicho de Mercado / Vertical de Negocio</label>
-                <CustomSelect 
-                  value={editNiche} 
-                  onChange={(e) => setEditNiche(e.target.value)}
-                  options={[
-                    { id: "retail_clothing", name: "🛍️ Ropa y Retail Tradicional (retail_clothing)" },
-                    { id: "technical_services", name: "⚙️ Tornerías y Mecanizado de Precisión (technical_services)" },
-                    { id: "refrigeration_ac", name: "❄️ Refrigeración y Climatización (refrigeration_ac)" },
-                    { id: "contractors", name: "📐 Contratistas y Construcción (contractors)" },
-                    { id: "machinery_rental", name: "🚜 Alquiler de Maquinaria y Equipos (machinery_rental)" },
-                    { id: "carpentry", name: "🪚 Carpinterías y Muebles (carpentry)" },
-                    { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
-                    { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
-                    { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
-                    { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
-                  ]}
-                />
-              </div>
-
-              {/* Modo de Facturación */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Modelo de Cobro Base</label>
-                <CustomSelect
-                  value={editBillingMode}
-                  onChange={(val) => setEditBillingMode(val)}
-                  options={[
-                    { value: "percentage", label: "Porcentaje sobre Ventas (%)" },
-                    { value: "fixed_per_service", label: "Monto Fijo por Servicio" },
-                    { value: "flat_monthly", label: "Pago Mensual Fijo" }
-                  ]}
-                />
-              </div>
-
-              {editBillingMode === 'percentage' && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tasa de Comisión (%)</label>
-                  <input 
-                    type="number" 
-                    value={editComisionPorcentaje} 
-                    onChange={(e) => setEditComisionPorcentaje(parseFloat(e.target.value) || 0)}
-                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                    step="0.1"
-                  />
-                </div>
-              )}
-
-              {editBillingMode === 'fixed_per_service' && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Monto Fijo por Servicio ($ COP)</label>
-                  <input 
-                    type="number" 
-                    value={editMontoFijoServicio} 
-                    onChange={(e) => setEditMontoFijoServicio(parseInt(e.target.value) || 0)}
-                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                  />
-                </div>
-              )}
-
-              {editBillingMode === 'flat_monthly' && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Pago Mensual Fijo ($ COP)</label>
-                  <input 
-                    type="number" 
-                    value={editPagoMensualFijo} 
-                    onChange={(e) => setEditPagoMensualFijo(parseInt(e.target.value) || 0)}
-                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                  />
-                </div>
-              )}
-
-              {/* Facturación Electrónica DIAN */}
-              <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
-                  <input 
-                    type="checkbox" 
-                    checked={editEnableDianBilling} 
-                    onChange={(e) => setEditEnableDianBilling(e.target.checked)}
-                    className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                  />
-                  Habilitar Facturación Electrónica DIAN Directa
-                </label>
-
-                {editEnableDianBilling && (
-                  <div className="space-y-1.5 animate-fade-in pl-6 border-l border-indigo-500/20">
-                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo por Documento DIAN ($ COP)</label>
-                    <input 
-                      type="number" 
-                      value={editCostoPorFacturaDian}
-                      onChange={(e) => setEditCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
-                      className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                    />
-                  </div>
-                )}
-              </div>
+            {/* Selector de Pestañas CRM */}
+            <div className="flex border-b border-[var(--color-border)] pb-0.5 mb-2">
+              <button
+                onClick={() => setCrmTab('config')}
+                className={`flex-1 pb-2 text-[10px] font-black uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  crmTab === 'config'
+                    ? 'border-indigo-500 text-indigo-400'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Configuración Operativa
+              </button>
+              <button
+                onClick={() => {
+                  setCrmTab('drift');
+                  loadDriftData(selectedCrmClientId);
+                }}
+                className={`flex-1 pb-2 text-[10px] font-black uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  crmTab === 'drift'
+                    ? 'border-indigo-500 text-indigo-400'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Sincronización Core (Drift)
+              </button>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
+            {crmTab === 'config' ? (
+              <>
+                <div className="space-y-4">
+                  {/* Nicho de Mercado */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Nicho de Mercado / Vertical de Negocio</label>
+                    <CustomSelect 
+                      value={editNiche} 
+                      onChange={(e) => setEditNiche(e.target.value)}
+                      options={[
+                        { id: "retail_clothing", name: "🛍️ Ropa y Retail Tradicional (retail_clothing)" },
+                        { id: "technical_services", name: "⚙️ Tornerías y Mecanizado de Precisión (technical_services)" },
+                        { id: "refrigeration_ac", name: "❄️ Refrigeración y Climatización (refrigeration_ac)" },
+                        { id: "contractors", name: "📐 Contratistas y Construcción (contractors)" },
+                        { id: "machinery_rental", name: "🚜 Alquiler de Maquinaria y Equipos (machinery_rental)" },
+                        { id: "carpentry", name: "🪚 Carpinterías y Muebles (carpentry)" },
+                        { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
+                        { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
+                        { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
+                        { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
+                      ]}
+                    />
+                  </div>
+
+                  {/* Modo de Facturación */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Modelo de Cobro Base</label>
+                    <CustomSelect
+                      value={editBillingMode}
+                      onChange={(val) => setEditBillingMode(val)}
+                      options={[
+                        { value: "percentage", label: "Porcentaje sobre Ventas (%)" },
+                        { value: "fixed_per_service", label: "Monto Fijo por Servicio" },
+                        { value: "flat_monthly", label: "Pago Mensual Fijo" }
+                      ]}
+                    />
+                  </div>
+
+                  {editBillingMode === 'percentage' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tasa de Comisión (%)</label>
+                      <input 
+                        type="number" 
+                        value={editComisionPorcentaje} 
+                        onChange={(e) => setEditComisionPorcentaje(parseFloat(e.target.value) || 0)}
+                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                        step="0.1"
+                      />
+                    </div>
+                  )}
+
+                  {editBillingMode === 'fixed_per_service' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Monto Fijo por Servicio ($ COP)</label>
+                      <input 
+                        type="number" 
+                        value={editMontoFijoServicio} 
+                        onChange={(e) => setEditMontoFijoServicio(parseInt(e.target.value) || 0)}
+                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                      />
+                    </div>
+                  )}
+
+                  {editBillingMode === 'flat_monthly' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Pago Mensual Fijo ($ COP)</label>
+                      <input 
+                        type="number" 
+                        value={editPagoMensualFijo} 
+                        onChange={(e) => setEditPagoMensualFijo(parseInt(e.target.value) || 0)}
+                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                      />
+                    </div>
+                  )}
+
+                  {/* Facturación Electrónica DIAN */}
+                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={editEnableDianBilling} 
+                        onChange={(e) => setEditEnableDianBilling(e.target.checked)}
+                        className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                      />
+                      Habilitar Facturación Electrónica DIAN Directa
+                    </label>
+
+                    {editEnableDianBilling && (
+                      <div className="space-y-1.5 animate-fade-in pl-6 border-l border-indigo-500/20">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo por Documento DIAN ($ COP)</label>
+                        <input 
+                          type="number" 
+                          value={editCostoPorFacturaDian}
+                          onChange={(e) => setEditCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
+                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
+                  <button 
+                    onClick={() => {
+                      setActiveMetricModal(null)
+                      setSelectedCrmClientId(null)
+                    }}
+                    className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleSaveCrmConfig}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all"
+                  >
+                    Guardar Configuración
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Panel de Sincronización Core (Drift) */}
+                <div className="space-y-4">
+                  {driftLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-2">
+                      <RefreshCw size={24} className="animate-spin text-indigo-500" />
+                      <span className="text-xs text-[var(--color-text-muted)]">Analizando desviación respecto al Core...</span>
+                    </div>
+                  ) : driftData ? (
+                    <div className="space-y-4">
+                      {/* Resumen de paridad */}
+                      <div className="flex items-center justify-between bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl p-4">
+                        <div>
+                          <p className="text-xs font-black text-[var(--color-text)]">Índice de Paridad de Código</p>
+                          <p className="text-[10px] text-[var(--color-text-muted)]">Core de Referencia: <span className="font-mono font-bold text-indigo-400">{driftData.coreId}</span></p>
+                        </div>
+                        <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
+                          driftData.parityPercent >= 90 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }`}>
+                          {driftData.parityPercent}% Sincronizado
+                        </span>
+                      </div>
+
+                      {/* Acciones Rápidas del Cliente */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const filesMap = {};
+                            driftData.differences.forEach(diff => {
+                              filesMap[diff.file] = !isFileSensitive(diff.file);
+                            });
+                            setBulkSyncFiles(filesMap);
+                            setIsBulkSyncModalOpen(true);
+                          }}
+                          disabled={driftData.differences.length === 0}
+                          className="py-2 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
+                        >
+                          <RefreshCw size={12} className="animate-pulse" />
+                          Sincronizar Lote
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeployClient(selectedCrmClientId, false)}
+                          className="py-2 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                        >
+                          <Activity size={12} />
+                          Desplegar Hosting
+                        </button>
+                      </div>
+
+                      {/* Lista de desviaciones */}
+                      <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                        {driftData.differences.length === 0 ? (
+                          <div className="text-center py-10 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                            <p className="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5">
+                              <CheckCircle size={14} />
+                              ¡Código 100% Alineado!
+                            </p>
+                            <p className="text-[10px] text-emerald-300/60 mt-1">Esta instancia de cliente no presenta desviaciones físicas con el Core.</p>
+                          </div>
+                        ) : (
+                          driftData.differences.map((diff, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-[var(--color-surface-2)]/10 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-2)]/20 transition-all">
+                              <div className="space-y-0.5">
+                                <p className="text-[11px] font-mono font-bold text-[var(--color-text)] break-all">{diff.file}</p>
+                                <p className="text-[9px] text-[var(--color-text-muted)]">
+                                  {diff.status === 'missing_in_client' ? '⚠️ Archivo ausente en cliente' : '✏️ Archivo modificado/desviado'}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {diff.status === 'modified' && (
+                                  <button
+                                    onClick={() => setActiveDiffFile(diff)}
+                                    className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[9px] font-bold cursor-pointer"
+                                  >
+                                    Ver Diff
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleSyncFile(selectedCrmClientId, diff.file)}
+                                  disabled={syncingFile[diff.file]}
+                                  className="h-6 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 disabled:opacity-40"
+                                >
+                                  {syncingFile[diff.file] ? <RefreshCw size={8} className="animate-spin" /> : <RefreshCw size={8} />}
+                                  Sincronizar
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--color-text-muted)] italic text-center py-6">Selecciona cargar desviación para comparar archivos.</p>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
+                  <button 
+                    onClick={() => {
+                      setActiveMetricModal(null)
+                      setSelectedCrmClientId(null)
+                    }}
+                    className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Cerrar CRM
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visor de Diffs */}
+      {activeDiffFile && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/95 backdrop-blur-md animate-fade-in p-4">
+          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-4 max-h-[85vh] overflow-y-auto flex flex-col">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3 shrink-0">
+              <h4 className="font-mono text-xs text-indigo-400 font-bold break-all">
+                Diferencias: {activeDiffFile.file}
+              </h4>
               <button 
-                onClick={() => {
-                  setActiveMetricModal(null)
-                  setSelectedCrmClientId(null)
-                }}
+                onClick={() => setActiveDiffFile(null)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-auto font-mono text-[10px] whitespace-pre-wrap leading-relaxed max-h-[50vh]">
+              {activeDiffFile.diff ? (
+                activeDiffFile.diff.map((part, idx) => (
+                  <span 
+                    key={idx} 
+                    className={
+                      part.added 
+                        ? 'text-emerald-400 bg-emerald-500/10 block w-full px-1 border-l-2 border-emerald-500' 
+                        : part.removed 
+                        ? 'text-red-400 bg-red-500/10 block w-full px-1 border-l-2 border-red-500' 
+                        : 'text-slate-400 block w-full px-1'
+                    }
+                  >
+                    {part.value}
+                  </span>
+                ))
+              ) : (
+                <p className="text-slate-400">Archivo nuevo (sin diferencias de líneas).</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)] shrink-0">
+              <button 
+                onClick={() => setActiveDiffFile(null)}
                 className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
               >
-                Cancelar
+                Cerrar Visor
               </button>
               <button 
-                onClick={handleSaveCrmConfig}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all"
+                onClick={() => {
+                  handleSyncFile(selectedCrmClientId, activeDiffFile.file);
+                  setActiveDiffFile(null);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
-                Guardar Configuración
+                Aplicar Sincronización
               </button>
             </div>
           </div>
@@ -5467,27 +6992,43 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
             </div>
 
             {/* Información del Sistema / Base de Datos */}
-            <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-2.5 text-xs text-left">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Base de Datos</span>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+            <div className="p-4 bg-gradient-to-br from-[var(--color-surface-2)]/40 to-[var(--color-surface)]/60 border border-[var(--color-border)] rounded-2xl shadow-[inset_0_1px_2px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-md space-y-3 text-xs text-left relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
+              
+              <div className="flex justify-between items-center relative z-10">
+                <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Database size={13} className="text-violet-400" />
+                  Base de Datos
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider shadow-sm transition-all duration-300 flex items-center gap-1 ${
                   !isOnline 
-                    ? 'bg-red-500/10 text-red-400 border-red-500/25'
+                    ? 'bg-red-500/10 text-red-400 border-red-500/25 shadow-red-500/5'
                     : (dbStatus === 'conectado' && !isSimulated
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/25')
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25 shadow-emerald-500/5'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/25 shadow-amber-500/5')
                 }`}>
-                  {!isOnline ? 'Offline' : (dbStatus === 'conectado' && !isSimulated ? 'Firestore Online' : 'Modo Sandbox')}
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    !isOnline ? 'bg-red-500' : (dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-500' : 'bg-amber-500')
+                  }`} />
+                  {!isOnline ? 'Offline' : (dbStatus === 'conectado' && !isSimulated ? 'Firestore Online' : 'Sandbox')}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-[var(--color-text-muted)] font-semibold uppercase">Entorno</span>
-                <span className="font-semibold text-[var(--color-text)]">Vite + React 19</span>
+              
+              <div className="h-px bg-gradient-to-r from-[var(--color-border)]/50 via-[var(--color-border)] to-transparent" />
+              
+              <div className="flex justify-between items-center relative z-10">
+                <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers size={13} className="text-cyan-400" />
+                  Entorno
+                </span>
+                <span className="font-extrabold text-[var(--color-text)] flex items-center gap-1 bg-[var(--color-surface-2)]/60 px-2 py-0.5 rounded-lg border border-[var(--color-border)] text-[10px]">
+                  Vite + React 19
+                </span>
               </div>
             </div>
 
             {/* Accesos a Herramientas de Desarrollador en Móvil */}
-            <div className="lg:hidden grid grid-cols-2 gap-2 w-full mb-2">
+            <div className="lg:hidden grid grid-cols-3 gap-2 w-full mb-2">
               <button 
                 onClick={() => {
                   setIsProfileModalOpen(false)
@@ -5507,6 +7048,16 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
               >
                 <FlaskConical size={13} />
                 Tests E2E
+              </button>
+              <button 
+                onClick={() => {
+                  setIsProfileModalOpen(false)
+                  setActiveTab('git')
+                }}
+                className="py-2.5 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+              >
+                <GitCommit size={13} />
+                Git
               </button>
             </div>
 
@@ -5546,7 +7097,7 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
             onClick={() => setSelectedDiagnosticError(null)}
           />
 
-          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
             <div className="w-screen max-w-md bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-2xl flex flex-col justify-between select-text animate-slide-in-right">
               {/* Header */}
               <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-start">
@@ -5692,7 +7243,8 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                         <button
                           onClick={async () => {
                             try {
-                              await navigator.clipboard.writeText(detectedFile);
+                              const finalPath = codeSnippet?.file || detectedFile;
+                              await navigator.clipboard.writeText(finalPath);
                               showToast('Ruta de archivo copiada', { type: 'success' });
                             } catch (err) {
                               showToast('Error al copiar ruta', { type: 'error' });
@@ -5701,7 +7253,7 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                           className="w-full py-2.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-2)]/80 border border-[var(--color-border)] text-[var(--color-text)] font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
                         >
                           <Database size={12} className="text-slate-400" />
-                          Copiar Ruta de Archivo ({detectedFile.split('/').pop()})
+                          Copiar Ruta de Archivo ({(codeSnippet?.file || detectedFile).split(/[\\/]/).pop()})
                         </button>
                       </div>
                     </>
@@ -5867,6 +7419,855 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Previsualización en Vivo */}
+      {livePreviewComponent && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div 
+            className="absolute inset-0 bg-transparent" 
+            onClick={() => setLivePreviewComponent(null)} 
+          />
+          <div className="w-full max-w-4xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl shadow-2xl flex flex-col h-[85vh] relative z-10 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] z-10 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Play size={8} fill="currentColor" /> Previsualización en Vivo
+                </span>
+                <span className="text-xs font-black text-[var(--color-text)]">
+                  {livePreviewComponent.name}
+                </span>
+                {livePreviewComponent.technicalName && (
+                  <span className="text-[9px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-2)]/50 px-2 py-0.5 rounded border border-[var(--color-border)]/50">
+                    {livePreviewComponent.technicalName}
+                  </span>
+                )}
+              </div>
+              <button 
+                onClick={() => setLivePreviewComponent(null)}
+                className="p-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-xl cursor-pointer transition-all active:scale-95"
+                title="Cerrar previsualización"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Sandbox Render Container */}
+            <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]/40 scrollbar-thin">
+              <ComponentSandbox 
+                componentName={livePreviewComponent.name} 
+                technicalName={livePreviewComponent.technicalName} 
+              />
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] z-10 flex items-center justify-end gap-3 shadow-md">
+              <button
+                type="button"
+                onClick={() => setLivePreviewComponent(null)}
+                className="px-4 py-2 border border-[var(--color-border)] text-xs font-bold rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/80 transition-all cursor-pointer"
+              >
+                Cerrar
+              </button>
+              {(() => {
+                const isSelected = selectedRecomendations.some(r => r.link === livePreviewComponent.link);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedRecomendations(prev => prev.filter(r => r.link !== livePreviewComponent.link));
+                      } else {
+                        setSelectedRecomendations(prev => [...prev, {
+                          name: livePreviewComponent.name,
+                          technicalName: livePreviewComponent.technicalName,
+                          link: livePreviewComponent.link,
+                          resourceType: livePreviewComponent.resourceType
+                        }]);
+                      }
+                    }}
+                    className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow ${
+                      isSelected 
+                        ? 'bg-red-600/20 border border-red-500/30 hover:bg-red-600/35 text-red-400' 
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    }`}
+                  >
+                    {isSelected ? 'Remover de Recomendaciones' : 'Añadir a Recomendaciones'}
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Simulación de Fallos Avanzado */}
+      {isSimulateFailureModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => setIsSimulateFailureModalOpen(false)} />
+          <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-[var(--color-text)] flex items-center gap-2">
+                  <Activity size={16} className="text-violet-400 animate-pulse" />
+                  Simulador de Fallos Telemetría (Sandbox)
+                </h3>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Inyecta fallos de prueba dirigidos a clientes y entornos reales o manuales.</p>
+              </div>
+              <button 
+                onClick={() => setIsSimulateFailureModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors animate-in"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Formulario */}
+            <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin text-xs text-left">
+              
+              {/* Cliente Destino */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">1. Cliente Destino</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[9px] text-slate-400 block mb-1">Seleccionar de CRM</span>
+                    <select
+                      value={simFailureClientId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSimFailureClientId(val);
+                        if (val !== 'manual') {
+                          const cli = clientesSaas.find(c => c.id === val);
+                          setSimFailureNiche(cli ? cli.niche : 'General');
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70"
+                    >
+                      {clientesSaas.map(c => (
+                        <option key={c.id} value={c.id}>{c.id} ({c.niche})</option>
+                      ))}
+                      <option value="manual">-- Ingresar ID Manual --</option>
+                    </select>
+                  </div>
+                  
+                  {simFailureClientId === 'manual' ? (
+                    <div>
+                      <span className="text-[9px] text-slate-400 block mb-1">ID Cliente & Nicho</span>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          placeholder="cliente-test"
+                          value={simFailureManualClientId}
+                          onChange={(e) => setSimFailureManualClientId(e.target.value)}
+                          className="w-1/2 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Nicho (ej. Modas)"
+                          value={simFailureNiche}
+                          onChange={(e) => setSimFailureNiche(e.target.value)}
+                          className="w-1/2 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col justify-end">
+                      <div className="p-2.5 bg-slate-950/50 border border-slate-800/40 rounded-xl">
+                        <div className="text-[9px] text-slate-500">Nicho Detectado</div>
+                        <div className="font-extrabold text-slate-300 mt-0.5">{simFailureNiche}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Plantilla de Error */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">2. Tipo de Incidente / Error</label>
+                <select
+                  value={simFailureErrorType}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSimFailureErrorType(val);
+                    if (val !== 'custom') {
+                      const errT = [
+                        {
+                          msg: "TypeError: Cannot read properties of undefined (reading 'split')",
+                          stack: "TypeError: Cannot read properties of undefined (reading 'split')\n    at CategoriasView.jsx:42:15\n    at renderWithHooks (react-dom.development.js:15486:18)\n    at updateFunctionComponent (react-dom.development.js:17356:15)"
+                        },
+                        {
+                          msg: "FirebaseError: [code=unavailable]: The service is temporarily unavailable.",
+                          stack: "FirebaseError: The service is temporarily unavailable.\n    at index.esm2017.js:520:25\n    at async fetchCollection (uploadService.js:12:15)"
+                        },
+                        {
+                          msg: "ReferenceError: process is not defined",
+                          stack: "ReferenceError: process is not defined\n    at index.js:12:5\n    at Object.module.exports (main.js:2:1)"
+                        },
+                        {
+                          msg: "TypeError: Failed to fetch (Network Request Blocked)",
+                          stack: "TypeError: Failed to fetch\n    at async postTelemetry (telemetryService.js:45:12)\n    at async triggerReport (DeveloperBillingPanel.jsx:112:9)"
+                        },
+                        {
+                          msg: "PaymentGatewayError: [code=gateway_timeout]: Connection to payment server timed out.",
+                          stack: "PaymentGatewayError: Connection to payment server timed out.\n    at paymentService.js:84:18\n    at async processCheckout (CartDrawer.jsx:220:14)"
+                        }
+                      ][parseInt(val)];
+                      setSimFailureCustomMsg(errT.msg);
+                      setSimFailureCustomStack(errT.stack);
+                    } else {
+                      setSimFailureCustomMsg('');
+                      setSimFailureCustomStack('');
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70"
+                >
+                  <option value="0">TypeError (split of undefined) - JS Componentes</option>
+                  <option value="1">FirebaseError (Servicio temporalmente caído) - Base de Datos</option>
+                  <option value="2">ReferenceError (process is not defined) - Entorno/Vite</option>
+                  <option value="3">TypeError: Failed to fetch - Problemas de Red/CORS</option>
+                  <option value="4">PaymentGatewayError (Timeout) - Cobros/Monetización</option>
+                  <option value="custom">-- Error Personalizado --</option>
+                </select>
+              </div>
+
+              {/* Campos de texto dinámicos */}
+              {(simFailureErrorType === 'custom' || simFailureCustomMsg) && (
+                <div className="space-y-3.5 animate-in fade-in duration-200">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">Mensaje de Error</span>
+                    <input
+                      type="text"
+                      placeholder="Mensaje o firma de error..."
+                      value={simFailureCustomMsg}
+                      onChange={(e) => setSimFailureCustomMsg(e.target.value)}
+                      disabled={simFailureErrorType !== 'custom'}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 disabled:opacity-75 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70 font-mono text-[10px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">Pila de Llamadas (Stack Trace)</span>
+                    <textarea
+                      placeholder="Stack trace..."
+                      value={simFailureCustomStack}
+                      onChange={(e) => setSimFailureCustomStack(e.target.value)}
+                      rows={3}
+                      disabled={simFailureErrorType !== 'custom'}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 disabled:opacity-75 rounded-xl text-slate-200 focus:outline-none focus:border-indigo-500/70 font-mono text-[9px] resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Nivel de Gravedad y Origen */}
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                {/* Nivel */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">3. Tipo de Severidad</label>
+                  <div className="flex gap-1 p-0.5 bg-slate-950 rounded-xl border border-slate-800">
+                    {[
+                      { id: 'error', label: 'FAIL (Crítico)' },
+                      { id: 'warning', label: 'WARN' },
+                      { id: 'info', label: 'INFO' }
+                    ].map(x => (
+                      <button
+                        key={x.id}
+                        type="button"
+                        onClick={() => setSimFailureType(x.id)}
+                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold cursor-pointer transition-all ${
+                          simFailureType === x.id 
+                            ? (x.id === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : (x.id === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'))
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {x.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Origen */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-[var(--color-text-muted)] font-bold uppercase tracking-wider block">4. Origen de Reporte</label>
+                  <div className="flex gap-1 p-0.5 bg-slate-950 rounded-xl border border-slate-800">
+                    {[
+                      { id: 'automatic', label: 'Automático' },
+                      { id: 'manual', label: 'Manual' }
+                    ].map(x => (
+                      <button
+                        key={x.id}
+                        type="button"
+                        onClick={() => setSimFailureSource(x.id)}
+                        className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold cursor-pointer transition-all ${
+                          simFailureSource === x.id 
+                            ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {x.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-800/85 bg-slate-950/20 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsSimulateFailureModalOpen(false)}
+                className="px-4 py-2 border border-slate-800 text-xs font-bold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const finalClientId = simFailureClientId === 'manual' ? simFailureManualClientId : simFailureClientId;
+                  if (!finalClientId) {
+                    showToast('Por favor escribe el ID del cliente', { type: 'error' });
+                    return;
+                  }
+                  
+                  let msg = simFailureCustomMsg;
+                  let stk = simFailureCustomStack;
+                  
+                  if (simFailureErrorType !== 'custom') {
+                    const idx = parseInt(simFailureErrorType);
+                    const defaultTemplates = [
+                      {
+                        msg: "TypeError: Cannot read properties of undefined (reading 'split')",
+                        stack: "TypeError: Cannot read properties of undefined (reading 'split')\n    at CategoriasView.jsx:42:15\n    at renderWithHooks (react-dom.development.js:15486:18)\n    at updateFunctionComponent (react-dom.development.js:17356:15)"
+                      },
+                      {
+                        msg: "FirebaseError: [code=unavailable]: The service is temporarily unavailable.",
+                        stack: "FirebaseError: The service is temporarily unavailable.\n    at index.esm2017.js:520:25\n    at async fetchCollection (uploadService.js:12:15)"
+                      },
+                      {
+                        msg: "ReferenceError: process is not defined",
+                        stack: "ReferenceError: process is not defined\n    at index.js:12:5\n    at Object.module.exports (main.js:2:1)"
+                      },
+                      {
+                        msg: "TypeError: Failed to fetch (Network Request Blocked)",
+                        stack: "TypeError: Failed to fetch\n    at async postTelemetry (telemetryService.js:45:12)\n    at async triggerReport (DeveloperBillingPanel.jsx:112:9)"
+                      },
+                      {
+                        msg: "PaymentGatewayError: [code=gateway_timeout]: Connection to payment server timed out.",
+                        stack: "PaymentGatewayError: Connection to payment server timed out.\n    at paymentService.js:84:18\n    at async processCheckout (CartDrawer.jsx:220:14)"
+                      }
+                    ];
+                    msg = defaultTemplates[idx].msg;
+                    stk = defaultTemplates[idx].stack;
+                  }
+                  
+                  handleSimulateFailure({
+                    clientId: finalClientId,
+                    niche: simFailureNiche,
+                    errorMsg: msg || 'Error simulado',
+                    stack: stk || 'Stack simulado',
+                    type: simFailureType,
+                    source: simFailureSource
+                  });
+                  
+                  setIsSimulateFailureModalOpen(false);
+                }}
+                className="px-4 py-2 bg-violet-650 hover:bg-violet-600/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow-lg shadow-violet-950/20"
+              >
+                Inyectar Incidente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Sincronización Inteligente Lote (Bulk Sync) */}
+      {isBulkSyncModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => setIsBulkSyncModalOpen(false)} />
+          <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[85vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-[var(--color-text)] flex items-center gap-2">
+                  <RefreshCw size={16} className="text-indigo-400 animate-spin" />
+                  Sincronización Inteligente Lote
+                </h3>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Sincroniza múltiples archivos desviados a la vez filtrando elementos sensibles.</p>
+              </div>
+              <button 
+                onClick={() => setIsBulkSyncModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Lista de Archivos */}
+            <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin text-xs text-left">
+              {/* Alerta de archivos sensibles */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1 text-[10px] text-amber-400">
+                <p className="font-bold flex items-center gap-1.5">
+                  ⚠️ Filtro de Seguridad Inteligente Activo
+                </p>
+                <p className="text-slate-300">
+                  Hemos desmarcado por defecto los archivos sensibles (branding, configuraciones de pasarela o index de cliente) para evitar sobreescribir personalizaciones operativas.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Selecciona archivos para actualizar:</p>
+                
+                <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
+                  {Object.keys(bulkSyncFiles).map(filename => {
+                    const isSensitive = isFileSensitive(filename);
+                    return (
+                      <label 
+                        key={filename} 
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                          isSensitive 
+                            ? 'bg-amber-550/5 border-amber-500/15 hover:bg-amber-550/10' 
+                            : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-950/80'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!bulkSyncFiles[filename]}
+                          onChange={(e) => {
+                            setBulkSyncFiles(prev => ({ ...prev, [filename]: e.target.checked }));
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded accent-indigo-600 bg-slate-950 border border-slate-800 focus:ring-0 focus:outline-none cursor-pointer"
+                        />
+                        <div className="space-y-0.5">
+                          <span className="font-mono font-bold text-[10px] text-slate-300 break-all">{filename}</span>
+                          <span className="block text-[9px] font-bold">
+                            {isSensitive ? (
+                              <span className="text-amber-400">⚠️ Archivo Sensible (Branding/Config)</span>
+                            ) : (
+                              <span className="text-indigo-400">✔ Lógica Core (Seguro para actualizar)</span>
+                            )}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-800/85 bg-slate-950/20 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsBulkSyncModalOpen(false)}
+                className="px-4 py-2 border border-slate-800 text-xs font-bold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={bulkSyncLoading || !Object.values(bulkSyncFiles).some(Boolean)}
+                onClick={() => {
+                  const filesToSync = Object.keys(bulkSyncFiles).filter(f => bulkSyncFiles[f]);
+                  handleBulkSync(selectedCrmClientId, filesToSync);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow-lg shadow-indigo-950/25 flex items-center gap-1.5"
+              >
+                {bulkSyncLoading && <RefreshCw size={12} className="animate-spin" />}
+                Aplicar Sincronización ({Object.values(bulkSyncFiles).filter(Boolean).length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Terminal de Despliegue de Hosting (SSE Bridge) */}
+      {isDeployTerminalOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => {
+            if (deployState !== 'running') setIsDeployTerminalOpen(false);
+          }} />
+          <div className="w-full max-w-xl bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl relative z-10 flex flex-col h-[70vh] overflow-hidden">
+            {/* Header / Barra de título */}
+            <div className="p-4 bg-slate-900 border-b border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+                <span className="text-[10px] font-mono text-slate-400 font-bold ml-2">
+                  ssh developer@bridge-deploy:~/{deployTerminalClientId}
+                  {deployQueue.length > 0 && ` [Cola: ${deployQueueIndex + 1}/${deployQueue.length}]`}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsDeployTerminalOpen(false)}
+                disabled={deployState === 'running'}
+                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Terminal Screen / Logs */}
+            <div className="flex-1 p-5 overflow-y-auto bg-slate-950 font-mono text-[10px] text-slate-350 space-y-1.5 scrollbar-thin text-left select-text">
+              {deployLogs.map((log, index) => (
+                <div key={index} className={`leading-relaxed whitespace-pre-wrap ${
+                  log.startsWith('❌') ? 'text-red-400 font-bold' : 
+                  log.startsWith('⚠') ? 'text-amber-400' : 
+                  log.startsWith('✅') || log.startsWith('🎉') ? 'text-emerald-400 font-bold' : 
+                  log.startsWith('🚀') || log.startsWith('📦') ? 'text-indigo-400 font-bold' : 'text-slate-300'
+                }`}>
+                  {log}
+                </div>
+              ))}
+              {deployState === 'running' && (
+                <div className="flex items-center gap-2 text-indigo-400 font-bold animate-pulse mt-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                  <span>Ejecutando operaciones en la instancia...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Status Bar / Progress */}
+            <div className="p-4 bg-slate-900 border-t border-slate-800/80 space-y-3.5">
+              {/* Barra de progreso */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-slate-400">Progreso de Despliegue</span>
+                  <span className={deployState === 'success' ? 'text-emerald-400' : deployState === 'failed' ? 'text-red-400' : 'text-indigo-400'}>
+                    {deployState === 'success' ? '✔ COMPLETO' : deployState === 'failed' ? '❌ FALLIDO' : `${deployProgressPercent}%`}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-850 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      deployState === 'success' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 
+                      deployState === 'failed' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]'
+                    }`}
+                    style={{ width: `${deployProgressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Botones de acción del terminal */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <div>
+                  {deployAuditScore !== null && (
+                    <div className="text-[10px] font-bold px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-md">
+                      Puntaje PWA: {deployAuditScore}/100 (Bajo)
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {deployQueue.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setDeployQueue([]);
+                        setDeployQueueIndex(-1);
+                        setDeployState('idle');
+                        addLog(`[Cola Global] Cola de despliegue en lote cancelada por el desarrollador.`, "error");
+                        showToast("Cola de despliegue cancelada", { type: 'info' });
+                      }}
+                      className="px-3.5 py-1.5 bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-400 font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      Cancelar Cola
+                    </button>
+                  )}
+                  {deployState === 'failed' && (
+                    <button
+                      onClick={() => handleDeployClient(deployTerminalClientId, true)}
+                      className="px-3.5 py-1.5 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/30 text-amber-400 font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      Forzar Despliegue (Ignorar Auditoría)
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsDeployTerminalOpen(false)}
+                    disabled={deployState === 'running'}
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-350 font-bold rounded-xl transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  >
+                    Cerrar Consola
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Configuración de Sincronización Global */}
+      {isGlobalSyncConfigModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => setIsGlobalSyncConfigModalOpen(false)} />
+          <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-[var(--color-text)] flex items-center gap-2">
+                  <RefreshCw size={16} className="text-indigo-400" />
+                  Sincronización Global Core (Safe)
+                </h3>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Selecciona los clientes en los que deseas sincronizar la lógica de archivos core.</p>
+              </div>
+              <button 
+                onClick={() => setIsGlobalSyncConfigModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Client Checklist */}
+            <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin text-xs text-left">
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Clientes Activos</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const allChecked = {};
+                      clientesSaas.filter(c => !c.archived).forEach(c => { allChecked[c.id] = true; });
+                      setGlobalSyncCheckedClients(allChecked);
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer"
+                  >
+                    Seleccionar Todos
+                  </button>
+                  <span>•</span>
+                  <button 
+                    onClick={() => setGlobalSyncCheckedClients({})}
+                    className="text-slate-400 hover:text-white font-bold cursor-pointer"
+                  >
+                    Deseleccionar Todos
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                {clientesSaas.filter(c => !c.archived).map(client => (
+                  <label 
+                    key={client.id}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 hover:bg-slate-950/80 transition-all cursor-pointer"
+                  >
+                    <input 
+                      type="checkbox"
+                      checked={!!globalSyncCheckedClients[client.id]}
+                      onChange={(e) => {
+                        setGlobalSyncCheckedClients(prev => ({ ...prev, [client.id]: e.target.checked }));
+                      }}
+                      className="w-4 h-4 rounded accent-indigo-600 bg-slate-950 border border-slate-800 focus:ring-0 focus:outline-none cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <span className="font-bold text-slate-200">{client.id}</span>
+                      <span className="block text-[9px] text-slate-400 font-medium">Nicho: {client.niche || 'N/A'} • Versión: Ecosistema Core</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-800/85 bg-slate-950/20 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsGlobalSyncConfigModalOpen(false)}
+                className="px-4 py-2 border border-slate-800 text-xs font-bold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteGlobalSync}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-505 text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow-lg shadow-indigo-950/25 flex items-center gap-1.5"
+              >
+                Iniciar Sincronización ({Object.values(globalSyncCheckedClients).filter(Boolean).length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Configuración de Despliegue Global Hosting */}
+      {isGlobalDeployConfigModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => setIsGlobalDeployConfigModalOpen(false)} />
+          <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-[var(--color-text)] flex items-center gap-2">
+                  <Activity size={16} className="text-emerald-400" />
+                  Despliegue Global Hosting
+                </h3>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Selecciona los clientes cuyos proyectos de hosting de Firebase se compilarán y subirán.</p>
+              </div>
+              <button 
+                onClick={() => setIsGlobalDeployConfigModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Client Checklist */}
+            <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin text-xs text-left">
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Clientes Activos</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const allChecked = {};
+                      clientesSaas.filter(c => !c.archived).forEach(c => { allChecked[c.id] = true; });
+                      setGlobalDeployCheckedClients(allChecked);
+                    }}
+                    className="text-emerald-400 hover:text-emerald-300 font-bold cursor-pointer"
+                  >
+                    Seleccionar Todos
+                  </button>
+                  <span>•</span>
+                  <button 
+                    onClick={() => setGlobalDeployCheckedClients({})}
+                    className="text-slate-400 hover:text-white font-bold cursor-pointer"
+                  >
+                    Deseleccionar Todos
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                {clientesSaas.filter(c => !c.archived).map(client => (
+                  <label 
+                    key={client.id}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 hover:bg-slate-950/80 transition-all cursor-pointer"
+                  >
+                    <input 
+                      type="checkbox"
+                      checked={!!globalDeployCheckedClients[client.id]}
+                      onChange={(e) => {
+                        setGlobalDeployCheckedClients(prev => ({ ...prev, [client.id]: e.target.checked }));
+                      }}
+                      className="w-4 h-4 rounded accent-emerald-600 bg-slate-950 border border-slate-800 focus:ring-0 focus:outline-none cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <span className="font-bold text-slate-200">{client.id}</span>
+                      <span className="block text-[9px] text-slate-400 font-medium">Nicho: {client.niche || 'N/A'} • Hosting: Firebase</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-800/85 bg-slate-950/20 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsGlobalDeployConfigModalOpen(false)}
+                className="px-4 py-2 border border-slate-800 text-xs font-bold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteGlobalDeploy}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow-lg shadow-emerald-950/25 flex items-center gap-1.5"
+              >
+                Iniciar Despliegue ({Object.values(globalDeployCheckedClients).filter(Boolean).length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Configuración de Telemetría Global */}
+      {isGlobalTelemetryModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="absolute inset-0 bg-transparent" onClick={() => setIsGlobalTelemetryModalOpen(false)} />
+          <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-[var(--color-text)] flex items-center gap-2">
+                  <Activity size={16} className="text-slate-400" />
+                  Obtener Telemetría Global
+                </h3>
+                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Selecciona los clientes a los que deseas solicitar un reporte de telemetría y diagnóstico inmediato.</p>
+              </div>
+              <button 
+                onClick={() => setIsGlobalTelemetryModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Client Checklist */}
+            <div className="p-6 space-y-4 overflow-y-auto scrollbar-thin text-xs text-left">
+              <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Clientes Activos</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const allChecked = {};
+                      clientesSaas.filter(c => !c.archived).forEach(c => { allChecked[c.id] = true; });
+                      setGlobalTelemetryCheckedClients(allChecked);
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer"
+                  >
+                    Seleccionar Todos
+                  </button>
+                  <span>•</span>
+                  <button 
+                    onClick={() => setGlobalTelemetryCheckedClients({})}
+                    className="text-slate-400 hover:text-white font-bold cursor-pointer"
+                  >
+                    Deseleccionar Todos
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                {clientesSaas.filter(c => !c.archived).map(client => (
+                  <label 
+                    key={client.id}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 hover:bg-slate-950/80 transition-all cursor-pointer"
+                  >
+                    <input 
+                      type="checkbox"
+                      checked={!!globalTelemetryCheckedClients[client.id]}
+                      onChange={(e) => {
+                        setGlobalTelemetryCheckedClients(prev => ({ ...prev, [client.id]: e.target.checked }));
+                      }}
+                      className="w-4 h-4 rounded accent-indigo-600 bg-slate-950 border border-slate-800 focus:ring-0 focus:outline-none cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <span className="font-bold text-slate-200">{client.id}</span>
+                      <span className="block text-[9px] text-slate-400 font-medium">Nicho: {client.niche || 'N/A'} • Control de Telemetría</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-800/85 bg-slate-950/20 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsGlobalTelemetryModalOpen(false)}
+                className="px-4 py-2 border border-slate-800 text-xs font-bold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteGlobalTelemetry}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 shadow-lg shadow-indigo-950/25 flex items-center gap-1.5"
+              >
+                Solicitar Reporte ({Object.values(globalTelemetryCheckedClients).filter(Boolean).length})
+              </button>
             </div>
           </div>
         </div>

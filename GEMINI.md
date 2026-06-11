@@ -8,6 +8,7 @@
   * NUNCA realices despliegues a producción o hosting de manera automática; hazlo exclusivamente cuando te lo pida de forma explícita.
   * APRENDE DE TUS ERRORES: Si te corrijo sobre un error, patrón o preferencia de diseño (ej. "sin bordes negros"), memorízalo y NUNCA lo vuelvas a repetir.
   * FUNCIONALIDAD COMPLETA Y SEGURIDAD: Todo componente, botón o función debe ser 100% funcional y completo. Si un cambio afecta a otros archivos, analízalos y actualízalos con cuidado para no romper nada.
+  * PERSISTENCIA Y CIERRE DE SESIÓN HÍBRIDO (CRÍTICO): Al implementar o invocar el cierre de sesión ('logout') de un usuario administrador o del sistema que use autenticación de Firebase, es obligatorio e indispensable llamar de forma asíncrona a 'signOut(auth)' para limpiar la sesión activa del navegador (IndexedDB) además de limpiar el estado en Zustand/LocalStorage. Esto previene el auto-login indeseado al recargar la página física en entornos multi-perfil.
 
 - COMANDOS DE DESPLIEGUE EN ESTE EQUIPO:
   * Compilar/Construir: `cmd /c npm run build`

@@ -40,7 +40,7 @@ export default function GuidedToast({
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 z-[9999] w-full max-w-sm border backdrop-blur-xl p-4.5 rounded-2xl flex items-start gap-3.5 transition-all duration-300 animate-slide-in-right ${config.bg} ${config.glow}`}>
+    <div className={`fixed bottom-6 left-4 right-4 md:left-auto md:right-6 z-[9999] w-auto md:w-full md:max-w-sm border backdrop-blur-xl p-4.5 rounded-2xl flex items-start gap-3.5 transition-all duration-300 animate-slide-in-right ${config.bg} ${config.glow}`}>
       {/* Icono de Tipo */}
       <div className="shrink-0 mt-0.5">
         {config.icon}

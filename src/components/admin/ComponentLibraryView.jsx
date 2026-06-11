@@ -256,6 +256,46 @@ export default function ComponentLibraryView({ showToast }) {
   const [resourceFilter, setResourceFilter] = useState('all'); // 'all' | 'component' | 'module'
   const [expandedCat, setExpandedCat] = useState(null);
 
+  // Estados para extracción de componentes
+  const [showExtractForm, setShowExtractForm] = useState(false);
+  const [extSourcePath, setExtSourcePath] = useState('');
+  const [extTargetName, setExtTargetName] = useState('');
+  const [extCategory, setExtCategory] = useState('');
+  const [extDescription, setExtDescription] = useState('');
+  const [extracting, setExtracting] = useState(false);
+
+  const handleExtract = async () => {
+    if (!extSourcePath || !extTargetName || !extCategory) return;
+    setExtracting(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/library/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceFilePath: extSourcePath,
+          targetName: extTargetName,
+          category: extCategory,
+          description: extDescription
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast?.('¡Componente extraído y catalogado con éxito!', 'success');
+        setShowExtractForm(false);
+        setExtSourcePath('');
+        setExtTargetName('');
+        setExtDescription('');
+        await fetchLibrary();
+      } else {
+        throw new Error(data.error || 'Fallo al extraer');
+      }
+    } catch (err) {
+      showToast?.(err.message, 'error');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const toggleCategory = useCallback((name) => {
     setExpandedCat(prev => prev === name ? null : name);
   }, []);
@@ -346,14 +386,88 @@ export default function ComponentLibraryView({ showToast }) {
               : `${totalComponents} componentes · ${categories.length} categorías`}
           </p>
         </div>
-        <button
-          onClick={fetchLibrary}
-          className="px-3.5 py-2 rounded-xl bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] text-xs font-bold text-[var(--color-text)] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 self-start"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          Sincronizar
-        </button>
+        <div className="flex gap-2 shrink-0 self-start">
+          <button
+            onClick={() => setShowExtractForm(p => !p)}
+            className="px-3.5 py-2 rounded-xl bg-indigo-600/10 border border-indigo-500/25 hover:bg-indigo-600/20 text-xs font-bold text-indigo-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Sparkles size={13} />
+            Extraer Componente
+          </button>
+          <button
+            onClick={fetchLibrary}
+            className="px-3.5 py-2 rounded-xl bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] text-xs font-bold text-[var(--color-text)] flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            Sincronizar
+          </button>
+        </div>
       </div>
+
+      {/* Formulario de extracción de componentes */}
+      {showExtractForm && (
+        <div className="bg-[var(--color-surface)]/80 border border-indigo-500/30 rounded-2xl p-5 space-y-4 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles size={16} className="text-indigo-400" />
+            <h3 className="text-sm font-bold text-[var(--color-text)]">Extractor de Componentes a la Biblioteca</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Ruta del Archivo Origen</label>
+              <input
+                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                value={extSourcePath}
+                onChange={e => setExtSourcePath(e.target.value)}
+                placeholder="Ej: D:\PROTOTIPE\Plantillas Core\App Ventas\src\components\ui\BotonPremium.jsx"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Nombre del Componente (CamelCase / PascalCase)</label>
+              <input
+                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                value={extTargetName}
+                onChange={e => setExtTargetName(e.target.value)}
+                placeholder="Ej: Boton_Premium"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Categoría del Catálogo</label>
+              <select
+                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500 transition-colors"
+                value={extCategory}
+                onChange={e => setExtCategory(e.target.value)}
+              >
+                <option value="">-- Seleccionar --</option>
+                {categories.map(c => (
+                  <option key={c.name} value={c.folder ? c.folder.split('/').pop() : c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Descripción del Componente</label>
+              <input
+                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                value={extDescription}
+                onChange={e => setExtDescription(e.target.value)}
+                placeholder="Ej: Botón HSL premium con micro-interacciones avanzadas y hover glow."
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowExtractForm(false)} className="text-xs text-slate-500 hover:text-slate-300 px-3 py-2 rounded-xl transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={handleExtract}
+              disabled={extracting || !extSourcePath || !extTargetName || !extCategory}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs px-4 py-2 rounded-xl transition-all font-semibold cursor-pointer"
+            >
+              {extracting ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              {extracting ? 'Extrayendo...' : 'Extraer a Biblioteca'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Estado de Error */}
       {error ? (
