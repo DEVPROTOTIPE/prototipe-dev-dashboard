@@ -54,7 +54,9 @@ import {
   CircleCheck,
   CircleX,
   GitCommit,
-  Upload
+  Upload,
+  RotateCcw,
+  AlertCircle
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
 import { initializeApp, getApps, getApp } from 'firebase/app'
@@ -884,7 +886,28 @@ export default function App() {
   const [secondaryColor, setSecondaryColor] = useState('#a855f7')
   const [bgColor, setBgColor] = useState('#0f172a')
   const [textColor, setTextColor] = useState('#f8fafc')
+  const [surfaceColor, setSurfaceColor] = useState('#ffffff')
+  const [surface2Color, setSurface2Color] = useState('#f1f5f9')
+  const [borderColor, setBorderColor] = useState('#cbd5e1')
+  const [textMutedColor, setTextMutedColor] = useState('#475569')
+  const [radiusBase, setRadiusBase] = useState('0.75rem')
+  const [showAdvancedColors, setShowAdvancedColors] = useState(false)
   const [googleFont, setGoogleFont] = useState('Inter')
+
+  const handleBgColorChange = (hex) => {
+    setBgColor(hex);
+    const c = (hex || '#000000').replace('#', '');
+    const rgb = parseInt(c, 16) || 0;
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = (rgb >> 0) & 0xff;
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const dark = luma < 128;
+    setSurfaceColor(dark ? '#1a1a1a' : '#ffffff');
+    setSurface2Color(dark ? '#252525' : '#f1f5f9');
+    setBorderColor(dark ? '#333333' : '#e2e8f0');
+    setTextMutedColor(dark ? '#a0a0a0' : '#64748b');
+  };
   const [enablePwa, setEnablePwa] = useState(true)
   const [enablePush, setEnablePush] = useState(true)
   const [enableBilling, setEnableBilling] = useState(false)
@@ -902,6 +925,17 @@ export default function App() {
   const [codeSnippet, setCodeSnippet] = useState(null)
   const [loadingCode, setLoadingCode] = useState(false)
   const [codeError, setCodeError] = useState(null)
+
+  // Estados Interactivos del Ecosistema PROTOTIPE
+  const [crmSubTab, setCrmSubTab] = useState('directorio') // 'directorio' | 'paridad'
+  const [globalDrift, setGlobalDrift] = useState([])
+  const [globalDriftLoading, setGlobalDriftLoading] = useState(false)
+  const [terminalDrawer, setTerminalDrawer] = useState({ open: false, clientId: '', title: '', type: 'dev' }) // 'dev' | 'npm'
+  const [terminalLogs, setTerminalLogs] = useState([])
+  const [gitDiffModal, setGitDiffModal] = useState({ open: false, clientId: '', file: '', diff: '' })
+  const [gitDiffLoading, setGitDiffLoading] = useState(false)
+  const [gitDiscardingFile, setGitDiscardingFile] = useState(null)
+  const terminalEndRef = useRef(null)
 
   // Estados Interactivos del Mockup de Smartphone en Vista Previa
   const [mockActiveTab, setMockActiveTab] = useState('inicio')
@@ -1881,6 +1915,129 @@ export default function App() {
       setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: false } }));
       addLog(`[Local Server Error] Falló al detener servidor para ${clientId}: ${err.message}`, 'error');
       showToast(`Error al detener servidor para ${clientId}`, { type: 'error' });
+    }
+  };
+
+  // --- FUNCIONES EXTRA E INTERACTIVIDAD DE AUTOMATIZACIÓN ---
+  const fetchGlobalDrift = async () => {
+    setGlobalDriftLoading(true);
+    try {
+      const res = await fetch('http://127.0.0.1:3001/api/project/drift/global');
+      const data = await res.json();
+      if (data.success) {
+        setGlobalDrift(data.driftMatrix || []);
+      } else {
+        throw new Error(data.error || 'Error al obtener drift global');
+      }
+    } catch (err) {
+      console.error(err);
+      addLog(`[Drift Global] Error: ${err.message}`, 'error');
+    } finally {
+      setGlobalDriftLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'crm' && crmSubTab === 'paridad') {
+      fetchGlobalDrift();
+    }
+  }, [activeTab, crmSubTab]);
+
+  useEffect(() => {
+    if (!terminalDrawer.open || !terminalDrawer.clientId) return;
+
+    setTerminalLogs([]);
+    const isNpm = terminalDrawer.type === 'npm';
+    const url = isNpm
+      ? `http://127.0.0.1:3001/api/project/dependencies/install?clientId=${terminalDrawer.clientId}`
+      : `http://127.0.0.1:3001/api/project/dev/logs-stream?clientId=${terminalDrawer.clientId}`;
+
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'log') {
+          setTerminalLogs(prev => [...prev, data.log].slice(-150));
+        } else if (data.type === 'status') {
+          if (data.status === 'stopped' || data.status === 'success' || data.status === 'error') {
+            setTerminalLogs(prev => [...prev, `[SISTEMA] Proceso terminado: ${data.message || ''}`]);
+            if (isNpm) {
+              addLog(`[Dependencias] Instalación en ${terminalDrawer.clientId} finalizada: ${data.message || ''}`, data.status === 'success' ? 'success' : 'error');
+              fetchGlobalDrift();
+            }
+          }
+        }
+      } catch (e) {
+        setTerminalLogs(prev => [...prev, event.data].slice(-150));
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Connection Error:", err);
+      setTerminalLogs(prev => [...prev, "[SISTEMA ERROR] Conexión SSE cerrada o proceso terminado."]);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [terminalDrawer.open, terminalDrawer.clientId, terminalDrawer.type]);
+
+  useEffect(() => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [terminalLogs]);
+
+  const handleGitDiscard = async (clientId, file, discardAll = false) => {
+    const confirmMsg = discardAll 
+      ? '¿Estás seguro de que deseas descartar TODOS los cambios locales de este repositorio? Esta acción no se puede deshacer.'
+      : `¿Estás seguro de que deseas descartar los cambios locales del archivo "${file}"?`;
+    
+    const proceed = await showConfirm(confirmMsg);
+    if (!proceed) return;
+
+    setGitDiscardingFile(file || 'all');
+    try {
+      const res = await fetch('http://127.0.0.1:3001/api/git/discard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, file, all: discardAll })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, { type: 'success' });
+        addLog(`[Git Discard] ${data.message}`, 'success');
+        if (driftData && selectedCrmClientId === clientId) {
+          handleLoadDrift(clientId);
+        }
+      } else {
+        throw new Error(data.error || 'Error de Git');
+      }
+    } catch (err) {
+      showToast(`Fallo al deshacer cambios: ${err.message}`, { type: 'error' });
+      addLog(`[Git Discard Error] ${err.message}`, 'error');
+    } finally {
+      setGitDiscardingFile(null);
+    }
+  };
+
+  const handleGitDiff = async (clientId, file) => {
+    setGitDiffLoading(true);
+    setGitDiffModal({ open: true, clientId, file, diff: '' });
+    try {
+      const res = await fetch(`http://127.0.0.1:3001/api/git/diff-file?clientId=${clientId}&file=${file}`);
+      const data = await res.json();
+      if (data.success) {
+        setGitDiffModal(prev => ({ ...prev, diff: data.diff }));
+      } else {
+        throw new Error(data.error || 'No se pudo obtener el diff');
+      }
+    } catch (err) {
+      setGitDiffModal(prev => ({ ...prev, diff: `Error al obtener el diff: ${err.message}` }));
+    } finally {
+      setGitDiffLoading(false);
     }
   };
 
@@ -3033,350 +3190,623 @@ export default function App() {
                 )}
 
                 {wizardTab === 'branding' && (
-                  <div className="space-y-6 animate-fade-in">
-                    {/* Paletas de Colores Preestablecidas (Por Categorías de Nicho) */}
-                    <div className="space-y-3">
-                      <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paletas de Colores de Marca Recomendadas</span>
-                      
-                      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                        {PALETTE_CATEGORIES.map((category) => {
-                          const isOpen = expandedPaletteCategory === category.id;
-                          return (
-                            <div 
-                              key={category.id} 
-                              className={`border rounded-2xl overflow-hidden transition-all duration-200 ${
-                                isOpen 
-                                  ? 'border-indigo-500/40 bg-indigo-500/[0.02]' 
-                                  : 'border-[var(--color-border)] bg-[var(--color-surface-2)]/10 hover:border-indigo-500/20'
-                              }`}
-                            >
-                              {/* Header del acordeón */}
-                              <button
-                                type="button"
-                                onClick={() => setExpandedPaletteCategory(isOpen ? null : category.id)}
-                                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--color-surface-2)]/30 hover:bg-[var(--color-surface-2)]/60 transition-colors text-xs font-bold text-[var(--color-text)] cursor-pointer select-none"
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-fade-in">
+                    {/* Columna Izquierda: Configuración de Marca y Colores (lg:col-span-7) */}
+                    <div className="lg:col-span-7 space-y-6">
+                      {/* Paletas de Colores Preestablecidas (Por Categorías de Nicho) */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paletas de Colores de Marca Recomendadas</span>
+                        
+                        <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                          {PALETTE_CATEGORIES.map((category) => {
+                            const isOpen = expandedPaletteCategory === category.id;
+                            return (
+                              <div 
+                                key={category.id} 
+                                className={`border rounded-2xl overflow-hidden transition-all duration-200 ${
+                                  isOpen 
+                                    ? 'border-indigo-500/40 bg-indigo-500/[0.02]' 
+                                    : 'border-[var(--color-border)] bg-[var(--color-surface-2)]/10 hover:border-indigo-500/20'
+                                }`}
                               >
-                                <span className="flex items-center gap-2">{category.name}</span>
-                                <ChevronDown 
-                                  size={14} 
-                                  className={`text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                                />
-                              </button>
+                                {/* Header del acordeón */}
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedPaletteCategory(isOpen ? null : category.id)}
+                                  className="w-full flex items-center justify-between px-4 py-3 bg-[var(--color-surface-2)]/30 hover:bg-[var(--color-surface-2)]/60 transition-colors text-xs font-bold text-[var(--color-text)] cursor-pointer select-none"
+                                >
+                                  <span className="flex items-center gap-2">{category.name}</span>
+                                  <ChevronDown 
+                                    size={14} 
+                                    className={`text-[var(--color-text-muted)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                                  />
+                                </button>
 
-                              {/* Contenido (grilla de paletas) */}
-                              {isOpen && (
-                                <div className="p-4 bg-[var(--color-surface)]/20 border-t border-[var(--color-border)] animate-scale-up origin-top">
-                                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                    {category.palettes.map((preset, pIdx) => {
-                                      const isSelected = primaryColor === preset.primary && secondaryColor === preset.secondary && bgColor === preset.bg && textColor === preset.text;
-                                      return (
-                                        <button
-                                          key={pIdx}
-                                          type="button"
-                                          onClick={() => {
-                                            setPrimaryColor(preset.primary);
-                                            setSecondaryColor(preset.secondary);
-                                            setBgColor(preset.bg);
-                                            setTextColor(preset.text);
-                                            showToast(`Aplicada paleta: ${preset.name}`, { type: 'success' });
-                                          }}
-                                          className={`p-2 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
-                                            isSelected 
-                                              ? 'bg-indigo-600/20 border-indigo-500 shadow-md scale-[1.02]' 
-                                              : 'bg-[var(--color-surface-2)]/40 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-1 mb-1.5 justify-start">
-                                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.primary }} title="Primario" />
-                                            <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.secondary }} title="Secundario" />
-                                            <div className="w-2.5 h-2.5 rounded-full border border-white/10 shadow-sm" style={{ backgroundColor: preset.bg }} title="Fondo" />
-                                            <div className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.text }} title="Texto" />
-                                          </div>
-                                          <span className="text-[9px] font-bold block text-[var(--color-text)] truncate" title={preset.name}>{preset.name}</span>
-                                        </button>
-                                      );
-                                    })}
+                                {/* Contenido (grilla de paletas) */}
+                                {isOpen && (
+                                  <div className="p-4 bg-[var(--color-surface)]/20 border-t border-[var(--color-border)] animate-scale-up origin-top">
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                      {category.palettes.map((preset, pIdx) => {
+                                        const isSelected = primaryColor === preset.primary && secondaryColor === preset.secondary && bgColor === preset.bg && textColor === preset.text;
+                                        return (
+                                          <button
+                                            key={pIdx}
+                                            type="button"
+                                            onClick={() => {
+                                              const isDark = (hex) => {
+                                                const c = (hex || '#000000').replace('#', '');
+                                                const rgb = parseInt(c, 16) || 0;
+                                                const r = (rgb >> 16) & 0xff;
+                                                const g = (rgb >> 8) & 0xff;
+                                                const b = (rgb >> 0) & 0xff;
+                                                const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                                                return luma < 128;
+                                              };
+                                              const dark = isDark(preset.bg);
+                                              setPrimaryColor(preset.primary);
+                                              setSecondaryColor(preset.secondary);
+                                              setBgColor(preset.bg);
+                                              setTextColor(preset.text);
+                                              setSurfaceColor(dark ? '#1a1a1a' : '#ffffff');
+                                              setSurface2Color(dark ? '#252525' : '#f1f5f9');
+                                              setBorderColor(dark ? '#333333' : '#e2e8f0');
+                                              setTextMutedColor(dark ? '#a0a0a0' : '#64748b');
+                                              showToast(`Aplicada paleta: ${preset.name}`, { type: 'success' });
+                                            }}
+                                            className={`p-2 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                                              isSelected 
+                                                ? 'bg-indigo-600/20 border-indigo-500 shadow-md scale-[1.02]' 
+                                                : 'bg-[var(--color-surface-2)]/40 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/80'
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-1 mb-1.5 justify-start">
+                                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.primary }} title="Primario" />
+                                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: preset.secondary }} title="Secundario" />
+                                              <div className="w-2.5 h-2.5 rounded-full border border-white/10 shadow-sm" style={{ backgroundColor: preset.bg }} title="Fondo" />
+                                              <div className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: preset.text }} title="Texto" />
+                                            </div>
+                                            <span className="text-[9px] font-bold block text-[var(--color-text)] truncate" title={preset.name}>{preset.name}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-[var(--color-border)] my-2" />
+
+                      {/* Logo de Marca y Favicon (Mejora 2) */}
+                      <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Logo Corporativo de Marca</span>
+                          <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">PWA & Favicon Auto-Ready</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Selector de Archivo Físico */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Subir Archivo de Logo (SVG, PNG, JPG)</label>
+                            <div className="relative group flex flex-col items-center justify-center border-2 border-dashed border-[var(--color-border)] hover:border-indigo-500/50 rounded-xl p-4 transition-all bg-[var(--color-bg)]/40 hover:bg-[var(--color-bg)]/70 text-center cursor-pointer">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleLogoChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                              <svg className="w-6 h-6 text-[var(--color-text-muted)] mb-1.5 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              </svg>
+                              <span className="text-[10px] font-bold text-[var(--color-text)]">
+                                {logoFilename ? logoFilename : 'Seleccionar o arrastrar logo'}
+                              </span>
+                              <span className="text-[8px] text-[var(--color-text-muted)] mt-0.5">Si supera los 2MB, se auto-optimizará a 512px.</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          </div>
 
-                    <div className="h-px bg-[var(--color-border)] my-2" />
-
-                    {/* Logo de Marca y Favicon (Mejora 2) */}
-                    <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Logo Corporativo de Marca</span>
-                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">PWA & Favicon Auto-Ready</span>
+                          {/* O ingresar ruta absoluta manualmente */}
+                          <div className="space-y-2.5">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">O ingresa la Ruta Absoluta del Archivo (Local)</label>
+                              <input 
+                                type="text" 
+                                value={logoLocalPath}
+                                onChange={(e) => setLogoLocalPath(e.target.value)}
+                                placeholder="C:\Users\Sergio\Pictures\logo.svg"
+                                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+                            {logoLocalPath && (
+                              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+                                <span className="text-[8px] font-bold text-emerald-400 font-mono truncate">RUTA DE LOGO GUARDADA</span>
+                                <span className="text-[9px] text-emerald-400 font-bold">✓ Listo</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Selector de Archivo Físico */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Subir Archivo de Logo (SVG, PNG, JPG)</label>
-                          <div className="relative group flex flex-col items-center justify-center border-2 border-dashed border-[var(--color-border)] hover:border-indigo-500/50 rounded-xl p-4 transition-all bg-[var(--color-bg)]/40 hover:bg-[var(--color-bg)]/70 text-center cursor-pointer">
+
+                      <div className="h-px bg-[var(--color-border)] my-2" />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Color Primario */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color Primario</label>
+                          <div className="flex gap-2">
+                            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: primaryColor }}>
+                              <input 
+                                type="color" 
+                                value={primaryColor} 
+                                onChange={(e) => setPrimaryColor(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </div>
                             <input 
-                              type="file" 
-                              accept="image/*"
-                              onChange={handleLogoChange}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              type="text" 
+                              value={primaryColor} 
+                              onChange={(e) => setPrimaryColor(e.target.value)}
+                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
                             />
-                            <svg className="w-6 h-6 text-[var(--color-text-muted)] mb-1.5 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            <span className="text-[10px] font-bold text-[var(--color-text)]">
-                              {logoFilename ? logoFilename : 'Seleccionar o arrastrar logo'}
-                            </span>
-                            <span className="text-[8px] text-[var(--color-text-muted)] mt-0.5">Si supera los 2MB, se auto-optimizará a 512px.</span>
+                          </div>
+                          {/* Círculos de Selección Rápida */}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {['#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7'].map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setPrimaryColor(c)}
+                                className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
+                                style={{ backgroundColor: c }}
+                                title={c}
+                              />
+                            ))}
                           </div>
                         </div>
 
-                        {/* O ingresar ruta absoluta manualmente */}
-                        <div className="space-y-2.5">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">O ingresa la Ruta Absoluta del Archivo (Local)</label>
+                        {/* Color Secundario */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color Secundario</label>
+                          <div className="flex gap-2">
+                            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: secondaryColor }}>
+                              <input 
+                                type="color" 
+                                value={secondaryColor} 
+                                onChange={(e) => setSecondaryColor(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </div>
                             <input 
                               type="text" 
-                              value={logoLocalPath}
-                              onChange={(e) => setLogoLocalPath(e.target.value)}
-                              placeholder="C:\Users\Sergio\Pictures\logo.svg"
-                              className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              value={secondaryColor} 
+                              onChange={(e) => setSecondaryColor(e.target.value)}
+                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
                             />
                           </div>
-                          {logoLocalPath && (
-                            <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
-                              <span className="text-[8px] font-bold text-emerald-400 font-mono truncate">RUTA DE LOGO GUARDADA</span>
-                              <span className="text-[9px] text-emerald-400 font-bold">✓ Listo</span>
+                          {/* Círculos de Selección Rápida */}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {['#a855f7', '#d97706', '#ec4899', '#be123c', '#06b6d4', '#4f46e5', '#3b82f6', '#10b981', '#64748b'].map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setSecondaryColor(c)}
+                                className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
+                                style={{ backgroundColor: c }}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Color de Fondo */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Fondo</label>
+                          <div className="flex gap-2">
+                            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: bgColor }}>
+                              <input 
+                                type="color" 
+                                value={bgColor} 
+                                onChange={(e) => handleBgColorChange(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </div>
+                            <input 
+                              type="text" 
+                              value={bgColor} 
+                              onChange={(e) => handleBgColorChange(e.target.value)}
+                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          {/* Círculos de Selección Rápida */}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {['#070b13', '#0f172a', '#1e293b', '#06130e', '#0c0714', '#140c0b', '#18080f', '#080f1e', '#f8fafc'].map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => handleBgColorChange(c)}
+                                className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
+                                style={{ backgroundColor: c }}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Color de Texto */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Texto</label>
+                          <div className="flex gap-2">
+                            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: textColor }}>
+                              <input 
+                                type="color" 
+                                value={textColor} 
+                                onChange={(e) => setTextColor(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </div>
+                            <input 
+                              type="text" 
+                              value={textColor} 
+                              onChange={(e) => setTextColor(e.target.value)}
+                              className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          {/* Círculos de Selección Rápida */}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {['#f8fafc', '#ffffff', '#e2e8f0', '#ecfdf5', '#fdf6ff', '#fffcfb', '#fff1f2', '#f0f7ff', '#0f172a'].map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setTextColor(c)}
+                                className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
+                                style={{ backgroundColor: c }}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Botón para abrir Personalización Avanzada */}
+                        <div className="space-y-2 sm:col-span-2 p-3 bg-[var(--color-surface-2)]/25 border border-[var(--color-border)] rounded-2xl">
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedColors(!showAdvancedColors)}
+                            className="w-full flex items-center justify-between text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer select-none"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              🎨 {showAdvancedColors ? 'Ocultar' : 'Mostrar'} Personalización de Colores Avanzada (Tokens HSL)
+                            </span>
+                            <span>{showAdvancedColors ? '▲' : '▼'}</span>
+                          </button>
+
+                          {showAdvancedColors && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-[var(--color-border)] animate-fade-in">
+                              {/* Color de Superficie */}
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Superficie (Tarjetas/Contenedores)</label>
+                                <div className="flex gap-2">
+                                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: surfaceColor }}>
+                                    <input 
+                                      type="color" 
+                                      value={surfaceColor} 
+                                      onChange={(e) => setSurfaceColor(e.target.value)}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={surfaceColor} 
+                                    onChange={(e) => setSurfaceColor(e.target.value)}
+                                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Color de Superficie 2 */}
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Superficie Secundario (Fondos Alternos)</label>
+                                <div className="flex gap-2">
+                                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: surface2Color }}>
+                                    <input 
+                                      type="color" 
+                                      value={surface2Color} 
+                                      onChange={(e) => setSurface2Color(e.target.value)}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={surface2Color} 
+                                    onChange={(e) => setSurface2Color(e.target.value)}
+                                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Color de Bordes */}
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Bordes y Separadores</label>
+                                <div className="flex gap-2">
+                                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: borderColor }}>
+                                    <input 
+                                      type="color" 
+                                      value={borderColor} 
+                                      onChange={(e) => setBorderColor(e.target.value)}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={borderColor} 
+                                    onChange={(e) => setBorderColor(e.target.value)}
+                                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Color de Texto Atenuado */}
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Texto Secundario (Muted)</label>
+                                <div className="flex gap-2">
+                                  <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: textMutedColor }}>
+                                    <input 
+                                      type="color" 
+                                      value={textMutedColor} 
+                                      onChange={(e) => setTextMutedColor(e.target.value)}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={textMutedColor} 
+                                    onChange={(e) => setTextMutedColor(e.target.value)}
+                                    className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs w-28 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Radio de Bordes */}
+                              <div className="space-y-1 sm:col-span-2">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Redondeado de Bordes (Radius)</label>
+                                <select
+                                  value={radiusBase}
+                                  onChange={(e) => setRadiusBase(e.target.value)}
+                                  className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500"
+                                >
+                                  <option value="0px">Recto / Sharp (0px)</option>
+                                  <option value="0.25rem">Ligero (4px)</option>
+                                  <option value="0.5rem">Estándar (8px)</option>
+                                  <option value="0.75rem">Premium Redondeado (12px - Por Defecto)</option>
+                                  <option value="1.25rem">Muy Redondeado (20px)</option>
+                                </select>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="h-px bg-[var(--color-border)] my-2" />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Color Primario */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color Primario</label>
-                        <div className="flex gap-2">
-                          <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: primaryColor }}>
-                            <input 
-                              type="color" 
-                              value={primaryColor} 
-                              onChange={(e) => setPrimaryColor(e.target.value)}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </div>
-                          <input 
-                            type="text" 
-                            value={primaryColor} 
-                            onChange={(e) => setPrimaryColor(e.target.value)}
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        {/* Círculos de Selección Rápida */}
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {['#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7'].map(c => (
+                        {/* Selector de Fuentes con Modal y Previsualizaciones */}
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Google Font Seleccionada</label>
+                          <div className="flex gap-2">
+                            <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-semibold flex items-center justify-between">
+                              <span>{googleFont}</span>
+                              <span className="text-[11px] opacity-75 font-bold tracking-wide" style={{ fontFamily: `'${googleFont}', sans-serif` }}>Abc - Vista Previa</span>
+                            </div>
                             <button
-                              key={c}
                               type="button"
-                              onClick={() => setPrimaryColor(c)}
-                              className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
-                              style={{ backgroundColor: c }}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Color Secundario */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color Secundario</label>
-                        <div className="flex gap-2">
-                          <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: secondaryColor }}>
-                            <input 
-                              type="color" 
-                              value={secondaryColor} 
-                              onChange={(e) => setSecondaryColor(e.target.value)}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
+                              onClick={() => {
+                                setFontSearchQuery('');
+                                setIsFontModalOpen(true);
+                              }}
+                              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
+                            >
+                              Seleccionar fuente
+                            </button>
                           </div>
-                          <input 
-                            type="text" 
-                            value={secondaryColor} 
-                            onChange={(e) => setSecondaryColor(e.target.value)}
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        {/* Círculos de Selección Rápida */}
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {['#a855f7', '#d97706', '#ec4899', '#be123c', '#06b6d4', '#4f46e5', '#3b82f6', '#10b981', '#64748b'].map(c => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setSecondaryColor(c)}
-                              className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
-                              style={{ backgroundColor: c }}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Color de Fondo */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Fondo</label>
-                        <div className="flex gap-2">
-                          <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: bgColor }}>
-                            <input 
-                              type="color" 
-                              value={bgColor} 
-                              onChange={(e) => setBgColor(e.target.value)}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </div>
-                          <input 
-                            type="text" 
-                            value={bgColor} 
-                            onChange={(e) => setBgColor(e.target.value)}
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        {/* Círculos de Selección Rápida */}
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {['#070b13', '#0f172a', '#1e293b', '#06130e', '#0c0714', '#140c0b', '#18080f', '#080f1e', '#f8fafc'].map(c => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setBgColor(c)}
-                              className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
-                              style={{ backgroundColor: c }}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Color de Texto */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Color de Texto</label>
-                        <div className="flex gap-2">
-                          <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-border)] shrink-0 shadow-sm" style={{ backgroundColor: textColor }}>
-                            <input 
-                              type="color" 
-                              value={textColor} 
-                              onChange={(e) => setTextColor(e.target.value)}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </div>
-                          <input 
-                            type="text" 
-                            value={textColor} 
-                            onChange={(e) => setTextColor(e.target.value)}
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-mono outline-none focus:border-indigo-500"
-                          />
-                        </div>
-                        {/* Círculos de Selección Rápida */}
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {['#f8fafc', '#ffffff', '#e2e8f0', '#ecfdf5', '#fdf6ff', '#fffcfb', '#fff1f2', '#f0f7ff', '#0f172a'].map(c => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setTextColor(c)}
-                              className="w-4 h-4 rounded-full border border-white/10 shadow-sm hover:scale-125 transition-transform cursor-pointer"
-                              style={{ backgroundColor: c }}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Selector de Fuentes con Modal y Previsualizaciones */}
-                      <div className="space-y-1 sm:col-span-2">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Google Font Seleccionada</label>
-                        <div className="flex gap-2">
-                          <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs flex-1 text-[var(--color-text)] font-semibold flex items-center justify-between">
-                            <span>{googleFont}</span>
-                            <span className="text-[11px] opacity-75 font-bold tracking-wide" style={{ fontFamily: `'${googleFont}', sans-serif` }}>Abc - Vista Previa</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFontSearchQuery('');
-                              setIsFontModalOpen(true);
-                            }}
-                            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
-                          >
-                            Seleccionar fuente
-                          </button>
                         </div>
                       </div>
                     </div>
 
-                    {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
-                    <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
-                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Contraste Botón Primario */}
-                        {(() => {
-                          const ratio = getContrastRatio(primaryColor, '#ffffff');
-                          const feedback = getContrastFeedback(ratio);
-                          return (
-                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                              <div>
-                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
-                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
-                                  {feedback.text}
-                                </span>
-                                <div 
-                                  className="px-2 py-1 rounded text-[9px] font-bold text-white shadow-sm"
-                                  style={{ backgroundColor: primaryColor }}
-                                >
-                                  Botón Primario
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
+                    {/* Columna Derecha: Vista Previa e Integridad de Accesibilidad (lg:col-span-5) */}
+                    <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-6">
+                      {/* Simulador Premium de Interfaz en Tiempo Real */}
+                      <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Simulador de Interfaz (Tiempo Real)</span>
+                          <span className="text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full px-2 py-0.5">Live Mockup</span>
+                        </div>
 
-                        {/* Contraste Fondo vs Texto */}
-                        {(() => {
-                          const ratio = getContrastRatio(bgColor, textColor);
-                          const feedback = getContrastFeedback(ratio);
-                          return (
-                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                              <div>
-                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
-                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
-                                  {feedback.text}
-                                </span>
-                                <div 
-                                  className="p-1 rounded text-[8px] border font-medium truncate max-w-[120px]"
-                                  style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
+                        {/* Contenedor del Mockup */}
+                        <div 
+                          className="border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 relative"
+                          style={{ 
+                            backgroundColor: bgColor, 
+                            fontFamily: `'${googleFont}', sans-serif`,
+                            color: textColor 
+                          }}
+                        >
+                          {/* Barra de Estado Mock */}
+                          <div className="px-3 py-1.5 flex items-center justify-between text-[8px] opacity-40 border-b select-none" style={{ borderColor: `${borderColor}40` }}>
+                            <span>12:00 PM</span>
+                            <div className="flex items-center gap-1">
+                              <span>📶</span>
+                              <span>🔋 100%</span>
+                            </div>
+                          </div>
+
+                          {/* Navbar Mock */}
+                          <div className="px-3 py-2.5 flex items-center justify-between border-b" style={{ borderColor: `${borderColor}30` }}>
+                            <div className="flex items-center gap-1.5">
+                              {logoBase64 ? (
+                                <img 
+                                  src={`data:image/*;base64,${logoBase64}`} 
+                                  alt="Preview Logo" 
+                                  className="h-4 w-auto object-contain"
+                                />
+                              ) : (
+                                <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[7px] text-white font-bold">P</div>
+                              )}
+                              <span className="text-[10px] font-extrabold tracking-tight">Mi Tienda</span>
+                            </div>
+                            <div className="flex gap-2.5 text-[9px] font-semibold opacity-80">
+                              <span style={{ color: primaryColor }}>Inicio</span>
+                              <span>Buscar</span>
+                              <span>Carrito</span>
+                            </div>
+                          </div>
+
+                          {/* Contenido Mock */}
+                          <div className="p-3.5 space-y-3.5">
+                            {/* Saludo y Categoría */}
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] font-bold tracking-wide uppercase opacity-50">Explorar catálogo</span>
+                              <h5 className="text-[12px] font-black leading-none">Nuestros Productos</h5>
+                            </div>
+
+                            {/* Tarjeta de Producto Mock */}
+                            <div 
+                              className="p-3 border shadow-sm transition-all animate-fade-in"
+                              style={{ 
+                                backgroundColor: surfaceColor, 
+                                borderColor: borderColor,
+                                borderRadius: radiusBase 
+                              }}
+                            >
+                              {/* Imagen del Producto Mock */}
+                              <div 
+                                className="w-full h-20 rounded-lg relative overflow-hidden mb-2.5 flex items-center justify-center"
+                                style={{ 
+                                  background: `linear-gradient(135deg, ${primaryColor}20 0%, ${secondaryColor}20 100%)` 
+                                }}
+                              >
+                                <span className="text-[16px]">🛍️</span>
+                                <span 
+                                  className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold text-white shadow-sm animate-pulse"
+                                  style={{ backgroundColor: secondaryColor }}
                                 >
-                                  Texto de Ejemplo
+                                  Nuevo
+                                </span>
+                              </div>
+
+                              {/* Detalles del Producto */}
+                              <div className="space-y-1">
+                                <div className="flex items-start justify-between gap-1">
+                                  <span className="text-[10px] font-bold leading-tight block truncate">Chaqueta Premium Fit</span>
+                                  <span className="text-[10px] font-extrabold shrink-0" style={{ color: primaryColor }}>$89.900</span>
                                 </div>
+                                <p className="text-[8px] leading-relaxed" style={{ color: textMutedColor }}>
+                                  Diseño exclusivo de alta costura, materiales sostenibles y confort total para el día a día.
+                                </p>
+                              </div>
+
+                              {/* Botones de Acción de Tarjeta */}
+                              <div className="flex gap-1.5 mt-2.5">
+                                <button 
+                                  type="button" 
+                                  className="flex-1 py-1.5 text-[8.5px] font-black text-center text-white transition-all shadow-sm flex items-center justify-center gap-1 active:scale-95"
+                                  style={{ 
+                                    backgroundColor: primaryColor,
+                                    borderRadius: radiusBase 
+                                  }}
+                                >
+                                  🛒 Comprar
+                                </button>
+                                <button 
+                                  type="button" 
+                                  className="px-2 py-1.5 text-[8.5px] font-bold transition-all border flex items-center justify-center active:scale-95"
+                                  style={{ 
+                                    borderColor: borderColor,
+                                    color: textColor,
+                                    borderRadius: radiusBase 
+                                  }}
+                                >
+                                  ❤️
+                                </button>
                               </div>
                             </div>
-                          );
-                        })()}
+
+                            {/* Alerta de Descuento Mock */}
+                            <div 
+                              className="p-2.5 border flex items-center justify-between gap-2"
+                              style={{ 
+                                backgroundColor: surface2Color, 
+                                borderColor: borderColor,
+                                borderRadius: radiusBase 
+                              }}
+                            >
+                              <div className="space-y-0.5">
+                                <span className="text-[8.5px] font-bold block leading-none">Envío Gratis Garantizado</span>
+                                <span className="text-[7.5px] block opacity-60" style={{ color: textMutedColor }}>Por compras superiores a $150k</span>
+                              </div>
+                              <span className="text-xs">🚚</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
+                      <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
+                          <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Contraste Botón Primario */}
+                          {(() => {
+                            const ratio = getContrastRatio(primaryColor, '#ffffff');
+                            const feedback = getContrastFeedback(ratio);
+                            return (
+                              <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
+                                  <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                                </div>
+                                
+                                <div className="flex flex-col gap-1.5 mt-1">
+                                  <span className={`text-[8px] font-bold px-2 py-1 rounded-full text-center ${feedback.badgeClass}`}>
+                                    {feedback.text}
+                                  </span>
+                                  <div 
+                                    className="px-2 py-1.5 rounded-lg text-[9px] font-bold text-white shadow-sm text-center"
+                                    style={{ backgroundColor: primaryColor }}
+                                  >
+                                    Botón Primario
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Contraste Fondo vs Texto */}
+                          {(() => {
+                            const ratio = getContrastRatio(bgColor, textColor);
+                            const feedback = getContrastFeedback(ratio);
+                            return (
+                              <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
+                                  <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                                </div>
+                                
+                                <div className="flex flex-col gap-1.5 mt-1">
+                                  <span className={`text-[8px] font-bold px-2 py-1 rounded-full text-center ${feedback.badgeClass}`}>
+                                    {feedback.text}
+                                  </span>
+                                  <div 
+                                    className="p-1.5 rounded-lg text-[8px] border font-medium text-center truncate w-full"
+                                    style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
+                                  >
+                                    Texto de Ejemplo
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3692,6 +4122,11 @@ export default function App() {
                         secondaryColor,
                         bgColor,
                         textColor,
+                        surfaceColor,
+                        surface2Color,
+                        borderColor,
+                        textMutedColor,
+                        radiusBase,
                         googleFont
                       },
                       flags: {
@@ -3796,6 +4231,11 @@ export default function App() {
                           secondaryColor,
                           bgColor,
                           textColor,
+                          surfaceColor,
+                          surface2Color,
+                          borderColor,
+                          textMutedColor,
+                          radiusBase,
                           googleFont
                         },
                         flags: {
@@ -5180,103 +5620,289 @@ export default function App() {
                 </div>
               </div>
               {/* Contenido CRM existente — modal de métrica reutilizado inline */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] px-3.5 py-2.5 rounded-xl shadow-sm focus-within:border-indigo-500/50 transition-all">
-                  <Search size={14} className="text-slate-500 shrink-0" />
-                  <input type="text" placeholder="Buscar cliente..." value={crmSearch} onChange={e => setCrmSearch(e.target.value)}
-                    className="bg-transparent border-0 outline-none text-xs w-full text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:ring-0" />
-                </div>
-                {/* Lista de clientes */}
-                {Object.values(clientAggregated).filter(c => c.name.toLowerCase().includes(crmSearch.toLowerCase())).map(client => (
-                  <div key={client.name} className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-indigo-500/30 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 font-black flex items-center justify-center text-sm border border-indigo-500/20">
-                        {client.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-[var(--color-text)]">{client.name}</p>
-                        <p className="text-[10px] text-[var(--color-text-muted)]">{client.reportCount} reportes · {client.pendingCount} pendientes</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between w-full md:w-auto gap-3 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[var(--color-border)] md:border-t-0">
-                      <div className="flex items-center gap-6 pr-2">
-                        <div className="text-left md:text-center">
-                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Ventas</span>
-                          <span className="text-xs font-black font-mono text-[var(--color-text)]">${client.totalSales.toLocaleString('es-CO')}</span>
+              {/* Sub-pestañas CRM */}
+              <div className="flex border-b border-[var(--color-border)] gap-6 text-xs font-bold shrink-0">
+                <button onClick={() => setCrmSubTab('directorio')}
+                  className={`pb-3 border-b-2 transition-all cursor-pointer ${
+                    crmSubTab === 'directorio' ? 'border-indigo-500 text-indigo-400 font-extrabold' : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}>
+                  Directorio Clientes
+                </button>
+                <button onClick={() => setCrmSubTab('paridad')}
+                  className={`pb-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    crmSubTab === 'paridad' ? 'border-indigo-500 text-indigo-400 font-extrabold' : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}>
+                  Matriz de Paridad (Drift Heatmap)
+                  {globalDrift.some(d => d.parityPercent < 100 || d.dependenciesOutOfSync) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                </button>
+              </div>
+
+              {crmSubTab === 'directorio' ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] px-3.5 py-2.5 rounded-xl shadow-sm focus-within:border-indigo-500/50 transition-all">
+                    <Search size={14} className="text-slate-500 shrink-0" />
+                    <input type="text" placeholder="Buscar cliente..." value={crmSearch} onChange={e => setCrmSearch(e.target.value)}
+                      className="bg-transparent border-0 outline-none text-xs w-full text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:ring-0" />
+                  </div>
+                  {/* Lista de clientes */}
+                  {Object.values(clientAggregated).filter(c => c.name.toLowerCase().includes(crmSearch.toLowerCase())).map(client => {
+                    const driftInfo = globalDrift.find(d => d.clientId.toLowerCase() === client.name.toLowerCase());
+                    return (
+                      <div key={client.name} className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-indigo-500/30 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 font-black flex items-center justify-center text-sm border border-indigo-500/20 shrink-0">
+                            {client.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-sm text-[var(--color-text)]">{client.name}</p>
+                              {driftInfo && (
+                                <span className={`px-1.5 py-0.2 rounded text-[7.5px] font-black border ${
+                                  driftInfo.parityPercent >= 95 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' :
+                                  driftInfo.parityPercent >= 80 ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' :
+                                  'bg-red-500/15 text-red-400 border-red-500/25'
+                                }`}>
+                                  {driftInfo.parityPercent}% Paridad
+                                </span>
+                              )}
+                              {driftInfo?.dependenciesOutOfSync && (
+                                <span className="px-1.5 py-0.2 rounded text-[7.5px] font-extrabold bg-amber-500/15 text-amber-500 border border-amber-500/25 flex items-center gap-0.5" title="Dependencias NPM desactualizadas">
+                                  <AlertCircle size={9} />
+                                  Deps ⚠️
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-[var(--color-text-muted)]">{client.reportCount} reportes · {client.pendingCount} pendientes</p>
+                          </div>
                         </div>
-                        <div className="text-left md:text-center">
-                          <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
-                          <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {/* BOTÓN DESPLEGAR EN LOCAL */}
-                        {(() => {
-                          const server = localServers[client.name] || { running: false, url: '', loading: false };
-                          if (server.loading) {
-                            return (
-                              <button disabled
-                                className="px-3 py-1.5 bg-violet-600/10 text-violet-450 dark:text-violet-400 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all opacity-50 shrink-0 border border-violet-500/10">
-                                <RefreshCw size={11} className="animate-spin" />
-                                Procesando...
+                        <div className="flex items-center justify-between w-full md:w-auto gap-3 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[var(--color-border)] md:border-t-0">
+                          <div className="flex items-center gap-6 pr-2">
+                            <div className="text-left md:text-center">
+                              <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Ventas</span>
+                              <span className="text-xs font-black font-mono text-[var(--color-text)]">${client.totalSales.toLocaleString('es-CO')}</span>
+                            </div>
+                            <div className="text-left md:text-center">
+                              <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
+                              <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* BOTÓN DESPLEGAR EN LOCAL */}
+                            {(() => {
+                              const server = localServers[client.name] || { running: false, url: '', loading: false };
+                              if (server.loading) {
+                                  return (
+                                    <button disabled
+                                      className="px-3 py-1.5 bg-violet-600/10 text-violet-450 dark:text-violet-400 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all opacity-50 shrink-0 border border-violet-500/10">
+                                      <RefreshCw size={11} className="animate-spin" />
+                                      Procesando...
+                                    </button>
+                                  );
+                              }
+                              if (server.running) {
+                                return (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <a href={server.url} target="_blank" rel="noopener noreferrer"
+                                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-sm border-none flex items-center">
+                                      <ArrowUpRight size={11} className="mr-0.5" />
+                                      Ir a Local
+                                    </a>
+                                    <button onClick={() => setTerminalDrawer({ open: true, clientId: client.name.toLowerCase(), title: `Terminal Vite - ${client.name}`, type: 'dev' })}
+                                      className="p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 rounded-xl cursor-pointer flex items-center justify-center transition-all border border-slate-500/15"
+                                      title="Ver Consola de Desarrollo">
+                                      <Terminal size={12} />
+                                    </button>
+                                    <button onClick={() => handleStopLocalServer(client.name)}
+                                      className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-red-500/10 hover:border-red-500/30">
+                                      <StopCircle size={11} />
+                                      Detener
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <button onClick={() => handleStartLocalServer(client.name)}
+                                  className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 text-violet-650 dark:text-violet-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-violet-500/10 hover:border-violet-500/30 shrink-0">
+                                  <Play size={11} />
+                                  Desplegar en Local
+                                </button>
+                              );
+                            })()}
+                            {driftInfo?.dependenciesOutOfSync && (
+                              <button onClick={() => setTerminalDrawer({ open: true, clientId: client.name.toLowerCase(), title: `Instalar Dependencias - ${client.name}`, type: 'npm' })}
+                                className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/25 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shrink-0">
+                                <RefreshCw size={11} className="animate-spin-slow" />
+                                Instalar Deps
                               </button>
-                            );
-                          }
-                          if (server.running) {
-                            return (
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <a href={server.url} target="_blank" rel="noopener noreferrer"
-                                  className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-sm border-none flex items-center">
-                                  <ArrowUpRight size={11} className="mr-0.5" />
-                                  Ir a Local
-                                </a>
-                                <button onClick={() => handleStopLocalServer(client.name)}
-                                  className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-red-500/10 hover:border-red-500/30">
-                                  <StopCircle size={11} />
-                                  Detener
+                            )}
+                            <button onClick={() => handleRequestClientTelemetry(client.name)}
+                              className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 shrink-0">
+                              <Activity size={11} className="animate-pulse" />
+                              Obtener Telemetría
+                            </button>
+                            <button onClick={() => { 
+                              const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
+                              setEditNiche(cfg.niche || 'retail_clothing');
+                              setEditBillingMode(cfg.billingMode || 'percentage');
+                              setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
+                              setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
+                              setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
+                              setEditEnableDianBilling(!!cfg.enableDianBilling);
+                              setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+                              setCrmTab('config');
+                              setDriftData(null);
+                              setSelectedCrmClientId(client.name); 
+                              setActiveMetricModal('clientes'); 
+                            }}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-sm shrink-0 border-none">
+                              Gestionar
+                              <ChevronRight size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {Object.values(clientAggregated).filter(c => c.name.toLowerCase().includes(crmSearch.toLowerCase())).length === 0 && (
+                    <div className="p-12 text-center text-slate-500 text-xs">No hay clientes que coincidan con la búsqueda.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-[var(--color-text-muted)]">Mapa de paridad física del código del ecosistema respecto a los Cores de Referencia.</p>
+                    <button onClick={fetchGlobalDrift} disabled={globalDriftLoading}
+                      className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors">
+                      <RefreshCw size={12} className={globalDriftLoading ? 'animate-spin' : ''} />
+                      Refrescar
+                    </button>
+                  </div>
+                  {globalDriftLoading && globalDrift.length === 0 ? (
+                    <div className="p-16 text-center text-slate-400 text-xs space-y-3 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
+                      <RefreshCw size={22} className="mx-auto animate-spin text-indigo-400" />
+                      <p className="font-semibold uppercase tracking-wider text-[10px]">Analizando paridad de archivos en el ecosistema...</p>
+                    </div>
+                  ) : globalDrift.length === 0 ? (
+                    <div className="p-12 text-center text-slate-500 text-xs bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
+                      No se encontraron datos de paridad. Intenta refrescar.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {globalDrift.map(drift => {
+                        const client = Object.values(clientAggregated).find(c => c.name.toLowerCase() === drift.clientId.toLowerCase()) || { name: drift.projectName, totalSales: 0 };
+                        const cardColor = drift.parityPercent >= 95 ? 'border-emerald-500/20 bg-emerald-500/[0.01]' :
+                                          drift.parityPercent >= 80 ? 'border-amber-500/20 bg-amber-500/[0.01]' :
+                                          'border-red-500/20 bg-red-500/[0.01]';
+                        const barColor = drift.parityPercent >= 95 ? 'bg-emerald-500' :
+                                         drift.parityPercent >= 80 ? 'bg-amber-500' :
+                                         'bg-red-500';
+
+                        return (
+                          <div key={drift.clientId} className={`p-4 rounded-2xl border ${cardColor} transition-all hover:scale-[1.01] flex flex-col gap-3 relative overflow-hidden group bg-[var(--color-surface)]`}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate max-w-[150px]">{client.name}</h4>
+                                <span className="text-[8px] text-[var(--color-text-muted)] font-mono block">Core: {drift.coreId}</span>
+                              </div>
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black font-mono border ${
+                                drift.parityPercent >= 95 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' :
+                                drift.parityPercent >= 80 ? 'bg-amber-500/10 text-amber-400 border-amber-500/25' :
+                                'bg-red-500/10 text-red-400 border-red-500/25'
+                              }`}>
+                                {drift.parityPercent}%
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[8px] text-[var(--color-text-muted)]">
+                                <span>Paridad de código</span>
+                                <span className="font-mono">{drift.parityPercent}/100</span>
+                              </div>
+                              <div className="h-1 bg-[var(--color-surface-2)] rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${drift.parityPercent}%` }} />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[9px]">
+                              <div className="p-1.5 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] flex flex-col items-center">
+                                <span className="text-[7.5px] uppercase font-bold text-[var(--color-text-muted)]">Modificados</span>
+                                <span className="font-bold text-amber-400 mt-0.5">{drift.modifiedCount}</span>
+                              </div>
+                              <div className="p-1.5 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-border)] flex flex-col items-center">
+                                <span className="text-[7.5px] uppercase font-bold text-[var(--color-text-muted)]">Faltantes</span>
+                                <span className="font-bold text-red-400 mt-0.5">{drift.missingCount}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border)] pt-2.5 mt-1 text-[9px]">
+                              {drift.dependenciesOutOfSync ? (
+                                <span className="text-[7.5px] font-bold text-amber-500 flex items-center gap-0.5">
+                                  <AlertCircle size={9} />
+                                  Deps ⚠️
+                                </span>
+                              ) : (
+                                <span className="text-[7.5px] font-semibold text-[var(--color-text-muted)] flex items-center gap-0.5">
+                                  <Check size={9} className="text-emerald-500" />
+                                  Deps OK
+                                </span>
+                              )}
+                              
+                              <div className="flex gap-1">
+                                {drift.parityPercent < 100 && (
+                                  <button onClick={async () => {
+                                    const proceed = await showConfirm(`¿Sincronizar los ${drift.modifiedCount + drift.missingCount} archivos core en el cliente "${client.name}"?`);
+                                    if (!proceed) return;
+                                    const filesToSync = [...drift.modifiedFiles, ...drift.missingFiles];
+                                    try {
+                                      const res = await fetch('http://127.0.0.1:3001/api/project/sync-files', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ clientId: drift.clientId, files: filesToSync })
+                                      });
+                                      const resData = await res.json();
+                                      if (resData.success) {
+                                        showToast(`Sincronización masiva para ${client.name} completada con éxito.`, { type: 'success' });
+                                        fetchGlobalDrift();
+                                      } else {
+                                        throw new Error(resData.error);
+                                      }
+                                    } catch (e) {
+                                      showToast(`Error: ${e.message}`, { type: 'error' });
+                                    }
+                                  }}
+                                    className="px-2 py-1 bg-indigo-650 hover:bg-indigo-550 text-white font-bold rounded-lg text-[8px] transition-all cursor-pointer border-none flex items-center gap-0.5">
+                                    Sincronizar
+                                  </button>
+                                )}
+
+                                <button onClick={() => {
+                                  const cfg = clientesSaas.find(c => c.id.toLowerCase() === drift.clientId.toLowerCase()) || {};
+                                  setEditNiche(cfg.niche || 'retail_clothing');
+                                  setEditBillingMode(cfg.billingMode || 'percentage');
+                                  setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
+                                  setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
+                                  setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
+                                  setEditEnableDianBilling(!!cfg.enableDianBilling);
+                                  setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+                                  setSelectedCrmClientId(client.name);
+                                  setActiveMetricModal('clientes');
+                                  setCrmTab('drift');
+                                  handleLoadDrift(client.name);
+                                }}
+                                  className="px-2 py-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-lg text-[8px] font-bold border border-[var(--color-border)] transition-colors cursor-pointer">
+                                  Detalles
                                 </button>
                               </div>
-                            );
-                          }
-                          return (
-                            <button onClick={() => handleStartLocalServer(client.name)}
-                              className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 text-violet-650 dark:text-violet-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-violet-500/10 hover:border-violet-500/30 shrink-0">
-                              <Play size={11} />
-                              Desplegar en Local
-                            </button>
-                          );
-                        })()}
-                        <button onClick={() => handleRequestClientTelemetry(client.name)}
-                          className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 shrink-0">
-                          <Activity size={11} className="animate-pulse" />
-                          Obtener Telemetría
-                        </button>
-                        <button onClick={() => { 
-                          const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
-                          setEditNiche(cfg.niche || 'retail_clothing');
-                          setEditBillingMode(cfg.billingMode || 'percentage');
-                          setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
-                          setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
-                          setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
-                          setEditEnableDianBilling(!!cfg.enableDianBilling);
-                          setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
-                          setCrmTab('config');
-                          setDriftData(null);
-                          setSelectedCrmClientId(client.name); 
-                          setActiveMetricModal('clientes'); 
-                        }}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-sm shrink-0 border-none">
-                          Gestionar
-                          <ChevronRight size={11} />
-                        </button>
-                      </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                ))}
-                {Object.values(clientAggregated).filter(c => c.name.toLowerCase().includes(crmSearch.toLowerCase())).length === 0 && (
-                  <div className="p-12 text-center text-slate-500 text-xs">No hay clientes que coincidan con la búsqueda.</div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -6604,7 +7230,7 @@ export default function App() {
                       </div>
 
                       {/* Acciones Rápidas del Cliente */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -6616,18 +7242,29 @@ export default function App() {
                             setIsBulkSyncModalOpen(true);
                           }}
                           disabled={driftData.differences.length === 0}
-                          className="py-2 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
+                          className="py-2 bg-indigo-650/10 hover:bg-indigo-650/20 border border-indigo-500/25 text-indigo-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
+                          title="Sincronizar lote con Core"
                         >
-                          <RefreshCw size={12} className="animate-pulse" />
-                          Sincronizar Lote
+                          <RefreshCw size={11} className="animate-pulse" />
+                          Lote Core
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleGitDiscard(selectedCrmClientId.toLowerCase(), null, true)}
+                          disabled={driftData.differences.length === 0 || gitDiscardingFile === 'all'}
+                          className="py-2 bg-red-650/10 hover:bg-red-650/20 border border-red-500/25 text-red-500 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
+                          title="Descartar todas las modificaciones de Git"
+                        >
+                          <RotateCcw size={11} className={gitDiscardingFile === 'all' ? 'animate-spin' : ''} />
+                          Limpiar Git
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeployClient(selectedCrmClientId, false)}
-                          className="py-2 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                          className="py-2 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
                         >
-                          <Activity size={12} />
-                          Desplegar Hosting
+                          <Activity size={11} />
+                          Deploy Host
                         </button>
                       </div>
 
@@ -6651,13 +7288,35 @@ export default function App() {
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {diff.status === 'modified' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleGitDiff(selectedCrmClientId.toLowerCase(), diff.file)}
+                                      className="h-6 px-1.5 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 border border-slate-700"
+                                      title="Comparar cambios contra Git HEAD"
+                                    >
+                                      <Eye size={10} />
+                                      Git Diff
+                                    </button>
+                                    <button
+                                      onClick={() => handleGitDiscard(selectedCrmClientId.toLowerCase(), diff.file)}
+                                      disabled={gitDiscardingFile === diff.file}
+                                      className="h-6 px-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-500 rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 disabled:opacity-40 border border-red-500/10"
+                                      title="Descartar cambios en este archivo"
+                                    >
+                                      <RotateCcw size={10} className={gitDiscardingFile === diff.file ? 'animate-spin' : ''} />
+                                      Deshacer
+                                    </button>
+                                  </>
+                                )}
                                 {diff.status === 'modified' && (
                                   <button
                                     onClick={() => setActiveDiffFile(diff)}
-                                    className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[9px] font-bold cursor-pointer"
+                                    className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-lg text-[9px] font-bold cursor-pointer"
+                                    title="Comparar contra plantilla Core"
                                   >
-                                    Ver Diff
+                                    Diff Core
                                   </button>
                                 )}
                                 <button
@@ -8269,6 +8928,126 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                 Solicitar Reporte ({Object.values(globalTelemetryCheckedClients).filter(Boolean).length})
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Git Diff Plano (Propuesta 4) */}
+      {gitDiffModal.open && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 backdrop-blur-md animate-fade-in p-4">
+          <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[75vh]">
+            <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitCommit size={16} className="text-indigo-400" />
+                <h4 className="font-mono text-xs font-bold text-slate-200">
+                  Git Diff: {gitDiffModal.file} ({gitDiffModal.clientId})
+                </h4>
+              </div>
+              <button 
+                onClick={() => setGitDiffModal({ open: false, clientId: '', file: '', diff: '' })}
+                className="text-xs text-slate-400 hover:text-white font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 p-5 overflow-y-auto bg-slate-950 font-mono text-[10px] text-slate-350 leading-normal scrollbar-thin select-text text-left whitespace-pre-wrap">
+              {gitDiffLoading ? (
+                <div className="flex flex-col items-center justify-center h-full space-y-2">
+                  <RefreshCw size={20} className="animate-spin text-indigo-500" />
+                  <span>Obteniendo diferencias Git...</span>
+                </div>
+              ) : gitDiffModal.diff ? (
+                gitDiffModal.diff.split('\n').map((line, idx) => {
+                  const isAdded = line.startsWith('+') && !line.startsWith('+++');
+                  const isRemoved = line.startsWith('-') && !line.startsWith('---');
+                  const isHeader = line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@');
+                  
+                  let colorClass = 'text-slate-400';
+                  if (isAdded) colorClass = 'text-emerald-400 bg-emerald-950/20 font-semibold';
+                  else if (isRemoved) colorClass = 'text-red-400 bg-red-950/20 font-semibold';
+                  else if (isHeader) colorClass = 'text-indigo-400 font-bold';
+
+                  return (
+                    <div key={idx} className={`px-2 py-0.5 rounded ${colorClass}`}>
+                      {line}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 text-slate-500">
+                  No hay cambios detectados respecto a HEAD.
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  handleGitDiscard(gitDiffModal.clientId, gitDiffModal.file);
+                  setGitDiffModal({ open: false, clientId: '', file: '', diff: '' });
+                }}
+                className="px-3 py-1.5 bg-red-650 hover:bg-red-500 text-white text-[11px] font-bold rounded-xl cursor-pointer transition-all flex items-center gap-1 active:scale-95 border-none"
+              >
+                <RotateCcw size={11} />
+                Descartar Cambios
+              </button>
+              <button
+                onClick={() => setGitDiffModal({ open: false, clientId: '', file: '', diff: '' })}
+                className="px-4 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 text-[11px] font-bold rounded-xl cursor-pointer transition-all border border-slate-850"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer inferior Terminal en Vivo (Propuesta 2 y 5) */}
+      {terminalDrawer.open && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-black border-t border-slate-800 shadow-2xl flex flex-col h-80 animate-slide-up">
+          {/* Header */}
+          <div className="bg-slate-900 px-5 py-2.5 border-b border-slate-850 flex items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 block"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 block"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 block"></span>
+              <span className="text-[10px] font-mono text-slate-400 font-bold ml-2">
+                {terminalDrawer.title}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setTerminalLogs([])}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white rounded text-[9px] font-bold cursor-pointer transition-all"
+              >
+                Limpiar Consola
+              </button>
+              <button
+                onClick={() => setTerminalDrawer({ open: false, clientId: '', title: '', type: 'dev' })}
+                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-all"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Consola Terminal */}
+          <div className="flex-1 p-5 overflow-y-auto bg-slate-950 font-mono text-[10px] text-slate-350 space-y-1.5 scrollbar-thin text-left select-text">
+            {terminalLogs.length === 0 ? (
+              <div className="text-slate-650 italic animate-pulse">Esperando logs del proceso...</div>
+            ) : (
+              terminalLogs.map((log, index) => (
+                <div key={index} className={`leading-relaxed whitespace-pre-wrap ${
+                  log.toLowerCase().includes('fail') || log.toLowerCase().includes('error') ? 'text-red-400 font-semibold' :
+                  log.toLowerCase().includes('warn') || log.toLowerCase().includes('warning') ? 'text-amber-400' :
+                  log.toLowerCase().includes('success') || log.toLowerCase().includes('ready') ? 'text-emerald-400 font-semibold' : 'text-slate-300'
+                }`}>
+                  {log}
+                </div>
+              ))
+            )}
+            <div ref={terminalEndRef} />
           </div>
         </div>
       )}
