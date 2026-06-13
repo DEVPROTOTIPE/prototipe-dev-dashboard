@@ -103,7 +103,7 @@ export default function GitBackupPanel({ showToast }) {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
-  // Cargar targets
+  // Cargar targets al montar
   const fetchTargets = useCallback(async () => {
     setLoadingTargets(true)
     try {
@@ -118,55 +118,25 @@ export default function GitBackupPanel({ showToast }) {
     }
   }, [showToast])
 
-  // Cargar targets al montar y polling periódico
-  useEffect(() => {
-    fetchTargets()
-    const interval = setInterval(() => {
-      if (streamState !== 'running') {
-        fetch(`${CLI_BASE}/api/git/targets`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) setTargets(data.targets)
-          })
-          .catch(() => { /* error silencioso en polling */ })
-      }
-    }, 8000)
-    return () => clearInterval(interval)
-  }, [fetchTargets, streamState])
+  useEffect(() => { fetchTargets() }, [fetchTargets])
 
-  // Cargar status del target seleccionado (con opción silenciosa para polling)
-  const fetchStatus = useCallback(async (target, silent = false) => {
+  // Cargar status del target seleccionado
+  const fetchStatus = useCallback(async (target) => {
     if (!target?.hasGit && !target?.path) return
-    if (!silent) {
-      setLoadingStatus(true)
-      setGitStatus(null)
-    }
+    setLoadingStatus(true)
+    setGitStatus(null)
     try {
       const params = new URLSearchParams({ path: target.path })
       const res = await fetch(`${CLI_BASE}/api/git/status?${params}`)
       const data = await res.json()
-      if (data.success) {
-        setGitStatus(data)
-      } else if (!silent) {
-        showToast?.(`Error de estado: ${data.error}`, { type: 'error' })
-      }
+      if (data.success) setGitStatus(data)
+      else showToast?.(`Error de estado: ${data.error}`, { type: 'error' })
     } catch {
-      if (!silent) showToast?.('No se pudo leer el estado Git', { type: 'error' })
+      showToast?.('No se pudo leer el estado Git', { type: 'error' })
     } finally {
-      if (!silent) setLoadingStatus(false)
+      setLoadingStatus(false)
     }
   }, [showToast])
-
-  // Polling para el estado de cambios del target seleccionado
-  useEffect(() => {
-    if (!selected) return
-    const interval = setInterval(() => {
-      if (streamState !== 'running') {
-        fetchStatus(selected, true)
-      }
-    }, 8000)
-    return () => clearInterval(interval)
-  }, [selected, streamState, fetchStatus])
 
   const handleSelectTarget = (target) => {
     if (!target.hasGit) {
