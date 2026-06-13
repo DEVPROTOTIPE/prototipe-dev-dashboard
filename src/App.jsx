@@ -937,6 +937,8 @@ export default function App() {
   const [gitDiscardingFile, setGitDiscardingFile] = useState(null)
   const terminalEndRef = useRef(null)
 
+
+
   // Estados Interactivos del Mockup de Smartphone en Vista Previa
   const [mockActiveTab, setMockActiveTab] = useState('inicio')
   const [mockOrders, setMockOrders] = useState([
@@ -2462,6 +2464,8 @@ export default function App() {
       showToast(`Error al desarchivar cliente: ${err.message}`, { type: 'error' })
     }
   }
+
+
 
   // SIMULAR Y GESTIONAR ERRORES CENTRALIZADOS
   const handleSimulateFailure = async (customParams = null) => {
@@ -5588,7 +5592,7 @@ export default function App() {
           {/* ===== TAB: CRM ===== */}
           {activeTab === 'crm' && (
             <div className="space-y-6 tab-content-enter">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[var(--color-border)]">
                 <div>
                   <h1 className="text-xl font-black text-[var(--color-text)] flex items-center gap-2.5">
                     <Users size={20} className="text-purple-400" />
@@ -5596,24 +5600,24 @@ export default function App() {
                   </h1>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Directorio completo, configuración de facturación y portal de cada cliente.</p>
                 </div>
-                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2.5 w-full lg:w-auto mt-2 lg:mt-0">
                   <button onClick={handleGlobalSyncSafeFiles}
-                    className="px-3.5 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer">
                     <RefreshCw size={13} className="animate-pulse" />
-                    Sincronización Global Core (Safe)
+                    Sincronización Global
                   </button>
                   <button onClick={handleGlobalDeployAll}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer">
                     <Activity size={13} />
-                    Despliegue Global Hosting
+                    Despliegue Global
                   </button>
                   <button onClick={handleRequestAllTelemetry}
-                    className="px-3.5 py-2 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer shrink-0">
+                    className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer">
                     <Activity size={13} />
-                    Obtener Telemetría Global
+                    Telemetría Global
                   </button>
                   <button onClick={() => setActiveTab('onboarding')}
-                    className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-[0.98] cursor-pointer shrink-0">
+                    className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-[0.98] cursor-pointer">
                     <Plus size={13} />
                     Nuevo Cliente
                   </button>
@@ -5677,25 +5681,25 @@ export default function App() {
                             <p className="text-[10px] text-[var(--color-text-muted)]">{client.reportCount} reportes · {client.pendingCount} pendientes</p>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between w-full md:w-auto gap-3 mt-2 md:mt-0 pt-3 md:pt-0 border-t border-[var(--color-border)] md:border-t-0">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full lg:w-auto gap-4 mt-2 lg:mt-0 pt-3 lg:pt-0 border-t border-[var(--color-border)] lg:border-t-0">
                           <div className="flex items-center gap-6 pr-2">
-                            <div className="text-left md:text-center">
+                            <div>
                               <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Ventas</span>
                               <span className="text-xs font-black font-mono text-[var(--color-text)]">${client.totalSales.toLocaleString('es-CO')}</span>
                             </div>
-                            <div className="text-left md:text-center">
+                            <div>
                               <span className="text-[8px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión</span>
                               <span className="text-xs font-black font-mono text-indigo-600 dark:text-indigo-400">${client.totalCommission.toLocaleString('es-CO')}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
                             {/* BOTÓN DESPLEGAR EN LOCAL */}
                             {(() => {
                               const server = localServers[client.name] || { running: false, url: '', loading: false };
                               if (server.loading) {
                                   return (
                                     <button disabled
-                                      className="px-3 py-1.5 bg-violet-600/10 text-violet-450 dark:text-violet-400 rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all opacity-50 shrink-0 border border-violet-500/10">
+                                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-violet-600/10 text-violet-450 dark:text-violet-400 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all opacity-50 border border-violet-500/10 min-w-[120px] sm:min-w-0">
                                       <RefreshCw size={11} className="animate-spin" />
                                       Procesando...
                                     </button>
@@ -5703,19 +5707,19 @@ export default function App() {
                               }
                               if (server.running) {
                                 return (
-                                  <div className="flex items-center gap-1.5 shrink-0">
+                                  <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
                                     <a href={server.url} target="_blank" rel="noopener noreferrer"
-                                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-sm border-none flex items-center">
+                                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-white rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm border-none min-w-[90px] sm:min-w-0">
                                       <ArrowUpRight size={11} className="mr-0.5" />
                                       Ir a Local
                                     </a>
                                     <button onClick={() => setTerminalDrawer({ open: true, clientId: client.name.toLowerCase(), title: `Terminal Vite - ${client.name}`, type: 'dev' })}
-                                      className="p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 rounded-xl cursor-pointer flex items-center justify-center transition-all border border-slate-500/15"
+                                      className="px-3 py-1.5 sm:p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 rounded-xl cursor-pointer flex items-center justify-center transition-all border border-slate-500/15 min-w-[40px] sm:min-w-0"
                                       title="Ver Consola de Desarrollo">
                                       <Terminal size={12} />
                                     </button>
                                     <button onClick={() => handleStopLocalServer(client.name)}
-                                      className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-red-500/10 hover:border-red-500/30">
+                                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 border border-red-500/10 hover:border-red-500/30 min-w-[80px] sm:min-w-0">
                                       <StopCircle size={11} />
                                       Detener
                                     </button>
@@ -5724,21 +5728,22 @@ export default function App() {
                               }
                               return (
                                 <button onClick={() => handleStartLocalServer(client.name)}
-                                  className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 text-violet-650 dark:text-violet-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-violet-500/10 hover:border-violet-500/30 shrink-0">
+                                  className="flex-1 sm:flex-initial px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 text-violet-650 dark:text-violet-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 border border-violet-500/10 hover:border-violet-500/30 min-w-[120px] sm:min-w-0">
                                   <Play size={11} />
                                   Desplegar en Local
                                 </button>
                               );
                             })()}
+
                             {driftInfo?.dependenciesOutOfSync && (
                               <button onClick={() => setTerminalDrawer({ open: true, clientId: client.name.toLowerCase(), title: `Instalar Dependencias - ${client.name}`, type: 'npm' })}
-                                className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/25 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shrink-0">
+                                className="flex-1 sm:flex-initial px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/25 rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 min-w-[120px] sm:min-w-0">
                                 <RefreshCw size={11} className="animate-spin-slow" />
                                 Instalar Deps
                               </button>
                             )}
                             <button onClick={() => handleRequestClientTelemetry(client.name)}
-                              className="px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 shrink-0">
+                              className="flex-1 sm:flex-initial px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 min-w-[130px] sm:min-w-0">
                               <Activity size={11} className="animate-pulse" />
                               Obtener Telemetría
                             </button>
@@ -5756,7 +5761,7 @@ export default function App() {
                               setSelectedCrmClientId(client.name); 
                               setActiveMetricModal('clientes'); 
                             }}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-sm shrink-0 border-none">
+                              className="flex-1 sm:flex-initial px-3 py-1.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm border-none min-w-[100px] sm:min-w-0">
                               Gestionar
                               <ChevronRight size={11} />
                             </button>
@@ -7354,6 +7359,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+
 
       {/* Modal Visor de Diffs */}
       {activeDiffFile && (

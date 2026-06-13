@@ -371,6 +371,7 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                   onChange={setScaffoldBase}
                   options={[
                     { value: '', label: '-- Seleccionar --' },
+                    { value: 'core-seed', label: '🌱 Semilla Limpia (Core Seed)' },
                     ...coreOptions.filter(k => k !== core.clave).map(k => ({
                       value: k,
                       label: `App ${k.charAt(0).toUpperCase() + k.slice(1)}`
