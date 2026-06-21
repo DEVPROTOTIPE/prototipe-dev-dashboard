@@ -56,7 +56,8 @@ import {
   GitCommit,
   Upload,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
 import { initializeApp, getApps, getApp } from 'firebase/app'
@@ -81,7 +82,22 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth'
 import useCopyToClipboard from './hooks/useCopyToClipboard'
-import { exportCommissionReceiptPDF } from './services/pdfService'
+import { exportCommissionReceiptPDF, exportConsolidatedReconciliationPDF, exportClientsDirectoryPDF, exportGeneralMetricsPDF, exportClientDetailPDF } from './services/pdfService'
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  ReferenceLine
+} from 'recharts'
+import { motion, AnimatePresence } from 'framer-motion'
 import useToast from './hooks/useToast'
 import GuidedToast from './components/ui/GuidedToast'
 import { useAlertConfirm } from './components/common/AlertConfirmContext'
@@ -818,6 +834,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [reports, setReports] = useState([])
   const [activeMetricModal, setActiveMetricModal] = useState(null)
+  const [expandedClientId, setExpandedClientId] = useState(null)
   const [newClientName, setNewClientName] = useState('')
   const [selectedCrmClientId, setSelectedCrmClientId] = useState(null)
   const [crmSearch, setCrmSearch] = useState('')
@@ -936,6 +953,23 @@ export default function App() {
   const [gitDiffLoading, setGitDiffLoading] = useState(false)
   const [gitDiscardingFile, setGitDiscardingFile] = useState(null)
   const terminalEndRef = useRef(null)
+
+  const [selectedPeriod, setSelectedPeriod] = useState(null)
+  const [isPeriodPickerOpen, setIsPeriodPickerOpen] = useState(false)
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear())
+  const periodPickerRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (periodPickerRef.current && !periodPickerRef.current.contains(event.target)) {
+        setIsPeriodPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
 
 
@@ -1077,8 +1111,14 @@ export default function App() {
 
   const [failures, setFailures] = useState([])
   const [selectedErrorClientFilter, setSelectedErrorClientFilter] = useState('todos')
+  const [errorSearchQuery, setErrorSearchQuery] = useState('')
   const [expandedErrorId, setExpandedErrorId] = useState(null)
   const [errorsPage, setErrorsPage] = useState(1)
+  const [selectedErrorStatusFilter, setSelectedErrorStatusFilter] = useState('activos')
+  const [selectedErrorTypeFilter, setSelectedErrorTypeFilter] = useState('todos')
+  const [groupErrorsByMessage, setGroupErrorsByMessage] = useState(false)
+  const [resolutionNoteInputId, setResolutionNoteInputId] = useState(null)
+  const [resolutionNoteText, setResolutionNoteText] = useState('')
   
   // --- MODAL DE SIMULACIÓN DE FALLOS AVANZADO ---
   const [isSimulateFailureModalOpen, setIsSimulateFailureModalOpen] = useState(false)
@@ -2556,20 +2596,34 @@ export default function App() {
     }
   }
 
-  const handleResolveFailure = async (id) => {
+  const handleResolveFailure = async (idOrIds, note = '') => {
+    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+    if (ids.length === 0) return;
+
+    const updateData = {
+      resolved: true,
+      resolvedAt: new Date().toISOString(),
+      resolutionNote: note || null
+    };
+
     if (isSimulated) {
-      setFailures(prev => prev.map(f => f.id === id ? { ...f, resolved: true } : f))
-      addLog(`[SANDBOX] Fallo ${id} marcado como resuelto.`, 'success')
-      showToast('Fallo resuelto (Sandbox)', { type: 'success' })
+      setFailures(prev => prev.map(f => ids.includes(f.id) ? { ...f, ...updateData } : f))
+      addLog(`[SANDBOX] ${ids.length} fallo(s) marcado(s) como resuelto(s).`, 'success')
+      showToast(`${ids.length} fallo(s) resuelto(s) (Sandbox)`, { type: 'success' })
     } else {
       try {
         const dbInstance = getFirestore(getCentralApp())
-        await updateDoc(doc(dbInstance, 'app_failures', id), { resolved: true })
-        addLog(`[TELEMETRÍA] Fallo ${id} marcado como resuelto en Firestore.`, 'success')
-        showToast('Fallo marcado como resuelto', { type: 'success' })
+        const batchPromises = ids.map(id => 
+          updateDoc(doc(dbInstance, 'app_failures', id), updateData)
+        )
+        await Promise.all(batchPromises)
+        // Actualizar localmente para respuesta inmediata
+        setFailures(prev => prev.map(f => ids.includes(f.id) ? { ...f, ...updateData } : f))
+        addLog(`[TELEMETRÍA] ${ids.length} fallo(s) marcado(s) como resuelto(s) en Firestore.`, 'success')
+        showToast(`${ids.length} fallo(s) marcado(s) como resuelto(s)`, { type: 'success' })
       } catch (err) {
-        console.error("Error updating failure doc:", err)
-        showToast('Error al resolver fallo', { type: 'error' })
+        console.error("Error updating failure docs:", err)
+        showToast('Error al resolver fallo(s)', { type: 'error' })
       }
     }
   }
@@ -2641,12 +2695,36 @@ export default function App() {
 
   // Crear reporte prueba
   const handleCreateTestReport = async () => {
-    const targetClient = isSimulated ? 'cliente-simulado-' + Math.floor(Math.random() * 10) : (reports[0]?.clientId || 'ventas-smartfix')
+    const selectedClientObj = clientesSaas.length > 0
+      ? clientesSaas[Math.floor(Math.random() * clientesSaas.length)]
+      : null
+    const targetClient = selectedClientObj 
+      ? selectedClientObj.id 
+      : (isSimulated ? 'cliente-simulado-sandbox' : 'ventas-smartfix')
+      
     const testPeriod = new Date().toISOString().substring(0, 7)
     const reportId = `${targetClient}_${testPeriod}`
     const sales = Math.floor(Math.random() * 8000000) + 2000000
-    const pct = getClientRate(targetClient)
-    const comValue = (sales * pct) / 100
+    
+    // Calcular comValue basado en el billingMode del cliente
+    let pct = 1.5
+    let comValue = 0
+    if (selectedClientObj) {
+      const mode = selectedClientObj.billingMode || 'percentage'
+      if (mode === 'percentage') {
+        pct = selectedClientObj.comisionPorcentaje !== undefined ? parseFloat(selectedClientObj.comisionPorcentaje) : 1.5
+        comValue = (sales * pct) / 100
+      } else if (mode === 'flat_monthly') {
+        pct = 0
+        comValue = parseFloat(selectedClientObj.pagoMensualFijo) || 50000
+      } else if (mode === 'fixed_per_service') {
+        pct = 0
+        comValue = (parseFloat(selectedClientObj.montoFijoServicio) || 500) * 12
+      }
+    } else {
+      pct = getClientRate(targetClient)
+      comValue = (sales * pct) / 100
+    }
     
     addLog(`Generando telemetría de prueba para ${targetClient} ($${sales.toLocaleString()} Ventas, ${pct}%)`, "info", targetClient)
 
@@ -2691,55 +2769,245 @@ export default function App() {
     }
   }
 
-  // Filtro
-  const filteredReports = reports.filter(r => {
-    const matchesSearch = r.clientId.toLowerCase().includes(searchQuery.toLowerCase()) || r.periodo.includes(searchQuery)
-    const reportStatus = (r.estadoPago || 'pendiente').toLowerCase()
-    const matchesStatus = statusFilter === 'todos' || reportStatus === statusFilter.toLowerCase()
-    return matchesSearch && matchesStatus
-  })
+  // Filtro de periodo
+  const filteredPeriodReports = useMemo(() => {
+    if (!selectedPeriod) return reports
+    return reports.filter(r => r.periodo === selectedPeriod)
+  }, [reports, selectedPeriod])
 
-  // Métricas
-  const totalComision = reports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
-  const totalCobrado = reports.reduce((sum, r) => (r.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? sum + (r.comisionValor || 0) : sum, 0)
-  const totalPendiente = totalComision - totalCobrado
-  const clientesActivos = new Set(reports.map(r => r.clientId)).size
+  // Filtro memoizado
+  const filteredReports = useMemo(() => {
+    return filteredPeriodReports.filter(r => {
+      const matchesSearch = r.clientId.toLowerCase().includes(searchQuery.toLowerCase()) || r.periodo.includes(searchQuery)
+      const reportStatus = (r.estadoPago || 'pendiente').toLowerCase()
+      const matchesStatus = statusFilter === 'todos' || reportStatus === statusFilter.toLowerCase()
+      return matchesSearch && matchesStatus
+    })
+  }, [filteredPeriodReports, searchQuery, statusFilter])
+
+  // Métricas memoizadas
+  const totalComision = useMemo(() => {
+    return filteredPeriodReports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
+  }, [filteredPeriodReports])
+
+  const totalCobrado = useMemo(() => {
+    return filteredPeriodReports.reduce((sum, r) => (r.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? sum + (r.comisionValor || 0) : sum, 0)
+  }, [filteredPeriodReports])
+
+  const totalPendiente = useMemo(() => {
+    return totalComision - totalCobrado
+  }, [totalComision, totalCobrado])
+
+  const clientesActivos = useMemo(() => {
+    return new Set(filteredPeriodReports.map(r => r.clientId)).size
+  }, [filteredPeriodReports])
 
   // Clientes ordenados por mayor comisión acumulada para el gráfico
-  const clientAggregated = reports.reduce((acc, r) => {
-    if (!acc[r.clientId]) {
-      acc[r.clientId] = {
-        name: r.clientId,
+  const clientAggregated = useMemo(() => {
+    // Inicializar con todos los clientes de clientesSaas para asegurar consistencia
+    const initialMap = clientesSaas.reduce((acc, c) => {
+      acc[c.id] = {
+        name: c.id,
         totalSales: 0,
         totalCommission: 0,
         reportCount: 0,
         pendingCount: 0
       }
-    }
-    acc[r.clientId].totalSales += (r.totalVentas || 0)
-    acc[r.clientId].totalCommission += (r.comisionValor || 0)
-    acc[r.clientId].reportCount += 1
-    const reportStatus = (r.estadoPago || 'pendiente').toLowerCase()
-    if (reportStatus === 'pendiente') {
-      acc[r.clientId].pendingCount += 1
-    }
-    return acc
-  }, {})
+      return acc
+    }, {})
 
-  const chartData = Object.values(clientAggregated)
-    .sort((a, b) => b.totalCommission - a.totalCommission)
-    .slice(0, 5) // Top 5 clientes
+    return filteredPeriodReports.reduce((acc, r) => {
+      if (!acc[r.clientId]) {
+        acc[r.clientId] = {
+          name: r.clientId,
+          totalSales: 0,
+          totalCommission: 0,
+          reportCount: 0,
+          pendingCount: 0
+        }
+      }
+      acc[r.clientId].totalSales += (r.totalVentas || 0)
+      acc[r.clientId].totalCommission += (r.comisionValor || 0)
+      acc[r.clientId].reportCount += 1
+      const reportStatus = (r.estadoPago || 'pendiente').toLowerCase()
+      if (reportStatus === 'pendiente') {
+        acc[r.clientId].pendingCount += 1
+      }
+      return acc
+    }, initialMap)
+  }, [filteredPeriodReports, clientesSaas])
 
-  const maxChartValue = chartData.length > 0 ? Math.max(...chartData.map(c => c.totalCommission)) : 1
+  const chartData = useMemo(() => {
+    return Object.values(clientAggregated)
+      .sort((a, b) => b.totalCommission - a.totalCommission)
+      .slice(0, 5) // Top 5 clientes
+  }, [clientAggregated])
+
+  const maxChartValue = useMemo(() => {
+    return chartData.length > 0 ? Math.max(...chartData.map(c => c.totalCommission)) : 1
+  }, [chartData])
+
+  // Datos formateados para el Gráfico General Consolidado
+  const generalChartData = useMemo(() => {
+    const periodMap = reports.reduce((acc, r) => {
+      const p = r.periodo || 'N/A'
+      if (!acc[p]) {
+        acc[p] = { periodo: p, comisiones: 0, ventas: 0, count: 0 }
+      }
+      acc[p].comisiones += (r.comisionValor || 0)
+      acc[p].ventas += (r.totalVentas || 0)
+      acc[p].count += 1
+      return acc
+    }, {})
+
+    return Object.values(periodMap)
+      .sort((a, b) => a.periodo.localeCompare(b.periodo))
+  }, [reports])
+
+  // Obtiene historial mensual detallado de un cliente específico
+  const getClientHistoryData = (clientName) => {
+    const clientReports = reports.filter(r => r.clientId.toLowerCase() === clientName.toLowerCase())
+    const periodMap = clientReports.reduce((acc, r) => {
+      const p = r.periodo || 'N/A'
+      if (!acc[p]) {
+        acc[p] = { periodo: p, comisiones: 0, ventas: 0 }
+      }
+      acc[p].comisiones += (r.comisionValor || 0)
+      acc[p].ventas += (r.totalVentas || 0)
+      return acc
+    }, {})
+
+    return Object.values(periodMap)
+      .sort((a, b) => a.periodo.localeCompare(b.periodo))
+  }
+
+  // Helper para formatear periodo (ej. 2026-06 -> Jun 26)
+  const formatPeriod = (periodStr) => {
+    if (!periodStr || periodStr === 'N/A') return periodStr || ''
+    const parts = periodStr.split('-')
+    if (parts.length !== 2) return periodStr
+    const year = parts[0].substring(2)
+    const monthIndex = parseInt(parts[1]) - 1
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    return `${months[monthIndex]} ${year}`
+  }
+
+  const getPeriodLabel = (periodStr) => {
+    if (!periodStr) return 'Histórico Completo'
+    const parts = periodStr.split('-')
+    if (parts.length !== 2) return periodStr
+    const [y, m] = parts
+    const monthsFull = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ]
+    const mIndex = parseInt(m, 10) - 1
+    return `${monthsFull[mIndex]}, ${y}`
+  }
+
+  // Proyecciones de ingresos calculadas (Memoizado con soporte para billingMode)
+  const projExistingMonthly = useMemo(() => {
+    return clientesSaas.reduce((sum, c) => {
+      const mode = c.billingMode || 'percentage'
+      if (mode === 'percentage') {
+        const rate = c.comisionPorcentaje !== undefined ? parseFloat(c.comisionPorcentaje) : 1.5
+        return sum + (projAvgSales * rate / 100)
+      } else if (mode === 'flat_monthly') {
+        return sum + (parseFloat(c.pagoMensualFijo) || 0)
+      } else if (mode === 'fixed_per_service') {
+        // Asumir un promedio estándar de 12 transacciones/servicios al mes
+        return sum + ((parseFloat(c.montoFijoServicio) || 0) * 12)
+      }
+      return sum
+    }, 0)
+  }, [clientesSaas, projAvgSales])
+
+  const projNewMonthly = useMemo(() => {
+    const count = typeof projNewClients === 'number' ? projNewClients : parseInt(projNewClients) || 0
+    const avgSales = typeof projAvgSales === 'number' ? projAvgSales : parseInt(projAvgSales) || 0
+    const rate = typeof projRate === 'number' ? projRate : parseFloat(projRate) || 0
+    return count * (avgSales * rate / 100)
+  }, [projNewClients, projAvgSales, projRate])
+
+  const projTotalMonthly = useMemo(() => {
+    return projExistingMonthly + projNewMonthly
+  }, [projExistingMonthly, projNewMonthly])
+
+  const projTotalYear = useMemo(() => {
+    const months = typeof projMonths === 'number' ? projMonths : parseInt(projMonths) || 1
+    return projTotalMonthly * months
+  }, [projTotalMonthly, projMonths])
+
+  // Datos para gráficos de BI y márgenes netos
+  const nicheChartData = useMemo(() => {
+    const dataMap = {}
+    clientesSaas.forEach(c => {
+      const clientReports = filteredPeriodReports.filter(r => r.clientId.toLowerCase() === c.id.toLowerCase())
+      const totalCommission = clientReports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
+      const nicheLabel = c.niche || 'general'
+      dataMap[nicheLabel] = (dataMap[nicheLabel] || 0) + totalCommission
+    })
+    
+    const list = Object.entries(dataMap).map(([niche, value]) => ({
+      name: niche.replace('_', ' ').toUpperCase(),
+      value: value || 0
+    })).filter(item => item.value > 0)
+    
+    if (list.length === 0) {
+      return [
+        { name: 'RETAIL CLOTHING', value: 350000 },
+        { name: 'TECHNICAL SERVICES', value: 150000 },
+        { name: 'REFRIGERATION AC', value: 120000 }
+      ]
+    }
+    return list
+  }, [clientesSaas, filteredPeriodReports])
+
+  const biMetrics = useMemo(() => {
+    let totalDianCost = 0
+    clientesSaas.forEach(c => {
+      if (c.enableDianBilling) {
+        const clientReports = filteredPeriodReports.filter(r => r.clientId.toLowerCase() === c.id.toLowerCase())
+        totalDianCost += clientReports.length * (c.costoPorFacturaDian || 150)
+      }
+    })
+    
+    const existingNet = Math.max(totalComision - totalDianCost, 0)
+    
+    // Proyectados
+    let projectedDianCost = 0
+    clientesSaas.forEach(c => {
+      if (c.enableDianBilling) {
+        projectedDianCost += 12 * (c.costoPorFacturaDian || 150)
+      }
+    })
+    
+    // Para nuevos clientes simulados, asumimos que el 50% habilita DIAN con un costo de $150 por 12 reportes
+    if (projNewClients > 0) {
+      projectedDianCost += (projNewClients * 0.5) * 12 * 150
+    }
+    
+    const projectedNetMonthly = Math.max(projTotalMonthly - projectedDianCost, 0)
+    const projectedNetPeriod = projectedNetMonthly * (parseInt(projMonths) || 1)
+    
+    return {
+      existingDianCost: totalDianCost,
+      existingNet,
+      projectedDianCost,
+      projectedNetMonthly,
+      projectedNetPeriod
+    }
+  }, [clientesSaas, filteredPeriodReports, totalComision, projTotalMonthly, projNewClients, projMonths])
 
   // RENDER PANTALLA LOGIN
   if (!user) {
     return (
       <div className="min-h-screen relative flex items-center justify-center bg-[#070b13] px-4 font-sans overflow-hidden">
-        {/* Background Gradients and blobs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_center,rgba(124,58,237,0.02),transparent)]" />
+        {/* ── Fondo tecnológico premium ── */}
+        <div aria-hidden="true" className="tech-bg-dots" />
+        <div aria-hidden="true" className="tech-bg-orb-1" />
+        <div aria-hidden="true" className="tech-bg-orb-2" />
+        <div aria-hidden="true" className="tech-bg-vignette" />
 
         <form 
           onSubmit={handleLogin}
@@ -4000,7 +4268,7 @@ export default function App() {
                                                     e.stopPropagation();
                                                     setLivePreviewComponent(comp);
                                                   }}
-                                                  className="flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                                                  className="flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
                                                   title="Ver demo en vivo"
                                                 >
                                                   <Play size={8} fill="currentColor" />
@@ -4978,14 +5246,7 @@ export default function App() {
     { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
   ]
 
-  // Proyecciones de ingresos calculadas
-  const projExistingMonthly = clientesSaas.reduce((sum, c) => {
-    const rate = parseFloat(c.comisionPorcentaje) || 1.5
-    return sum + (projAvgSales * rate / 100)
-  }, 0)
-  const projNewMonthly = projNewClients * (projAvgSales * projRate / 100)
-  const projTotalMonthly = projExistingMonthly + projNewMonthly
-  const projTotalYear = projTotalMonthly * projMonths
+
 
   // Historial de Aprovisionamientos (Clientes activos o archivados)
   const filteredProvisionings = clientesSaas.filter(c => showArchivedHistory ? c.archived === true : c.archived !== true)
@@ -4998,7 +5259,66 @@ export default function App() {
   )
 
   // Historial de Errores e Incidentes
-  const filteredFailures = failures.filter(f => selectedErrorClientFilter === 'todos' || f.clientId === selectedErrorClientFilter)
+  const rawFilteredFailures = failures.filter(f => {
+    // Filtro por Cliente
+    const matchesClient = selectedErrorClientFilter === 'todos' || f.clientId === selectedErrorClientFilter
+    
+    // Filtro por Estado
+    const matchesStatus = selectedErrorStatusFilter === 'todos' || 
+      (selectedErrorStatusFilter === 'activos' && !f.resolved) ||
+      (selectedErrorStatusFilter === 'resueltos' && f.resolved)
+
+    // Filtro por Tipo
+    const matchesType = selectedErrorTypeFilter === 'todos' || 
+      (f.type && f.type.toLowerCase() === selectedErrorTypeFilter.toLowerCase()) ||
+      (!f.type && selectedErrorTypeFilter === 'error') // Default a error si no está definido
+
+    // Filtro por Búsqueda
+    const matchesSearch = !errorSearchQuery || 
+      (f.errorMsg && f.errorMsg.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.clientId && f.clientId.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.stack && f.stack.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.niche && f.niche.toLowerCase().includes(errorSearchQuery.toLowerCase()))
+
+    return matchesClient && matchesStatus && matchesType && matchesSearch
+  })
+
+  // Agrupación / De-duplicación si está activo
+  const filteredFailures = (() => {
+    if (!groupErrorsByMessage) return rawFilteredFailures;
+
+    const groups = {};
+    rawFilteredFailures.forEach(f => {
+      // Agrupar por el mensaje de error y el ID de cliente
+      const key = `${f.clientId}_${f.errorMsg}`;
+      if (!groups[key]) {
+        groups[key] = {
+          ...f,
+          occurrences: 1,
+          allTimestamps: [f.timestamp],
+          allIds: [f.id]
+        };
+      } else {
+        groups[key].occurrences += 1;
+        groups[key].allTimestamps.push(f.timestamp);
+        groups[key].allIds.push(f.id);
+        
+        // Conservar el reporte más reciente como el principal para la UI
+        if (new Date(f.timestamp) > new Date(groups[key].timestamp)) {
+          const prevOcc = groups[key].occurrences;
+          const prevTimestamps = groups[key].allTimestamps;
+          const prevIds = groups[key].allIds;
+          Object.assign(groups[key], f);
+          groups[key].occurrences = prevOcc;
+          groups[key].allTimestamps = prevTimestamps;
+          groups[key].allIds = prevIds;
+        }
+      }
+    });
+
+    // Devolver ordenados por fecha de más reciente a más antiguo
+    return Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  })();
   const FAILURES_ITEMS_PER_PAGE = 10
   const totalFailuresPages = Math.ceil(filteredFailures.length / FAILURES_ITEMS_PER_PAGE) || 1
   const currentFailuresPage = Math.min(errorsPage, totalFailuresPages)
@@ -5044,9 +5364,11 @@ export default function App() {
       {/* Cursor personalizado — solo desktop */}
       <CustomCursor />
 
-      {/* Background decorativos */}
-      <div className="fixed top-0 right-0 w-[50%] h-[400px] rounded-full bg-gradient-to-b from-violet-500/5 to-purple-500/0 blur-[150px] pointer-events-none opacity-50 dark:opacity-100 z-0" />
-      <div className="fixed top-[20%] left-[-10%] w-[40%] h-[400px] rounded-full bg-violet-500/2 blur-[150px] pointer-events-none opacity-50 dark:opacity-100 z-0" />
+      {/* ── Fondo tecnológico premium: dots + orbs + viñeta ── */}
+      <div aria-hidden="true" className="tech-bg-dots" />
+      <div aria-hidden="true" className="tech-bg-orb-1" />
+      <div aria-hidden="true" className="tech-bg-orb-2" />
+      <div aria-hidden="true" className="tech-bg-vignette" />
 
       {/* Topbar Premium */}
       <nav className="h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md pr-4 lg:pr-6 pl-0 flex items-center justify-between sticky top-0 z-50 shadow-sm transition-colors duration-300 shrink-0">
@@ -5233,24 +5555,153 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <div className="space-y-6 tab-content-enter">
               {/* Encabezado */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <h1 className="text-xl font-black text-[var(--color-text)] flex items-center gap-2.5">
-                    <LayoutDashboard size={20} className="text-violet-400" />
-                    Dashboard General
+                  <h1 className="text-xl font-black text-[var(--color-text)] flex items-center gap-2.5 flex-wrap">
+                    <LayoutDashboard size={20} className="text-indigo-400" />
+                    <span>Dashboard General</span>
+                    <button 
+                      onClick={() => { setIsSimulated(prev => !prev); addLog(`Modo: ${!isSimulated ? 'SANDBOX' : 'CONECTADO'}`, 'warning') }}
+                      className={`text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-[0.95] ${
+                        isSimulated 
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' 
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                      }`}
+                      title="Haz clic para alternar el origen de los datos"
+                    >
+                      ● {isSimulated ? 'Modo Sandbox' : 'Conectado a Firestore'}
+                    </button>
                   </h1>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Visión consolidada de ingresos y estado del sistema en tiempo real.</p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="grid grid-cols-1 sm:flex sm:flex-row gap-2 w-full lg:w-auto items-center shrink-0">
+                  {/* Selector de Periodo Premium */}
+                  <div ref={periodPickerRef} className="relative w-full sm:w-auto">
+                    <button 
+                      onClick={() => setIsPeriodPickerOpen(!isPeriodPickerOpen)}
+                      className={`px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold flex items-center justify-between sm:justify-center gap-2 transition-all border active:scale-[0.98] cursor-pointer w-full sm:w-auto ${
+                        selectedPeriod 
+                          ? 'bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border-violet-500/30' 
+                          : 'bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-[var(--color-border)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={13} className={selectedPeriod ? 'text-violet-400' : 'text-indigo-400'} />
+                        <span>{selectedPeriod ? getPeriodLabel(selectedPeriod) : 'Histórico Completo'}</span>
+                      </div>
+                      <ChevronDown size={12} className={`transition-transform duration-200 ${isPeriodPickerOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isPeriodPickerOpen && (
+                      <div className="absolute right-0 mt-2 w-72 bg-slate-950/85 backdrop-blur-xl border border-white/[0.08] p-4 rounded-2xl shadow-2xl z-50 animate-fade-in space-y-3">
+                        {/* Selector de Año */}
+                        <div className="flex items-center justify-between pb-2 border-b border-white/[0.05]">
+                          <button 
+                            type="button"
+                            onClick={() => setPickerYear(prev => prev - 1)}
+                            className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-[var(--color-text)] transition-colors"
+                          >
+                            <ChevronLeft size={14} />
+                          </button>
+                          <span className="text-xs font-black text-[var(--color-text)] font-mono tracking-wider">{pickerYear}</span>
+                          <button 
+                            type="button"
+                            onClick={() => setPickerYear(prev => prev + 1)}
+                            className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-[var(--color-text)] transition-colors"
+                          >
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+
+                        {/* Grid de Meses */}
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { val: '01', label: 'Ene' },
+                            { val: '02', label: 'Feb' },
+                            { val: '03', label: 'Mar' },
+                            { val: '04', label: 'Abr' },
+                            { val: '05', label: 'May' },
+                            { val: '06', label: 'Jun' },
+                            { val: '07', label: 'Jul' },
+                            { val: '08', label: 'Ago' },
+                            { val: '09', label: 'Sep' },
+                            { val: '10', label: 'Oct' },
+                            { val: '11', label: 'Nov' },
+                            { val: '12', label: 'Dic' }
+                          ].map(m => {
+                            const periodKey = `${pickerYear}-${m.val}`
+                            const isSelected = selectedPeriod === periodKey
+                            const hasData = reports.some(r => r.periodo === periodKey)
+                            
+                            return (
+                              <button
+                                key={m.val}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedPeriod(periodKey)
+                                  setIsPeriodPickerOpen(false)
+                                  addLog(`Periodo filtrado: ${getPeriodLabel(periodKey)}`, 'success')
+                                }}
+                                className={`py-2 rounded-xl text-[11px] font-bold transition-all relative ${
+                                  isSelected
+                                    ? 'bg-violet-650 hover:bg-violet-600 text-white shadow-lg shadow-violet-500/20'
+                                    : hasData
+                                      ? 'bg-white/5 hover:bg-white/10 text-slate-200 border border-white/[0.05]'
+                                      : 'bg-transparent hover:bg-white/[0.02] text-slate-500 hover:text-slate-400'
+                                }`}
+                              >
+                                {m.label}
+                                {hasData && !isSelected && (
+                                  <span className="absolute top-1 right-1 w-1 h-1 rounded-full bg-violet-400" />
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {/* Botón de reset */}
+                        {selectedPeriod && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPeriod(null)
+                              setIsPeriodPickerOpen(false)
+                              addLog('Filtro de periodo restablecido. Mostrando histórico.', 'info')
+                            }}
+                            className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/[0.05] hover:border-white/[0.1] text-violet-400 hover:text-violet-300 text-[10px] font-extrabold uppercase tracking-wider rounded-xl transition-all active:scale-[0.98]"
+                          >
+                            Ver Histórico Completo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <button onClick={handleCreateTestReport}
-                    className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] text-xs font-bold flex items-center gap-1.5 transition-all border border-[var(--color-border)] active:scale-[0.98] cursor-pointer">
-                    <Database size={13} />
-                    Test Telemetría
+                    className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-[var(--color-border)] active:scale-[0.98] cursor-pointer w-full sm:w-auto">
+                    <Database size={13} className="text-indigo-400" />
+                    <span>Test Telemetría</span>
                   </button>
-                  <button onClick={() => { setIsSimulated(prev => !prev); addLog(`Modo: ${!isSimulated ? 'SANDBOX' : 'CONECTADO'}`, 'warning') }}
-                    className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] text-xs font-bold flex items-center gap-1.5 transition-all border border-[var(--color-border)] active:scale-[0.98] cursor-pointer">
-                    <Server size={13} />
-                    {isSimulated ? 'Sandbox' : 'Conectado'}
+                  <button onClick={() => {
+                      exportGeneralMetricsPDF(
+                        { totalComision, totalCobrado, totalPendiente, clientesActivos },
+                        chartData,
+                        { projNewClients, projAvgSales, projRate, projMonths, projExistingMonthly, projTotalMonthly, projTotalYear }
+                      )
+                      addLog('Reporte de rendimiento y métricas generales PDF exportado.', 'success')
+                    }}
+                    className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-[var(--color-border)] active:scale-[0.98] cursor-pointer w-full sm:w-auto">
+                    <Download size={13} className="text-indigo-400" />
+                    <span>Exportar Métricas</span>
+                  </button>
+                  <button onClick={() => {
+                      const period = new Date().toISOString().substring(0, 7)
+                      exportConsolidatedReconciliationPDF(period, clientesSaas, reports)
+                      addLog(`Reporte de conciliación PDF exportado para el periodo ${period}.`, 'success')
+                    }}
+                    className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer border-none shadow-sm shadow-indigo-500/10 w-full sm:w-auto">
+                    <FileText size={13} />
+                    <span>Conciliación PDF</span>
                   </button>
                 </div>
               </div>
@@ -5284,62 +5735,340 @@ export default function App() {
                 {/* Gráfico de barras */}
                 <div className="lg:col-span-2 bg-[var(--color-surface)] p-6 rounded-2xl flex flex-col shadow-sm relative overflow-hidden transition-colors duration-300 border border-[var(--color-border)]">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/3 rounded-full blur-3xl pointer-events-none" />
-                  <div className="space-y-1 mb-5">
-                    <span className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Métricas</span>
-                    <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
-                      <BarChart3 size={16} className="text-violet-550 dark:text-violet-400" />
-                      Comisiones por Cliente
-                    </h3>
+                  <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Métricas</span>
+                      <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
+                        <BarChart3 size={16} className="text-violet-550 dark:text-violet-400" />
+                        Comisiones Generales
+                      </h3>
+                    </div>
+                    {selectedPeriod && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-violet-500/10 text-violet-400 border border-violet-500/20 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                        Filtrado: {formatPeriod(selectedPeriod)}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Gráfico General Consolidado */}
+                  {generalChartData.length === 0 ? (
+                    <div className="h-40 flex items-center justify-center text-slate-500 text-xs">Sin datos consolidados.</div>
+                  ) : (
+                    <div className="h-[220px] w-full mb-6 relative">
+                      <ResponsiveContainer width="100%" height={220} minWidth={0}>
+                        <AreaChart data={generalChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorGeneralComisiones" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
+                            </linearGradient>
+                            <linearGradient id="colorGeneralVentas" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.05}/>
+                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                          <XAxis 
+                            dataKey="periodo" 
+                            stroke="rgba(255,255,255,0.2)" 
+                            fontSize={9} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={formatPeriod}
+                          />
+                          <YAxis 
+                            stroke="rgba(255,255,255,0.2)" 
+                            fontSize={9} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`}
+                          />
+                          <Tooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload
+                                return (
+                                  <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-3 rounded-2xl shadow-2xl text-left text-[10px] space-y-1">
+                                    <p className="font-extrabold text-[var(--color-text)] uppercase">{formatPeriod(data.periodo)}</p>
+                                    <p className="text-violet-400 font-semibold">Comisión: <span className="font-bold font-mono">${data.comisiones.toLocaleString('es-CO')}</span></p>
+                                    <p className="text-cyan-400 font-semibold">Ventas: <span className="font-bold font-mono">${data.ventas.toLocaleString('es-CO')}</span></p>
+                                    <p className="text-[var(--color-text-muted)] text-[8px]">{data.count} reportes en este mes</p>
+                                  </div>
+                                )
+                              }
+                              return null
+                            }}
+                          />
+                          <Area type="monotone" dataKey="ventas" stroke="#0ea5e9" strokeWidth={1.5} strokeDasharray="4 4" fillOpacity={1} fill="url(#colorGeneralVentas)" name="Ventas" />
+                          <Area type="monotone" dataKey="comisiones" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorGeneralComisiones)" name="Comisiones" />
+                          {selectedPeriod && (
+                            <ReferenceLine 
+                              x={selectedPeriod} 
+                              stroke="#8b5cf6" 
+                              strokeWidth={2}
+                              strokeDasharray="4 4" 
+                              strokeOpacity={0.6}
+                            />
+                          )}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* Divisor */}
+                  <div className="flex items-center gap-2 border-t border-[var(--color-border)]/50 pt-5 pb-3">
+                    <span className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-none">Desglose por Cliente</span>
+                    <div className="h-px bg-[var(--color-border)]/30 flex-1" />
+                  </div>
+
                   {chartData.length === 0 ? (
                     <div className="h-40 flex items-center justify-center text-slate-500 text-xs">Sin datos suficientes.</div>
                   ) : (
                     <div className="space-y-3">
                       {chartData.map((client, idx) => {
-                        const pctWidth = (client.totalCommission / maxChartValue) * 100
+                        const isExpanded = expandedClientId === client.name
+                        const clientHistory = getClientHistoryData(client.name)
                         const colorSet = [
-                          { text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10', bar: 'bg-violet-500' },
-                          { text: 'text-cyan-650 dark:text-cyan-400', bg: 'bg-cyan-500/10', bar: 'bg-cyan-500' },
-                          { text: 'text-emerald-650 dark:text-emerald-400', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500' },
-                          { text: 'text-amber-650 dark:text-amber-400', bg: 'bg-amber-500/10', bar: 'bg-amber-500' },
-                          { text: 'text-pink-650 dark:text-pink-400', bg: 'bg-pink-500/10', bar: 'bg-pink-500' }
+                          { text: 'text-violet-650 dark:text-violet-400', bg: 'bg-violet-500/10', bar: 'bg-violet-500', stroke: '#8b5cf6' },
+                          { text: 'text-cyan-650 dark:text-cyan-400', bg: 'bg-cyan-500/10', bar: 'bg-cyan-500', stroke: '#0ea5e9' },
+                          { text: 'text-emerald-650 dark:text-emerald-400', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500', stroke: '#10b981' },
+                          { text: 'text-amber-650 dark:text-amber-400', bg: 'bg-amber-500/10', bar: 'bg-amber-500', stroke: '#f59e0b' },
+                          { text: 'text-pink-650 dark:text-pink-400', bg: 'bg-pink-500/10', bar: 'bg-pink-500', stroke: '#ec4899' }
                         ][idx % 5]
+                        
+                        // Encontrar la configuración del cliente
+                        const clientCfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {}
+                        const billingText = clientCfg.billingMode === 'percentage' 
+                          ? `${clientCfg.comisionPorcentaje || 1.5}% Ventas` 
+                          : clientCfg.billingMode === 'fixed_per_service' 
+                            ? `$${(clientCfg.montoFijoServicio || 500).toLocaleString('es-CO')} / Serv` 
+                            : `$${(clientCfg.pagoMensualFijo || 50000).toLocaleString('es-CO')} / Mes`
+
                         return (
-                          <div key={client.name} className="p-3 bg-[var(--color-surface-2)]/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--color-surface-2)]/50 transition-all duration-300 shadow-sm">
-                            <div className="flex items-center gap-3 min-w-[140px]">
-                              <div className={`w-8 h-8 rounded-xl ${colorSet.bg} ${colorSet.text} font-bold flex items-center justify-center text-xs shrink-0`}>
-                                {client.name.substring(0, 2).toUpperCase()}
+                          <div key={client.name} 
+                            className={`p-3 bg-[var(--color-surface-2)]/25 rounded-2xl border transition-all duration-300 shadow-sm flex flex-col ${
+                              isExpanded 
+                                ? 'border-violet-500/40 bg-[var(--color-surface-2)]/60' 
+                                : 'border-[var(--color-border)]/50 hover:bg-[var(--color-surface-2)]/50'
+                            }`}
+                          >
+                            {/* Fila principal (Clickable para expandir) */}
+                            <div 
+                              onClick={() => setExpandedClientId(isExpanded ? null : client.name)}
+                              className="flex items-center justify-between gap-3 cursor-pointer select-none"
+                            >
+                              <div className="flex items-center gap-3 min-w-[140px]">
+                                <div className={`w-8 h-8 rounded-xl ${colorSet.bg} ${colorSet.text} font-black flex items-center justify-center text-xs shrink-0 border border-current/10`}>
+                                  {client.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate max-w-[100px]" title={client.name}>{client.name}</h4>
+                                  <p className="text-[9px] text-[var(--color-text-muted)]">{client.reportCount} reportes</p>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="font-bold text-xs text-[var(--color-text)] truncate max-w-[100px]" title={client.name}>{client.name}</h4>
-                                <p className="text-[9px] text-[var(--color-text-muted)]">{client.reportCount} reportes</p>
+                              <div className="flex-1 space-y-1 hidden sm:block px-4">
+                                <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)]">
+                                  <span>Ventas Brutas</span>
+                                  <span className="font-mono">${client.totalSales.toLocaleString('es-CO')}</span>
+                                </div>
+                                <div className="h-1 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full transition-all duration-700 ease-out ${colorSet.bar}`} style={{ width: `${Math.max((client.totalCommission / maxChartValue) * 100, 3)}%` }} />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 text-right min-w-[90px] justify-end">
+                                <div>
+                                  <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] block leading-none">Comisión</span>
+                                  <span className={`text-xs font-black font-mono mt-0.5 block ${colorSet.text}`}>${client.totalCommission.toLocaleString('es-CO')}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {client.pendingCount > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">{client.pendingCount} pend.</span>
+                                  )}
+                                  <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-violet-400' : ''}`} />
+                                </div>
                               </div>
                             </div>
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)]">
-                                <span>Ventas</span>
-                                <span className="font-mono">${client.totalSales.toLocaleString('es-CO')}</span>
-                              </div>
-                              <div className="h-1.5 bg-[var(--color-bg)] rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-1000 ease-out ${colorSet.bar}`} style={{ width: `${Math.max(pctWidth, 3)}%` }} />
-                              </div>
-                            </div>
-                            <div className="text-right min-w-[90px]">
-                              <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] block">Comisión</span>
-                              <span className="text-xs font-black text-violet-650 dark:text-violet-400 font-mono">${client.totalCommission.toLocaleString('es-CO')}</span>
-                              {client.pendingCount > 0 ? (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 block mt-0.5">{client.pendingCount} pend.</span>
-                              ) : null}
-                            </div>
+
+                            {/* Panel Desplegable con Gráfico e Información */}
+                            <AnimatePresence initial={false}>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="pt-4 border-t border-[var(--color-border)]/40 mt-3 space-y-4">
+                                    {/* Gráfico individual del cliente */}
+                                    {clientHistory.length === 0 ? (
+                                      <p className="text-[9px] text-[var(--color-text-muted)] italic text-center py-4">Sin datos de tendencia suficientes para este cliente.</p>
+                                    ) : (
+                                      <div className="h-28 w-full">
+                                        <ResponsiveContainer width="100%" height={112} minWidth={0}>
+                                          <AreaChart data={clientHistory} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                            <defs>
+                                              <linearGradient id={`colorClientComisiones-${client.name}`} x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={colorSet.stroke} stopOpacity={0.15}/>
+                                                <stop offset="95%" stopColor={colorSet.stroke} stopOpacity={0.0}/>
+                                              </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
+                                            <XAxis dataKey="periodo" stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={formatPeriod} />
+                                            <YAxis stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`} />
+                                            <Tooltip 
+                                              content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                  const data = payload[0].payload
+                                                  return (
+                                                    <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-2.5 rounded-xl shadow-2xl text-left text-[9px] space-y-0.5">
+                                                      <p className="font-extrabold text-[var(--color-text)]">{formatPeriod(data.periodo)}</p>
+                                                      <p className={`${colorSet.text}`}>Comisión: <span className="font-bold font-mono">${data.comisiones.toLocaleString('es-CO')}</span></p>
+                                                      <p className="text-slate-400">Ventas: <span className="font-bold font-mono">${data.ventas.toLocaleString('es-CO')}</span></p>
+                                                    </div>
+                                                  )
+                                                }
+                                                return null
+                                              }}
+                                            />
+                                            <Area type="monotone" dataKey="comisiones" stroke={colorSet.stroke} strokeWidth={2} fillOpacity={1} fill={`url(#colorClientComisiones-${client.name})`} />
+                                          </AreaChart>
+                                        </ResponsiveContainer>
+                                      </div>
+                                    )}
+
+                                    {/* Configuración & Acciones */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] bg-[var(--color-surface)]/40 p-2.5 rounded-xl border border-[var(--color-border)]/40">
+                                      <div>
+                                        <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Esquema Facturación</span>
+                                        <span className="font-bold text-[var(--color-text)] block mt-0.5">{billingText}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Nicho de Negocio</span>
+                                        <span className="font-bold text-[var(--color-text)] block mt-0.5 capitalize">{(clientCfg.niche || 'N/A').replace('_', ' ')}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 justify-end">
+                                        <button 
+                                          onClick={() => {
+                                            const clientFailures = failures.filter(f => f.clientId.toLowerCase() === client.name.toLowerCase())
+                                            exportClientDetailPDF(client.name, clientCfg, reports.filter(r => r.clientId.toLowerCase() === client.name.toLowerCase()), clientFailures)
+                                            addLog(`Ficha PDF de cliente ${client.name} descargada.`, 'success')
+                                          }}
+                                          className="p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 border border-slate-500/20 rounded-lg cursor-pointer transition-all active:scale-95"
+                                          title="Exportar Reporte Ficha PDF"
+                                        >
+                                          <Download size={11} />
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            setEditNiche(clientCfg.niche || 'retail_clothing');
+                                            setEditBillingMode(clientCfg.billingMode || 'percentage');
+                                            setEditComisionPorcentaje(clientCfg.comisionPorcentaje !== undefined ? clientCfg.comisionPorcentaje : 1.5);
+                                            setEditMontoFijoServicio(clientCfg.montoFijoServicio !== undefined ? clientCfg.montoFijoServicio : 500);
+                                            setEditPagoMensualFijo(clientCfg.pagoMensualFijo !== undefined ? clientCfg.pagoMensualFijo : 50000);
+                                            setEditEnableDianBilling(!!clientCfg.enableDianBilling);
+                                            setEditCostoPorFacturaDian(clientCfg.costoPorFacturaDian !== undefined ? clientCfg.costoPorFacturaDian : 150);
+                                            setCrmTab('config');
+                                            setDriftData(null);
+                                            setSelectedCrmClientId(client.name); 
+                                            setActiveMetricModal('clientes');
+                                          }}
+                                          className="px-2.5 py-1 bg-violet-600 hover:bg-violet-550 text-white rounded-lg text-[9px] font-extrabold cursor-pointer active:scale-95 transition-all shadow-sm"
+                                        >
+                                          Gestionar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
                         )
-                      })}`
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
-                <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden">
+                {/* Columna Derecha: Radar de Salud + Telemetría */}
+                <div className="space-y-5">
+                  {/* Radar de Salud de Instancias */}
+                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl flex flex-col shadow-sm relative overflow-hidden transition-colors duration-300 border border-[var(--color-border)]">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/3 rounded-full blur-3xl pointer-events-none" />
+                    <div className="space-y-1 mb-4">
+                      <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Health Radar</span>
+                      <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
+                        <Activity size={16} className="text-indigo-550 dark:text-indigo-400" />
+                        Radar de Salud de Instancias
+                      </h3>
+                    </div>
+                    
+                    <div className="space-y-2.5">
+                      {clientesSaas.map(client => {
+                        const failuresCount = failures.filter(f => f.clientId.toLowerCase() === client.id.toLowerCase() && !f.resolved).length
+                        
+                        // Determinar estado de salud y latencia
+                        let latency = 80 + (client.id.length * 17) % 180
+                        let lastSeenText = 'en línea'
+                        let status = 'green' // green, yellow, red
+                        
+                        if (failuresCount > 0) {
+                          status = 'red'
+                          latency = 4200 + (failuresCount * 450)
+                          lastSeenText = `hace ${5 + (client.id.length % 10)}s (Error)`
+                        } else if (client.id === 'tienda-calzado-x') {
+                          status = 'yellow'
+                          latency = 3150
+                          lastSeenText = 'hace 18 min'
+                        } else if (client.id === 'restaurante-gourmet') {
+                          latency = 95
+                          lastSeenText = 'hace 3 min'
+                        } else {
+                          lastSeenText = 'en línea'
+                        }
+
+                        return (
+                          <div 
+                            key={client.id}
+                            onClick={() => {
+                              if (status === 'red') {
+                                setSelectedErrorClientFilter(client.id)
+                                setActiveTab('errors')
+                              }
+                            }}
+                            className={`p-2.5 bg-[var(--color-surface-2)]/20 hover:bg-[var(--color-surface-2)]/50 border border-[var(--color-border)]/50 rounded-xl flex items-center justify-between gap-3 transition-all duration-200 ${
+                              status === 'red' ? 'cursor-pointer hover:border-red-500/35 hover:shadow-sm' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="flex h-2 w-2 relative shrink-0">
+                                {status === 'red' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                                {status === 'yellow' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>}
+                                <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'red' ? 'bg-red-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                              </span>
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-bold text-[var(--color-text)] truncate block font-mono">{client.id}</span>
+                                <span className="text-[8px] text-[var(--color-text-muted)] block leading-none mt-0.5">{lastSeenText}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="text-right shrink-0 flex items-center gap-2">
+                              <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">{latency} ms</span>
+                              {failuresCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[8px] font-black border border-red-500/20">
+                                  {failuresCount} err
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
+                  <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden">
                   {/* Top Bar de Ventana de Comandos */}
                   <div className="bg-[var(--color-surface-2)]/60 px-4 py-2 border-b border-[var(--color-border)] flex items-center justify-between shrink-0 select-none">
                     <div className="flex items-center gap-1.5">
@@ -5389,7 +6118,7 @@ export default function App() {
                     {/* Interactive Filters Bar */}
                     <div className="space-y-2">
                       {/* Tabs de tipo de log */}
-                      <div className="flex bg-slate-950/40 p-0.5 rounded-xl border border-slate-900 justify-between">
+                      <div className="flex bg-[var(--color-surface-2)]/60 p-0.5 rounded-xl border border-[var(--color-border)] justify-between">
                         {[
                           { id: 'todos', label: 'Todos' },
                           { id: 'error', label: 'Fallas' },
@@ -5402,7 +6131,7 @@ export default function App() {
                             className={`flex-1 text-center py-1 rounded-lg text-[8px] font-bold transition-all cursor-pointer ${
                               telemetryTypeFilter === t.id 
                                 ? 'bg-indigo-650 text-white shadow-sm' 
-                                : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/80'
                             }`}
                           >
                             {t.label}
@@ -5417,13 +6146,13 @@ export default function App() {
                           placeholder="Buscar en logs..." 
                           value={telemetrySearchQuery}
                           onChange={(e) => { setTelemetrySearchQuery(e.target.value); setLogPage(1); }}
-                          className="h-7 pl-7 pr-6 w-full bg-slate-950/40 border border-[var(--color-border)] text-[9px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900/40 transition-all"
+                          className="h-7 pl-7 pr-6 w-full bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] text-[9px] text-[var(--color-text)] placeholder-[var(--color-text-muted)]/60 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-[var(--color-surface)] transition-all"
                         />
-                        <Search size={10} className="absolute left-2.5 top-2.5 text-slate-500" />
+                        <Search size={10} className="absolute left-2.5 top-2.5 text-[var(--color-text-muted)]" />
                         {telemetrySearchQuery && (
                           <button 
                             onClick={() => setTelemetrySearchQuery('')}
-                            className="absolute right-2 top-2 text-[8px] font-bold text-slate-500 hover:text-white"
+                            className="absolute right-2 top-2 text-[8px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
                           >
                             ✕
                           </button>
@@ -5533,6 +6262,7 @@ export default function App() {
                 </div>
               </div>
             </div>
+          </div>
 
             {/* SIMULADOR DE PROYECCIONES DE INGRESOS */}
               <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-border)] transition-colors duration-300">
@@ -5585,6 +6315,106 @@ export default function App() {
                     <p className="text-[9px] text-emerald-400/70">Acumulado total estimado</p>
                   </div>
                 </div>
+
+                {/* Sección de Inteligencia de Negocios (BI) */}
+                <div className="border-t border-[var(--color-border)]/50 pt-5 mt-6 flex flex-col lg:flex-row gap-6 items-stretch">
+                  {/* Gráfico de Donas de Nichos */}
+                  <div className="flex-1 min-w-[280px] bg-[var(--color-surface-2)]/25 border border-[var(--color-border)]/45 p-4 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5 mb-3">
+                        <TrendingUp size={12} className="text-violet-400" />
+                        Rentabilidad por Nicho (Participación)
+                      </h4>
+                      <div className="h-[160px] w-full flex items-center justify-center relative">
+                        <ResponsiveContainer width="100%" height={160} minWidth={0}>
+                          <PieChart>
+                            <Pie
+                              data={nicheChartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={38}
+                              outerRadius={55}
+                              paddingAngle={4}
+                              dataKey="value"
+                            >
+                              {nicheChartData.map((entry, index) => {
+                                const colors = ['#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#6366f1']
+                                return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                              })}
+                            </Pie>
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload
+                                  return (
+                                    <div className="bg-slate-950/95 backdrop-blur-md border border-white/[0.08] p-2 rounded-xl text-[9px] text-left">
+                                      <p className="font-extrabold text-[var(--color-text)] uppercase">{data.name}</p>
+                                      <p className="text-indigo-400 font-bold font-mono">${data.value.toLocaleString('es-CO')}</p>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Centro del donut */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold">Total</span>
+                          <span className="text-xs font-black font-mono text-[var(--color-text)]">${nicheChartData.reduce((sum, d) => sum + d.value, 0).toLocaleString('es-CO', { notation: 'compact' })}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Leyendas */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2 justify-center">
+                      {nicheChartData.slice(0, 4).map((entry, index) => {
+                        const colors = ['#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#6366f1']
+                        return (
+                          <div key={index} className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
+                            <span className="text-[7.5px] uppercase font-bold text-[var(--color-text-muted)] font-mono max-w-[80px] truncate">{entry.name}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tabla de márgenes netos */}
+                  <div className="flex-1 min-w-[280px] bg-[var(--color-surface-2)]/25 border border-[var(--color-border)]/45 p-4 rounded-xl flex flex-col justify-between font-mono text-[10px]">
+                    <div>
+                      <h4 className="text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5 mb-3 font-sans">
+                        <DollarSign size={12} className="text-emerald-400" />
+                        Eficiencia Financiera (Márgenes Netos)
+                      </h4>
+                      <p className="text-[8px] text-[var(--color-text-muted)] leading-relaxed mb-4 font-sans">
+                        Costo DIAN restado de la facturación comisional ($150 COP por reporte emitido con DIAN activo).
+                      </p>
+                      
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center text-[10px] border-b border-[var(--color-border)]/40 pb-2">
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-sans">Costo DIAN Histórico</span>
+                          <span className="font-bold text-red-400">-${biMetrics.existingDianCost.toLocaleString('es-CO')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] border-b border-[var(--color-border)]/40 pb-2">
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-sans">Margen Neto Histórico</span>
+                          <span className="font-black text-emerald-400">${biMetrics.existingNet.toLocaleString('es-CO')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] border-b border-[var(--color-border)]/40 pb-2">
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-sans">Costo DIAN Proyectado / Mes</span>
+                          <span className="font-bold text-red-400">-${biMetrics.projectedDianCost.toLocaleString('es-CO')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] border-b border-[var(--color-border)]/40 pb-2">
+                          <span className="text-[9px] text-[var(--color-text-muted)] font-sans">Margen Neto Proyectado / Mes</span>
+                          <span className="font-black text-emerald-400">${biMetrics.projectedNetMonthly.toLocaleString('es-CO')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] pt-1">
+                          <span className="text-[9px] font-black text-indigo-400 font-sans">Acumulado Neto Proyectado ({projMonths}m)</span>
+                          <span className="font-black text-indigo-400">${biMetrics.projectedNetPeriod.toLocaleString('es-CO')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -5615,6 +6445,14 @@ export default function App() {
                     className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer">
                     <Activity size={13} />
                     Telemetría Global
+                  </button>
+                  <button onClick={() => {
+                      exportClientsDirectoryPDF(clientesSaas)
+                      addLog('Directorio de clientes exportado a PDF.', 'success')
+                    }}
+                    className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text-muted)] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer">
+                    <Download size={13} />
+                    Exportar Directorio
                   </button>
                   <button onClick={() => setActiveTab('onboarding')}
                     className="w-full md:w-auto px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-[0.98] cursor-pointer">
@@ -6463,22 +7301,44 @@ export default function App() {
 
               {/* Tarjetas de Resumen */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                <div 
+                  onClick={() => {
+                    setSelectedErrorStatusFilter('activos');
+                    setErrorsPage(1);
+                  }}
+                  className={`bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm cursor-pointer hover:border-red-500/25 hover:bg-red-500/5 transition-all group ${
+                    selectedErrorStatusFilter === 'activos' ? 'border-red-500/30 bg-red-500/5' : ''
+                  }`}
+                  title="Filtrar por Incidentes Activos"
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
                     failures.filter(f => !f.resolved).length > 0 ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
                   }`}>
                     <AlertTriangle size={18} />
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Fallos Activos</span>
-                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5">
+                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5 flex items-center gap-1.5">
                       {failures.filter(f => !f.resolved).length}
+                      {failures.filter(f => !f.resolved).length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping inline-block" />
+                      )}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
+                <div 
+                  onClick={() => {
+                    setSelectedErrorStatusFilter('activos');
+                    setSelectedErrorClientFilter('todos');
+                    setErrorsPage(1);
+                  }}
+                  className={`bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm cursor-pointer hover:border-violet-500/25 hover:bg-violet-500/5 transition-all group ${
+                    selectedErrorStatusFilter === 'activos' && selectedErrorClientFilter === 'todos' ? 'border-violet-500/30 bg-violet-500/5' : ''
+                  }`}
+                  title="Restablecer cliente y ver activos"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
                     <Users size={18} />
                   </div>
                   <div>
@@ -6489,13 +7349,23 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                <div 
+                  onClick={() => {
+                    setSelectedErrorStatusFilter('todos');
+                    setSelectedErrorClientFilter('todos');
+                    setSelectedErrorTypeFilter('todos');
+                    setErrorSearchQuery('');
+                    setErrorsPage(1);
+                  }}
+                  className="bg-[var(--color-surface)] border border-[var(--color-border)] p-4 rounded-2xl flex items-center gap-3.5 shadow-sm cursor-pointer hover:border-cyan-500/25 hover:bg-cyan-500/5 transition-all group"
+                  title="Restablecer todos los filtros"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
                     <Activity size={18} />
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Uptime del Motor</span>
-                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5">
+                    <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5 text-cyan-400">
                       {failures.filter(f => !f.resolved).length > 0 ? '99.78%' : '100.00%'}
                     </span>
                   </div>
@@ -6504,27 +7374,118 @@ export default function App() {
 
               {/* Filtro y Listado */}
               <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-3xl space-y-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[var(--color-border)]">
-                  <h3 className="font-extrabold text-sm text-[var(--color-text)]">Historial de Incidentes</h3>
+                <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 pb-3 border-b border-[var(--color-border)]">
+                  <h3 className="font-extrabold text-sm text-[var(--color-text)] shrink-0">Historial de Incidentes</h3>
                   
-                  {/* Selector de Cliente */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)]">Filtrar Cliente:</span>
-                    <CustomSelect
-                      value={selectedErrorClientFilter}
-                      onChange={(e) => {
-                        setSelectedErrorClientFilter(e.target.value)
-                        setErrorsPage(1)
-                      }}
-                      options={[
-                        { id: 'todos', label: 'Todos los Clientes' },
-                        ...Array.from(new Set(failures.map(f => f.clientId))).map(cid => ({
-                          id: cid,
-                          label: cid
-                        }))
-                      ]}
-                      className="!py-1 !px-2.5 font-bold min-w-[160px]"
-                    />
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Buscador de Errores */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Buscar error, archivo o stack..."
+                        value={errorSearchQuery}
+                        onChange={(e) => {
+                          setErrorSearchQuery(e.target.value)
+                          setErrorsPage(1)
+                        }}
+                        className="pl-8 pr-3 py-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-violet-500/50 w-full sm:w-[200px]"
+                      />
+                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                    </div>
+
+                    {/* Selector de Cliente */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] shrink-0">Cliente:</span>
+                      <CustomSelect
+                        value={selectedErrorClientFilter}
+                        onChange={(e) => {
+                          setSelectedErrorClientFilter(e.target.value)
+                          setErrorsPage(1)
+                        }}
+                        options={[
+                          { id: 'todos', label: 'Todos los Clientes' },
+                          ...Array.from(new Set(failures.map(f => f.clientId))).map(cid => ({
+                            id: cid,
+                            label: cid
+                          }))
+                        ]}
+                        className="!py-1 !px-2 font-bold min-w-[140px]"
+                      />
+                    </div>
+
+                    {/* Filtro por Estado */}
+                    <div className="flex items-center gap-1 bg-[var(--color-surface-2)] p-1 rounded-xl border border-[var(--color-border)]">
+                      {[
+                        { id: 'activos', label: 'Activos' },
+                        { id: 'resueltos', label: 'Resueltos' },
+                        { id: 'todos', label: 'Todos' }
+                      ].map(tab => {
+                        const count = tab.id === 'activos' 
+                          ? failures.filter(f => !f.resolved).length 
+                          : tab.id === 'resueltos'
+                            ? failures.filter(f => f.resolved).length
+                            : failures.length;
+                        const active = selectedErrorStatusFilter === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedErrorStatusFilter(tab.id);
+                              setErrorsPage(1);
+                            }}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                              active
+                                ? 'bg-violet-600 text-white shadow'
+                                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                          >
+                            {tab.label}
+                            {count > 0 && (
+                              <span className={`ml-1 px-1 py-0.2 rounded-full text-[8px] ${
+                                active 
+                                  ? 'bg-violet-850 text-white' 
+                                  : 'bg-[var(--color-surface-3)] text-[var(--color-text)]'
+                              }`}>
+                                {count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Selector de Severidad */}
+                    <div className="flex items-center gap-1.5">
+                      <CustomSelect
+                        value={selectedErrorTypeFilter}
+                        onChange={(e) => {
+                          setSelectedErrorTypeFilter(e.target.value);
+                          setErrorsPage(1);
+                        }}
+                        options={[
+                          { id: 'todos', label: 'Cualquier Severidad' },
+                          { id: 'error', label: '🔴 Errores' },
+                          { id: 'warning', label: '🟡 Advertencias' },
+                          { id: 'info', label: '🔵 Información' }
+                        ]}
+                        className="!py-1 !px-2 font-bold text-[10px] min-w-[120px]"
+                      />
+                    </div>
+
+                    {/* Agrupación Toggle */}
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[10px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-3)] transition-all">
+                      <input
+                        type="checkbox"
+                        checked={groupErrorsByMessage}
+                        onChange={(e) => {
+                          setGroupErrorsByMessage(e.target.checked);
+                          setErrorsPage(1);
+                        }}
+                        className="rounded border-slate-700 text-violet-600 focus:ring-violet-500 bg-slate-900 w-3 h-3 cursor-pointer"
+                      />
+                      <span>Agrupar repetidos</span>
+                    </label>
                   </div>
                 </div>
 
@@ -6533,19 +7494,27 @@ export default function App() {
                   <div className="text-center py-12 space-y-2">
                     <CheckCircle size={36} className="text-emerald-500/40 mx-auto" />
                     <p className="text-xs font-bold text-[var(--color-text-muted)]">Sin incidentes reportados</p>
-                    <p className="text-[10px] text-slate-500">Todas las instancias de aplicaciones cliente operan correctamente.</p>
+                    <p className="text-[10px] text-slate-500">No se encontraron incidentes con los filtros activos.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {paginatedFailures.map((fail) => {
                         const isExpanded = expandedErrorId === fail.id
+                        // Determinar color de severidad
+                        const severity = fail.type || 'error';
+                        const severityColor = severity === 'info' 
+                          ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
+                          : severity === 'warning'
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : 'bg-red-500/10 text-red-400 border-red-500/20';
+
                         return (
                           <div 
                             key={fail.id} 
                             className={`p-4 rounded-2xl border transition-all duration-200 ${
                               fail.resolved 
-                                ? 'bg-[var(--color-surface-2)]/20 border-[var(--color-border)]/50 opacity-60' 
-                                : 'bg-[var(--color-surface-2)]/30 border-red-500/20 hover:border-red-500/30'
+                                ? 'bg-[var(--color-surface-2)]/20 border-[var(--color-border)]/50 opacity-65' 
+                                : 'bg-[var(--color-surface-2)]/30 border-[var(--color-border)] hover:border-[var(--color-border)]/80'
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -6561,8 +7530,14 @@ export default function App() {
                                   <span className="text-[10px] text-slate-500 font-mono">
                                     • {new Date(fail.timestamp).toLocaleString()}
                                   </span>
+                                  
+                                  {/* Badge de severidad */}
+                                  <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded border ${severityColor}`}>
+                                    {severity}
+                                  </span>
+
                                   {fail.source === 'manual' ? (
-                                    <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[8px] font-black uppercase rounded border border-amber-500/20">
+                                    <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase rounded border border-purple-500/20">
                                       Manual
                                     </span>
                                   ) : (
@@ -6570,6 +7545,7 @@ export default function App() {
                                       Automático
                                     </span>
                                   )}
+
                                   {fail.resolved ? (
                                     <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase rounded border border-emerald-500/20">
                                       Resuelto
@@ -6577,6 +7553,13 @@ export default function App() {
                                   ) : (
                                     <span className="px-1.5 py-0.5 bg-red-500/10 text-red-400 text-[8px] font-black uppercase rounded border border-red-500/20 animate-pulse">
                                       Activo
+                                    </span>
+                                  )}
+
+                                  {/* Badge de de-duplicación */}
+                                  {fail.occurrences > 1 && (
+                                    <span className="px-1.5 py-0.5 bg-violet-650/20 border border-violet-500/35 text-violet-400 text-[8px] font-black rounded uppercase animate-pulse">
+                                      x{fail.occurrences} Impactos
                                     </span>
                                   )}
                                 </div>
@@ -6600,14 +7583,79 @@ export default function App() {
                                 </button>
                                 {!fail.resolved && (
                                   <button 
-                                    onClick={() => handleResolveFailure(fail.id)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer active:scale-95 shadow"
+                                    onClick={() => {
+                                      if (resolutionNoteInputId === fail.id) {
+                                        setResolutionNoteInputId(null);
+                                      } else {
+                                        setResolutionNoteInputId(fail.id);
+                                        setResolutionNoteText('');
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer active:scale-95 shadow ${
+                                      resolutionNoteInputId === fail.id ? 'bg-slate-700 hover:bg-slate-600' : 'bg-emerald-600 hover:bg-emerald-500'
+                                    }`}
                                   >
-                                    Resolver
+                                    {resolutionNoteInputId === fail.id ? 'Cancelar' : 'Resolver'}
                                   </button>
                                 )}
                               </div>
                             </div>
+
+                            {/* Entrada de Nota de Solución */}
+                            {resolutionNoteInputId === fail.id && (
+                              <div className="mt-3 p-3.5 bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl space-y-2 animate-fade-in">
+                                <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider font-mono">Nota de Solución (Opcional):</span>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Ej: Creado índice compuesto, corregido error de null..."
+                                    value={resolutionNoteText}
+                                    onChange={(e) => setResolutionNoteText(e.target.value)}
+                                    className="flex-1 px-3 py-1.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text)] placeholder-slate-500 focus:outline-none focus:border-violet-500/50"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        const idsToResolve = groupErrorsByMessage && fail.allIds ? fail.allIds : fail.id;
+                                        handleResolveFailure(idsToResolve, resolutionNoteText);
+                                        setResolutionNoteInputId(null);
+                                        setResolutionNoteText('');
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const idsToResolve = groupErrorsByMessage && fail.allIds ? fail.allIds : fail.id;
+                                      handleResolveFailure(idsToResolve, resolutionNoteText);
+                                      setResolutionNoteInputId(null);
+                                      setResolutionNoteText('');
+                                    }}
+                                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors active:scale-95 shadow"
+                                  >
+                                    Confirmar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Detalle de Solución Histórica */}
+                            {fail.resolved && (
+                              <div className="mt-2.5 px-3 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex flex-col gap-0.5 text-[10px] text-[var(--color-text-muted)]">
+                                <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                                  <CheckCircle size={10} />
+                                  <span>Resuelto</span>
+                                  {fail.resolvedAt && (
+                                    <span className="text-slate-500 font-mono font-normal">
+                                      • {new Date(fail.resolvedAt).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                                {fail.resolutionNote && (
+                                  <p className="mt-0.5 text-slate-355 italic font-mono select-all">
+                                    &ldquo;{fail.resolutionNote}&rdquo;
+                                  </p>
+                                )}
+                              </div>
+                            )}
 
                             {/* Stack Trace Expandido */}
                             {isExpanded && (
@@ -6620,7 +7668,7 @@ export default function App() {
                             )}
                           </div>
                         )
-                      })}
+                    })}
 
                     {/* Pagination - Always visible */}
                     <div className="pt-2 select-none">
@@ -6824,7 +7872,7 @@ export default function App() {
                           </div>
                           <div>
                             <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
-                             Live System Telemetry Console
+                             Consola de Telemetría del Sistema en Vivo
                               <span className="flex h-2 w-2 relative">
                                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
                                   !isOnline ? 'bg-red-400' : (isSimulated ? 'bg-amber-400' : 'bg-emerald-400')
@@ -6835,7 +7883,7 @@ export default function App() {
                               </span>
                             </h3>
                             <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 font-mono">
-                              telemetry_monitor.sh • {!isOnline ? 'Network Offline' : (isSimulated ? 'Sandbox Mode' : 'Connected to Firestore Central')}
+                              telemetry_monitor.sh • {!isOnline ? 'Red Fuera de Línea' : (isSimulated ? 'Modo Sandbox' : 'Conectado a Firestore Central')}
                             </p>
                           </div>
                         </div>
@@ -6852,9 +7900,9 @@ export default function App() {
                       </div>
 
                       {/* Barra de Filtros Interactivos de la Terminal */}
-                      <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-slate-950/40 p-3 rounded-2xl border border-[var(--color-border)]/70">
+                      <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[var(--color-surface-2)]/60 p-3 rounded-2xl border border-[var(--color-border)]/70">
                         {/* Tabs de tipo de log */}
-                        <div className="flex flex-wrap gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+                        <div className="flex flex-wrap gap-1 bg-[var(--color-surface-2)]/50 p-0.5 rounded-xl border border-[var(--color-border)]">
                           {[
                             { id: 'todos', label: 'Todos' },
                             { id: 'error', label: 'Fallas (FAIL)' },
@@ -6867,7 +7915,7 @@ export default function App() {
                               className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer ${
                                 telemetryTypeFilter === t.id 
                                   ? 'bg-indigo-650 text-white shadow-sm' 
-                                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/80'
                               }`}
                             >
                               {t.label}
@@ -6882,13 +7930,13 @@ export default function App() {
                             placeholder="Buscar en logs..." 
                             value={telemetrySearchQuery}
                             onChange={(e) => { setTelemetrySearchQuery(e.target.value); setLogPage(1); }}
-                            className="h-8 pl-8 pr-3 w-full md:w-48 bg-slate-900/80 border border-slate-800 text-[10px] text-slate-200 placeholder-slate-500 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-slate-900 transition-all"
+                            className="h-8 pl-8 pr-3 w-full md:w-48 bg-[var(--color-surface-2)]/65 border border-[var(--color-border)] text-[10px] text-[var(--color-text)] placeholder-[var(--color-text-muted)]/60 rounded-xl focus:outline-none focus:border-indigo-500/70 focus:bg-[var(--color-surface)] transition-all"
                           />
-                          <Activity size={12} className="absolute left-3 top-2.5 text-slate-500 animate-pulse" />
+                          <Activity size={12} className="absolute left-3 top-2.5 text-[var(--color-text-muted)] animate-pulse" />
                           {telemetrySearchQuery && (
                             <button 
                               onClick={() => setTelemetrySearchQuery('')}
-                              className="absolute right-2.5 top-2.5 text-[9px] font-bold text-slate-500 hover:text-white"
+                              className="absolute right-2.5 top-2.5 text-[9px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
                             >
                               ✕
                             </button>
@@ -6911,14 +7959,14 @@ export default function App() {
                       )}
 
                       {/* Terminal Screen */}
-                      <div className="bg-[#0b0f19] border border-[var(--color-border)]/80 rounded-2xl p-4 h-[350px] overflow-y-auto scrollbar-thin flex flex-col gap-2.5 shadow-inner select-text flex-1">
+                      <div className="bg-[var(--color-bg)] border border-[var(--color-border)]/80 rounded-2xl p-4 h-[350px] overflow-y-auto scrollbar-thin flex flex-col gap-2.5 shadow-inner select-text flex-1">
                         {filteredTelemetryLogs.length === 0 ? (
                           <div className="flex flex-col items-center justify-center my-auto space-y-2 select-none">
-                            <Activity size={24} className="text-slate-650 dark:text-slate-700 animate-pulse" />
+                            <Activity size={24} className="text-[var(--color-text-muted)] animate-pulse" />
                             <div className="text-[var(--color-text-muted)] italic text-xs font-mono">
                               ~/telemetria $ escuchando_eventos_en_vivo...
                             </div>
-                            <p className="text-[9px] text-slate-600">No hay registros que coincidan con los filtros activos.</p>
+                            <p className="text-[9px] text-[var(--color-text-muted)]">No hay registros que coincidan con los filtros activos.</p>
                           </div>
                         ) : (
                           filteredTelemetryLogs.map((log, index) => {
@@ -6926,11 +7974,11 @@ export default function App() {
                             const hoverStyle = isClickable ? 'cursor-pointer hover:bg-red-500/10 hover:border-red-500/30 active:scale-[0.99] transition-all' : '';
                             
                             const statusConfig = {
-                              info: { label: 'INFO', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                              warning: { label: 'WARN', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-                              error: { label: 'FAIL', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
-                              success: { label: ' OK ', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-                            }[log.type] || { label: 'LOG', color: 'text-slate-400 bg-slate-500/10 border-slate-500/20' };
+                              info: { label: 'INFO', color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                              warning: { label: 'WARN', color: 'text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                              error: { label: 'FAIL', color: 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20' },
+                              success: { label: ' OK ', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+                            }[log.type] || { label: 'LOG', color: 'text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/20' };
 
                             return (
                               <div 
@@ -6948,7 +7996,7 @@ export default function App() {
                                           e.stopPropagation();
                                           setTelemetryClientFilter(log.client);
                                         }}
-                                        className="px-1.5 py-0.5 bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/40 hover:text-indigo-300 text-slate-400 font-mono text-[8px] rounded uppercase cursor-pointer select-all transition-colors"
+                                        className="px-1.5 py-0.5 bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/40 hover:text-indigo-600 dark:hover:text-indigo-300 text-slate-400 font-mono text-[8px] rounded uppercase cursor-pointer select-all transition-colors"
                                         title="Filtrar por este cliente"
                                       >
                                         {log.client}
@@ -7356,6 +8404,270 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Comisión Acumulada */}
+      {activeMetricModal === 'comision' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="text-violet-500" size={18} />
+                <h3 className="font-extrabold text-sm uppercase text-[var(--color-text)] tracking-wider">
+                  Detalle de Comisiones Acumuladas
+                </h3>
+              </div>
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Resumen por Cliente */}
+            <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)]/50 rounded-2xl p-4 space-y-3">
+              <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Aportes por Cliente</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {chartData.map((client, idx) => {
+                  const pct = totalComision > 0 ? ((client.totalCommission / totalComision) * 100).toFixed(1) : '0.0'
+                  return (
+                    <div key={idx} className="p-3 bg-[var(--color-bg)]/50 border border-[var(--color-border)]/40 rounded-xl flex flex-col justify-between">
+                      <span className="text-[9px] font-bold text-[var(--color-text-muted)] truncate block">{client.name}</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-xs font-black font-mono text-violet-400">${client.totalCommission.toLocaleString('es-CO')}</span>
+                        <span className="text-[8px] text-[var(--color-text-muted)] font-mono">({pct}%)</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Listado Histórico */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Historial de Transacciones</h4>
+                <button
+                  onClick={() => {
+                    exportGeneralMetricsPDF({ totalComision, totalCobrado, totalPendiente, clientesActivos }, chartData, { projExistingMonthly, projTotalMonthly, projTotalYear })
+                    addLog('Reporte general de métricas exportado a PDF.', 'success')
+                  }}
+                  className="px-2.5 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/30 text-violet-400 text-[9px] font-bold rounded-lg cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                >
+                  <Download size={10} />
+                  Exportar PDF
+                </button>
+              </div>
+
+              <div className="overflow-x-auto border border-[var(--color-border)] rounded-2xl">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-b border-[var(--color-border)] font-bold text-[8px] uppercase tracking-wider">
+                      <th className="p-3">Periodo</th>
+                      <th className="p-3">Cliente</th>
+                      <th className="p-3 text-right">Venta Bruta</th>
+                      <th className="p-3 text-right">Comisión</th>
+                      <th className="p-3 text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]/40 font-mono text-[9px] text-[var(--color-text-muted)]">
+                    {filteredPeriodReports.map((r, idx) => (
+                      <tr key={idx} className="hover:bg-[var(--color-surface-2)]/20 transition-all">
+                        <td className="p-3 font-sans font-bold text-[var(--color-text)]">{formatPeriod(r.periodo)}</td>
+                        <td className="p-3 font-sans text-[var(--color-text)] font-semibold">{r.clientId}</td>
+                        <td className="p-3 text-right">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-right text-violet-400 font-bold">${Number(r.comisionValor || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold ${
+                            r.estadoPago === 'pagado' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                          }`}>
+                            {r.estadoPago || 'pendiente'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Comisión Cobrada */}
+      {activeMetricModal === 'cobrado' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="text-emerald-500" size={18} />
+                <h3 className="font-extrabold text-sm uppercase text-[var(--color-text)] tracking-wider">
+                  Detalle de Comisiones Cobradas
+                </h3>
+              </div>
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Listado de Pagados */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Comisiones Recaudadas (Pagadas)</h4>
+                <span className="text-xs font-black font-mono text-emerald-400">Total: ${totalCobrado.toLocaleString('es-CO')}</span>
+              </div>
+
+              <div className="overflow-x-auto border border-[var(--color-border)] rounded-2xl">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-b border-[var(--color-border)] font-bold text-[8px] uppercase tracking-wider">
+                      <th className="p-3">Periodo</th>
+                      <th className="p-3">Cliente</th>
+                      <th className="p-3 text-right">Venta Bruta</th>
+                      <th className="p-3 text-right">Comisión</th>
+                      <th className="p-3 text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]/40 font-mono text-[9px] text-[var(--color-text-muted)]">
+                    {filteredPeriodReports.filter(r => r.estadoPago === 'pagado').map((r, idx) => (
+                      <tr key={idx} className="hover:bg-[var(--color-surface-2)]/20 transition-all">
+                        <td className="p-3 font-sans font-bold text-[var(--color-text)]">{formatPeriod(r.periodo)}</td>
+                        <td className="p-3 font-sans text-[var(--color-text)] font-semibold">{r.clientId}</td>
+                        <td className="p-3 text-right">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-right text-emerald-400 font-bold">${Number(r.comisionValor || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleTogglePayment(r)}
+                            className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[8px] font-bold rounded cursor-pointer border border-amber-500/10 active:scale-95 transition-all"
+                          >
+                            Revertir
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredPeriodReports.filter(r => r.estadoPago === 'pagado').length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="p-6 text-center text-xs text-[var(--color-text-muted)] italic font-sans">
+                          No se han registrado comisiones cobradas en este periodo.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Comisión Pendiente */}
+      {activeMetricModal === 'pendiente' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="text-amber-550 dark:text-amber-400" size={18} />
+                <h3 className="font-extrabold text-sm uppercase text-[var(--color-text)] tracking-wider">
+                  Detalle de Comisiones Pendientes
+                </h3>
+              </div>
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Listado de Pendientes */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Cuentas por Cobrar</h4>
+                <span className="text-xs font-black font-mono text-amber-500">Total: ${totalPendiente.toLocaleString('es-CO')}</span>
+              </div>
+
+              <div className="overflow-x-auto border border-[var(--color-border)] rounded-2xl">
+                <table className="w-full text-left border-collapse text-[10px]">
+                  <thead>
+                    <tr className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-b border-[var(--color-border)] font-bold text-[8px] uppercase tracking-wider">
+                      <th className="p-3">Periodo</th>
+                      <th className="p-3">Cliente</th>
+                      <th className="p-3 text-right">Venta Bruta</th>
+                      <th className="p-3 text-right">Comisión</th>
+                      <th className="p-3 text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--color-border)]/40 font-mono text-[9px] text-[var(--color-text-muted)]">
+                    {filteredPeriodReports.filter(r => r.estadoPago !== 'pagado').map((r, idx) => (
+                      <tr key={idx} className="hover:bg-[var(--color-surface-2)]/20 transition-all">
+                        <td className="p-3 font-sans font-bold text-[var(--color-text)]">{formatPeriod(r.periodo)}</td>
+                        <td className="p-3 font-sans text-[var(--color-text)] font-semibold">{r.clientId}</td>
+                        <td className="p-3 text-right">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-right text-amber-500 font-bold">${Number(r.comisionValor || 0).toLocaleString('es-CO')}</td>
+                        <td className="p-3 text-center flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setActiveMetricModal(null);
+                              setSelectedCrmClientId(r.clientId);
+                              setActiveMetricModal('clientes');
+                            }}
+                            className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[8px] font-bold rounded cursor-pointer border border-indigo-500/10 active:scale-95 transition-all"
+                          >
+                            Gestionar CRM
+                          </button>
+                          <button
+                            onClick={() => handleTogglePayment(r)}
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-550 text-white text-[8px] font-bold rounded cursor-pointer active:scale-95 transition-all shadow-sm"
+                          >
+                            Registrar Pago
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredPeriodReports.filter(r => r.estadoPago !== 'pagado').length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="p-6 text-center text-xs text-[var(--color-text-muted)] italic font-sans">
+                          ¡No hay comisiones pendientes de cobro! Excelente salud financiera.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
+              <button 
+                onClick={() => setActiveMetricModal(null)}
+                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -7802,15 +9114,53 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                 {/* Análisis y Causa Probable */}
                 {(() => {
                   const errMsg = selectedDiagnosticError.errorMsg || '';
+                  const errStack = selectedDiagnosticError.stack || '';
+                  const fullText = `${errMsg}\n${errStack}`;
+                  
                   let diagnosis = "Error genérico de ejecución. Se recomienda auditar el stack trace para identificar el origen.";
                   let solution = "Revisar los imports, variables de estado de React, y asegurar que no haya referencias a objetos undefined.";
+                  let indexUrl = null;
+
+                  // Rastrear enlace de indexación
+                  const indexRegex = /(https:\/\/console\.firebase\.google\.com\/[^\s\)]+)/i;
+                  const indexMatch = fullText.match(indexRegex);
+                  if (indexMatch) {
+                    indexUrl = indexMatch[1];
+                  }
 
                   if (errMsg.includes('Failed to fetch dynamically imported module')) {
                     diagnosis = "Error de carga del módulo dinámico de la página. Esto ocurre usualmente por desconexión temporal de internet (modo offline) del usuario en el navegador, un caché corrupto del service worker, o si el archivo fue borrado o renombrado físicamente del disco.";
                     solution = "1. Verifica que el archivo de la página exista en la ruta especificada de la aplicación.\n2. Asegura que el router tenga correctamente declarada la importación perezosa.\n3. Si fue un corte de internet temporal del cliente en producción, no requiere cambios en el código.";
                   } else if (errMsg.includes('Missing or insufficient permissions') || errMsg.includes('permission-denied')) {
-                    diagnosis = "Acceso denegado por Firestore Central. La consulta o escritura del cliente fue bloqueada por no cumplir con los criterios de seguridad definidos en las reglas de base de datos.";
+                    diagnosis = "Acceso denegado por Firestore. La consulta o escritura del cliente fue bloqueada por no cumplir con los criterios de seguridad definidos en las reglas de base de datos.";
                     solution = "1. Revisa las reglas en `firestore.rules` asociadas a la colección afectada.\n2. Verifica si el usuario cuenta con los claims o roles necesarios en su sesión de Firebase Auth.\n3. Asegúrate de invocar la limpieza de listeners `onSnapshot` al cerrar sesión.";
+                  } else if (fullText.includes('requires an index') || fullText.includes('index-creation') || indexUrl) {
+                    diagnosis = "Falta de índice compuesto en Firestore. Estás realizando una consulta compleja (con múltiples filtros 'where' y/o un 'orderBy') que requiere la creación de un índice específico en la base de datos de Firebase.";
+                    solution = "1. Crea el índice haciendo clic en el enlace provisto por el SDK de Firebase.\n2. Asegúrate de que el índice esté habilitado antes de volver a realizar la consulta.\n3. Puedes usar el botón directo de abajo para ir a la consola de Firebase.";
+                  } else if (errMsg.includes('auth/user-not-found') || errMsg.includes('auth/wrong-password')) {
+                    diagnosis = "Credenciales incorrectas o usuario inexistente. Se intentó iniciar sesión o realizar una operación de autenticación con datos que no coinciden con los registros de Firebase Auth.";
+                    solution = "1. Verifica que el correo esté bien escrito y el usuario exista en Firebase Authentication.\n2. Asegúrate de que la contraseña ingresada coincida.\n3. Implementa validaciones de cliente más amigables.";
+                  } else if (errMsg.includes('auth/network-request-failed')) {
+                    diagnosis = "Fallo de conexión de red de Firebase Auth. El cliente no pudo comunicarse con los servidores de autenticación de Google.";
+                    solution = "1. Verifica la conexión a internet en el dispositivo del cliente.\n2. Asegúrate de que no haya firewalls o extensiones (AdBlockers) bloqueando las llamadas a googleapis.com.";
+                  } else if (errMsg.includes('Cannot read properties of') || errMsg.includes('is not a function')) {
+                    diagnosis = "Referencia nula o undefined en JavaScript (Null Pointer Exception). Se intentó acceder a una propiedad o invocar una función en una variable que no ha sido inicializada.";
+                    solution = "1. Utiliza encadenamiento opcional (optional chaining) como `objeto?.propiedad`.\n2. Verifica que las llamadas asíncronas hayan completado la carga antes de renderizar los datos.\n3. Inicializa los estados de React con valores por defecto válidos (ej. un array vacío `[]` para listados).";
+                  } else if (fullText.toLowerCase().includes('quota-exceeded') || fullText.toLowerCase().includes('resource-exhausted')) {
+                    diagnosis = "Cuota de Firebase agotada o recurso exhausto. Se ha superado el límite diario de lecturas/escrituras del plan Spark gratuito o los límites generales de Firestore.";
+                    solution = "1. Revisa las consultas y listeners en tiempo real que podrían estar generando lecturas infinitas.\n2. Optimiza el caching local o considera subir al plan Blaze de pago por uso.\n3. Audita reportes repetitivos de telemetría.";
+                  } else if (errMsg.includes('storage/unauthorized') || errMsg.includes('storage/canceled')) {
+                    diagnosis = "Permisos denegados en Firebase Storage. Se intentó subir, borrar o leer un archivo (imagen, PDF, etc.) que no cumple con las reglas de seguridad de Storage.";
+                    solution = "1. Revisa el archivo `storage.rules` en el proyecto.\n2. Asegúrate de que las reglas de escritura/lectura permitan la ruta y que el usuario esté correctamente autenticado.\n3. Verifica si el formato o tamaño del archivo no excede límites lógicos.";
+                  } else if (errMsg.includes('JSON.parse') || errMsg.includes('Unexpected token') || errMsg.toLowerCase().includes('json parse')) {
+                    diagnosis = "Fallo de deserialización JSON (JSON Parse Error). Se intentó analizar una cadena de texto que no tiene formato JSON válido o que es undefined/null.";
+                    solution = "1. Verifica el origen del string (localstorage, API externa, etc.) y asegúrate de que sea un JSON válido.\n2. Envuelve el parseo en un bloque `try-catch` para evitar caídas de la aplicación.\n3. Añade una validación previa: `if (typeof str === 'string' && str.trim())`.";
+                  } else if (fullText.includes('blocked by CORS policy') || fullText.includes('No \'Access-Control-Allow-Origin\'')) {
+                    diagnosis = "Bloqueo de CORS (Cross-Origin Resource Sharing). El navegador del usuario bloqueó una solicitud HTTP saliente porque el servidor remoto no expone las cabeceras CORS necesarias.";
+                    solution = "1. Si es una función propia de Firebase, asegúrate de haber configurado CORS: `cors({ origin: true })` en Node.js.\n2. Si es una API de terceros, verifica si necesitas un proxy o si debes registrar el dominio del cliente en la lista blanca de la API.";
+                  } else if (fullText.includes('Failed to get document because the client is offline') || errMsg.includes('unavailable') || fullText.toLowerCase().includes('client is offline')) {
+                    diagnosis = "Firestore sin conexión (Offline). El cliente Firestore del navegador no pudo sincronizar o leer el documento porque el dispositivo está offline o Firestore está temporalmente inaccesible.";
+                    solution = "1. Revisa la conectividad a internet del usuario final.\n2. Asegúrate de habilitar la persistencia offline de Firestore en la configuración inicial si deseas soporte sin red.\n3. Envuelve las lecturas clave en bloques de captura de excepciones.";
                   }
 
                   // Extraer archivo del error/stack trace de manera robusta
@@ -7890,6 +9240,18 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
 
                       {/* Botones de Portapapeles (Prompt e Integraciones) */}
                       <div className="grid grid-cols-1 gap-2.5">
+                        {indexUrl && (
+                          <a
+                            href={indexUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                          >
+                            <ArrowUpRight size={13} />
+                            Crear Índice Compuesto en Firebase
+                          </a>
+                        )}
+
                         <button
                           onClick={async () => {
                             const promptText = `En el proyecto '${selectedDiagnosticError.clientId}', corrige el error '${selectedDiagnosticError.errorMsg}' que está ocurriendo en el archivo '${detectedFile}' (Línea: ${detectedLine}, Niche: ${selectedDiagnosticError.niche}). Revisa el stack trace:\n${selectedDiagnosticError.stack || 'No stack trace available'}`;

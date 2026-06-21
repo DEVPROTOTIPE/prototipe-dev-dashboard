@@ -402,7 +402,7 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                 <p className="text-[10px] text-slate-500">Copia el código del core a templates/ del CLI sin activar en el wizard.</p>
                 <div className="flex-1" />
                 <button
-                  onClick={() => runAction(`/api/cores/${core.clave}/activate`, {})}
+                  onClick={() => runAction(`/api/cores/${core.clave}/sync`, {})}
                   disabled={actionLoading}
                   className="w-full flex items-center justify-center gap-1.5 bg-amber-600/20 hover:bg-amber-600/30 disabled:opacity-40 text-amber-400 border border-amber-500/30 text-[11px] px-2 py-1.5 rounded-lg transition-all font-semibold mt-auto cursor-pointer"
                 >
@@ -607,6 +607,11 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                       const key = kInput?.value?.trim()?.toUpperCase()
                       const val = vInput?.value?.trim()
                       if (key && val) {
+                        const envKeyRegex = /^[A-Z_][A-Z0-9_]*$/;
+                        if (!envKeyRegex.test(key)) {
+                          showToast?.('La clave debe contener solo letras mayúsculas, números y guiones bajos (ej: VITE_API_KEY).', 'error')
+                          return
+                        }
                         setEnvVars(p => ({ ...p, [key]: val }))
                         if (kInput) kInput.value = ''
                         if (vInput) vInput.value = ''
