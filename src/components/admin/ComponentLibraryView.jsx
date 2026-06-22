@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useCopyToClipboard from '../../hooks/useCopyToClipboard';
 import ComponentSandbox, { COMPONENT_SANDBOX_MAP, getSandboxKey } from './ComponentSandbox';
 
+const CLI_URL = 'http://localhost:3001';
+
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const DETAIL_TABS = [
   { id: 'docs', label: 'Documentación', icon: FileText },
@@ -268,7 +270,7 @@ export default function ComponentLibraryView({ showToast }) {
     if (!extSourcePath || !extTargetName || !extCategory) return;
     setExtracting(true);
     try {
-      const res = await fetch('http://localhost:3001/api/library/extract', {
+      const res = await fetch(`${CLI_URL}/api/library/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -303,7 +305,7 @@ export default function ComponentLibraryView({ showToast }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`http://localhost:3001/api/library?_t=${Date.now()}`);
+      const res = await fetch(`${CLI_URL}/api/library?_t=${Date.now()}`);
       if (!res.ok) throw new Error('El CLI Daemon no está respondiendo en el puerto 3001.');
       const data = await res.json();
       if (data.success) {
@@ -329,7 +331,7 @@ export default function ComponentLibraryView({ showToast }) {
       try {
         setLoadingContent(true);
         setComponentContent('');
-        const res = await fetch(`http://localhost:3001/api/library/file?fileUri=${encodeURIComponent(selectedComponent.link)}&_t=${Date.now()}`);
+        const res = await fetch(`${CLI_URL}/api/library/file?fileUri=${encodeURIComponent(selectedComponent.link)}&_t=${Date.now()}`);
         if (!res.ok) throw new Error('Error al obtener el archivo del componente.');
         const data = await res.json();
         if (data.success) {
