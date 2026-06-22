@@ -162,6 +162,8 @@ const MOCK_CATALOG = {
 };
 
 
+const CLI_URL = 'http://localhost:3001'
+
 // Variables de entorno para conectar al Firebase Central de Control
 const CENTRAL_CONFIG = {
   apiKey: import.meta.env.VITE_DEVELOPER_CENTRAL_API_KEY || "",
@@ -1054,7 +1056,7 @@ export default function App() {
     setLoadingCode(true);
     setCodeError(null);
 
-    fetch(`http://localhost:3001/api/project/file?clientId=${encodeURIComponent(selectedDiagnosticError.clientId)}&relativePath=${encodeURIComponent(file)}`)
+    fetch(`${CLI_URL}/api/project/file?clientId=${encodeURIComponent(selectedDiagnosticError.clientId)}&relativePath=${encodeURIComponent(file)}`)
       .then(res => {
         if (!res.ok) throw new Error('El archivo no está accesible en el servidor local o la CLI Bridge no está corriendo.');
         return res.json();
@@ -1285,7 +1287,7 @@ export default function App() {
 
   useEffect(() => {
     // 1. Cargar plantillas
-    fetch('http://localhost:3001/api/templates')
+    fetch(`${CLI_URL}/api/templates`)
       .then(res => res.json())
       .then(data => {
         const seedTemplate = { id: 'template-core-seed', name: 'Crear desde cero' }
@@ -1314,7 +1316,7 @@ export default function App() {
       })
 
     // 2. Cargar catálogo de biblioteca para recomendaciones
-    fetch('http://localhost:3001/api/library')
+    fetch(`${CLI_URL}/api/library`)
       .then(res => res.json())
       .then(data => {
         if (data && Array.isArray(data.categories)) {
@@ -1336,7 +1338,7 @@ export default function App() {
       
       try {
         addLog(`Subiendo y optimizando logo: ${file.name}...`, "info")
-        const res = await fetch('http://localhost:3001/api/upload-logo', {
+        const res = await fetch(`${CLI_URL}/api/upload-logo`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, base64: base64Str })
@@ -1362,7 +1364,7 @@ export default function App() {
     setCredentialsValidationError(null)
     setIsCredentialsValidated(false)
     try {
-      const res = await fetch('http://localhost:3001/api/firebase/validate', {
+      const res = await fetch(`${CLI_URL}/api/firebase/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: fbApiKey.trim(), projectId: fbProjectId.trim() })
@@ -1395,7 +1397,7 @@ export default function App() {
     addLog(`Auto-detectando credenciales Firebase para proyecto: ${cleanProjectId}...`, 'info')
     try {
       const res = await fetch(
-        `http://localhost:3001/api/firebase-config?projectId=${encodeURIComponent(cleanProjectId)}&projectName=${encodeURIComponent((newClientName || '').trim() || cleanProjectId)}`
+        `${CLI_URL}/api/firebase-config?projectId=${encodeURIComponent(cleanProjectId)}&projectName=${encodeURIComponent((newClientName || '').trim() || cleanProjectId)}`
       )
       const data = await res.json()
       if (!res.ok || !data.success) {
@@ -1436,7 +1438,7 @@ export default function App() {
     setIsProvisioning(true)
 
     try {
-      const cliRes = await fetch('http://localhost:3001/api/create-project', {
+      const cliRes = await fetch(`${CLI_URL}/api/create-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1891,7 +1893,7 @@ export default function App() {
     if (activeTab === 'crm' && clientesSaas.length > 0) {
       clientesSaas.forEach(async (c) => {
         try {
-          const res = await fetch(`http://127.0.0.1:3001/api/project/dev/status?clientId=${c.id}`);
+          const res = await fetch(`${CLI_URL}/api/project/dev/status?clientId=${encodeURIComponent(c.id)}`);
           const data = await res.json();
           if (data.success) {
             setLocalServers(prev => ({
@@ -1910,7 +1912,7 @@ export default function App() {
     setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: true } }));
     addLog(`[Local Server] Iniciando npm run dev para ${clientId}...`, 'info');
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/project/dev/start', {
+      const res = await fetch(`${CLI_URL}/api/project/dev/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId })
@@ -1937,7 +1939,7 @@ export default function App() {
     setLocalServers(prev => ({ ...prev, [clientId]: { ...prev[clientId], loading: true } }));
     addLog(`[Local Server] Deteniendo servidor local de ${clientId}...`, 'info');
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/project/dev/stop', {
+      const res = await fetch(`${CLI_URL}/api/project/dev/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId })
@@ -1964,7 +1966,7 @@ export default function App() {
   const fetchGlobalDrift = async () => {
     setGlobalDriftLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/project/drift/global');
+      const res = await fetch(`${CLI_URL}/api/project/drift/global`);
       const data = await res.json();
       if (data.success) {
         setGlobalDrift(data.driftMatrix || []);
@@ -1991,8 +1993,8 @@ export default function App() {
     setTerminalLogs([]);
     const isNpm = terminalDrawer.type === 'npm';
     const url = isNpm
-      ? `http://127.0.0.1:3001/api/project/dependencies/install?clientId=${terminalDrawer.clientId}`
-      : `http://127.0.0.1:3001/api/project/dev/logs-stream?clientId=${terminalDrawer.clientId}`;
+      ? `${CLI_URL}/api/project/dependencies/install?clientId=${encodeURIComponent(terminalDrawer.clientId)}`
+      : `${CLI_URL}/api/project/dev/logs-stream?clientId=${encodeURIComponent(terminalDrawer.clientId)}`;
 
     const eventSource = new EventSource(url);
 
@@ -2042,7 +2044,7 @@ export default function App() {
 
     setGitDiscardingFile(file || 'all');
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/git/discard', {
+      const res = await fetch(`${CLI_URL}/api/git/discard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, file, all: discardAll })
@@ -2069,7 +2071,7 @@ export default function App() {
     setGitDiffLoading(true);
     setGitDiffModal({ open: true, clientId, file, diff: '' });
     try {
-      const res = await fetch(`http://127.0.0.1:3001/api/git/diff-file?clientId=${clientId}&file=${file}`);
+      const res = await fetch(`${CLI_URL}/api/git/diff-file?clientId=${encodeURIComponent(clientId)}&file=${encodeURIComponent(file)}`);
       const data = await res.json();
       if (data.success) {
         setGitDiffModal(prev => ({ ...prev, diff: data.diff }));
@@ -2229,7 +2231,7 @@ export default function App() {
     setDriftLoading(true)
     setDriftData(null)
     try {
-      const res = await fetch(`http://localhost:3001/api/project/drift?clientId=${clientId}`)
+      const res = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}`)
       const data = await res.json()
       if (data.success) {
         setDriftData(data)
@@ -2246,7 +2248,7 @@ export default function App() {
   const handleSyncFile = async (clientId, filename) => {
     setSyncingFile(p => ({ ...p, [filename]: true }))
     try {
-      const res = await fetch('http://localhost:3001/api/project/sync-file', {
+      const res = await fetch(`${CLI_URL}/api/project/sync-file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, file: filename })
@@ -2276,7 +2278,7 @@ export default function App() {
   const handleBulkSync = async (clientId, selectedFiles) => {
     setBulkSyncLoading(true)
     try {
-      const res = await fetch('http://localhost:3001/api/project/sync-files', {
+      const res = await fetch(`${CLI_URL}/api/project/sync-files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, files: selectedFiles })
@@ -2305,7 +2307,7 @@ export default function App() {
     setDeployProgressPercent(5);
     setIsDeployTerminalOpen(true);
 
-    const eventSource = new EventSource(`http://localhost:3001/api/project/deploy?clientId=${clientId}&force=${force}`);
+    const eventSource = new EventSource(`${CLI_URL}/api/project/deploy?clientId=${encodeURIComponent(clientId)}&force=${force}`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -2388,7 +2390,7 @@ export default function App() {
     for (const clientId of selectedIds) {
       setGlobalSyncCurrentClient(clientId);
       try {
-        const res = await fetch(`http://localhost:3001/api/project/drift?clientId=${clientId}`);
+        const res = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}`);
         const drift = await res.json();
         
         if (drift.success && drift.differences.length > 0) {
@@ -2398,7 +2400,7 @@ export default function App() {
             
           if (safeFiles.length > 0) {
             addLog(`Sincronizando ${safeFiles.length} archivos seguros para: ${clientId}...`, "info");
-            const syncRes = await fetch('http://localhost:3001/api/project/sync-files', {
+            const syncRes = await fetch(`${CLI_URL}/api/project/sync-files`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ clientId, files: safeFiles })
@@ -3002,7 +3004,7 @@ export default function App() {
   // RENDER PANTALLA LOGIN
   if (!user) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center bg-[#070b13] px-4 font-sans overflow-hidden">
+      <div className="min-h-screen relative flex items-center justify-center bg-[var(--color-bg)] px-4 font-sans overflow-hidden transition-colors duration-300">
         {/* ── Fondo tecnológico premium ── */}
         <div aria-hidden="true" className="tech-bg-dots" />
         <div aria-hidden="true" className="tech-bg-orb-1" />
@@ -3011,16 +3013,16 @@ export default function App() {
 
         <form 
           onSubmit={handleLogin}
-          className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 p-8 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 space-y-6"
+          className="w-full max-w-md bg-[var(--color-surface-glass)] border border-[var(--color-border)] p-8 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 space-y-6 transition-all duration-300"
         >
           <div className="text-center relative">
             <div className="flex items-center justify-center gap-3 mb-2 select-none">
               <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-tr from-violet-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
                 <img src="/logo.png?v=3" className="w-8 h-8 object-contain rounded-full" alt="Logo" />
               </div>
-              <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent leading-none">PROTOTIPE</h2>
+              <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] bg-clip-text text-transparent leading-none">PROTOTIPE</h2>
             </div>
-            <p className="text-xs text-slate-400 mt-1.5">Consola Central de Aplicaciones a la Medida</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1.5">Consola Central de Aplicaciones a la Medida</p>
           </div>
 
           {authError && (
@@ -3039,7 +3041,7 @@ export default function App() {
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Correo Electrónico</label>
+              <label className="text-xs font-semibold text-[var(--color-text)]">Correo Electrónico</label>
               <div className="relative">
                 <input 
                   type="email" 
@@ -3047,14 +3049,14 @@ export default function App() {
                   placeholder="dev@prototipe.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-12 pl-11 pr-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-slate-200 transition-all placeholder:text-slate-600"
+                  className="w-full h-12 pl-11 pr-3 rounded-xl bg-[var(--color-bg)]/80 border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] text-[var(--color-text)] transition-all placeholder:text-[var(--color-text-muted)]/50"
                 />
-                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]/60" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Contraseña</label>
+              <label className="text-xs font-semibold text-[var(--color-text)]">Contraseña</label>
               <div className="relative">
                 <input 
                   type={showPassword ? "text" : "password"} 
@@ -3062,13 +3064,13 @@ export default function App() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-11 pr-11 rounded-xl bg-slate-950/80 border border-slate-800/80 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-slate-200 transition-all placeholder:text-slate-600"
+                  className="w-full h-12 pl-11 pr-11 rounded-xl bg-[var(--color-bg)]/80 border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] text-[var(--color-text)] transition-all placeholder:text-[var(--color-text-muted)]/50"
                 />
-                <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]/60" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]/60 hover:text-[var(--color-text)] transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -3403,7 +3405,7 @@ export default function App() {
                                 type="button"
                                 onClick={async () => {
                                   try {
-                                    const res = await fetch('http://localhost:3001/api/vapid/generate');
+                                    const res = await fetch(`${CLI_URL}/api/vapid/generate`);
                                     const data = await res.json();
                                     if (data.publicKey) {
                                       setFbVapidKey(data.publicKey);
@@ -4532,7 +4534,7 @@ export default function App() {
                       let promptResult = ''
 
                       try {
-                        const cliRes = await fetch('http://localhost:3001/api/create-project', {
+                        const cliRes = await fetch(`${CLI_URL}/api/create-project`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(cliPayload)
@@ -6699,7 +6701,7 @@ export default function App() {
                                     if (!proceed) return;
                                     const filesToSync = [...drift.modifiedFiles, ...drift.missingFiles];
                                     try {
-                                      const res = await fetch('http://127.0.0.1:3001/api/project/sync-files', {
+                                      const res = await fetch(`${CLI_URL}/api/project/sync-files`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ clientId: drift.clientId, files: filesToSync })
@@ -7767,7 +7769,7 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto -mx-2 px-2 pb-2 pr-1.5 scrollbar-thin">
                     {telemetryClientsList.map(client => {
                       const isSelected = telemetryClientFilter.toLowerCase() === client.id.toLowerCase();
                       const hasFailures = client.failuresCount > 0;

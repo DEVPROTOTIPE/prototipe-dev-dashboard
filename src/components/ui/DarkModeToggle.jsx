@@ -15,8 +15,8 @@ export default function DarkModeToggle({
         p-2.5 rounded-xl border transition-all duration-300 cursor-pointer
         flex items-center justify-center
         ${isDark 
-          ? 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-700 text-amber-400' 
-          : 'bg-white hover:bg-slate-50 border-slate-200 text-indigo-600 shadow-sm'}
+          ? 'bg-[var(--color-surface-2)]/80 hover:bg-[var(--color-surface-2)] border-[var(--color-border)] text-amber-400' 
+          : 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-primary)] shadow-sm'}
         ${className}
       `}
       title={isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
