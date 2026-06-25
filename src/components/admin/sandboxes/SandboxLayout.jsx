@@ -68,3 +68,5 @@ export function SandboxLayout({ title, description, controls, children }) {
     </div>
   );
 }
+
+export default SandboxLayout;

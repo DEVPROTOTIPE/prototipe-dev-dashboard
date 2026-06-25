@@ -56,9 +56,12 @@ const CustomCursorSandbox = React.lazy(() => import('./sandboxes/CustomCursorSan
 const PantallaCocinaKDSSandbox = React.lazy(() => import('./sandboxes/PantallaCocinaKDSSandbox'));
 const ReservasAgendaCitasSandbox = React.lazy(() => import('./sandboxes/ReservasAgendaCitasSandbox'));
 const POSExpressScannerSandbox = React.lazy(() => import('./sandboxes/POSExpressScannerSandbox'));
-const OrdenesTrabajoEquiposSandbox = React.lazy(() => import('./sandboxes/OrdenesTrabajoEquiposSandbox'));
-const CreditosSaldosSandbox = React.lazy(() => import('./sandboxes/CreditosSaldosSandbox'));
 const OmnicanalidadWhatsAppSandbox = React.lazy(() => import('./sandboxes/OmnicanalidadWhatsAppSandbox'));
+const FormularioProductoIASandbox = React.lazy(() => import('./sandboxes/FormularioProductoIASandbox'));
+const LoginPageSandbox = React.lazy(() => import('./sandboxes/LoginPageSandbox'));
+const OrderTrackingSandbox = React.lazy(() => import('./sandboxes/OrderTrackingSandbox'));
+const CatalogFiltersSandbox = React.lazy(() => import('./sandboxes/CatalogFiltersSandbox'));
+const PWAInstallBannerSandbox = React.lazy(() => import('./sandboxes/PWAInstallBannerSandbox'));
 
 const LoaderSpinner = () => (
   <div className="flex flex-col items-center justify-center p-12 space-y-3">
@@ -334,6 +337,31 @@ const SANDBOXES = {
       <OmnicanalidadWhatsAppSandbox />
     </React.Suspense>
   ),
+  'formulario_producto_ia': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <FormularioProductoIASandbox />
+    </React.Suspense>
+  ),
+  'login_page': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <LoginPageSandbox />
+    </React.Suspense>
+  ),
+  'order_tracking': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <OrderTrackingSandbox />
+    </React.Suspense>
+  ),
+  'catalog_filters': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <CatalogFiltersSandbox />
+    </React.Suspense>
+  ),
+  'pwa_install_banner': () => (
+    <React.Suspense fallback={<LoaderSpinner />}>
+      <PWAInstallBannerSandbox />
+    </React.Suspense>
+  ),
 };
 
 // ─── Control Panel ────────────────────────────────────────────────────────────
@@ -434,10 +462,35 @@ const COMPONENT_META = {
   'compra rápida por código qr': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Vista pública con lógica de variantes y carrito. Requiere datos de producto de Firestore.' },
   'sistema integral de monetización del desarrollador v2.0': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Sistema de 3 sub-componentes con Firestore y lógica de comisiones. Integración compleja.' },
   'consola de diagnóstico de desarrollador': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Panel de diagnóstico en tiempo real con code-splitting. Ya disponible en el dashboard.' },
-  'formulario de producto con ia': { type: 'complex', label: 'Dependencia IA', color: 'teal', note: 'Formulario con integración de Gemini API para sugerencias automáticas.' },
-  'creador de filtros de catálogo': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Extrae atributos dinámicamente de una colección de Firestore.' },
-  'panel de filtros de catálogo': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Bottom sheet con filtros extraídos de productos reales. Requiere datos de catálogo.' },
-  'banner de instalación pwa': { type: 'complex', label: 'API del Navegador', color: 'teal', note: 'Usa el evento beforeinstallprompt del navegador. Solo se activa en contexto real de PWA.' },
+  'consola de errores y diagnóstico inteligente': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Monitoreo de fallas y asistente de diagnóstico de código. Integrado de manera nativa en el dashboard central.' },
+  'rejilla de catálogo inteligente': { type: 'complex', label: 'Componente UI', color: 'teal', note: 'Rejilla responsiva con layouts e imágenes. Requiere inicialización de appConfigStore y productos en base de datos.' },
+  'hook de carrito de compras': { type: 'hook', label: 'Zustand Store', color: 'violet', note: 'Store Zustand persistente para controlar existencias, adiciones y límites de stock.' },
+  'hook de control del asistente guiado': { type: 'hook', label: 'Zustand Store', color: 'violet', note: 'Store Zustand para el flujo guiado de usuario. Sin interfaz visual directa.' },
+  // Mapeos para consistencia física/lógica con linter de biblioteca
+  'compra_rapida_por_qr': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Compra rápida mediante código QR. Lógica integrada de catálogo y checkout.' },
+  'carrito_completo': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Carrito de compras flotante con animaciones y control de persistencia.' },
+  'carrito_lateral': { type: 'complex', label: 'Componente UI', color: 'teal', note: 'Drawer lateral interactivo que consume el hook de carrito global.' },
+  'checkout_modal': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Modal wizard para flujos de pago multipaso. Requiere Firebase.' },
+  'imagen_lazy': { type: 'complex', label: 'Componente UI', color: 'teal', note: 'Componente atómico de carga diferida de imágenes con skeleton y animaciones.' },
+  'rejilla_catalogo': { type: 'complex', label: 'Componente UI', color: 'teal', note: 'Rejilla responsiva optimizada para catálogos comerciales fluidos.' },
+  'alertas_confirmaciones_globales': { type: 'hook', label: 'Context + Hook', color: 'violet', note: 'Manejador global de alertas de confirmación a nivel de Context React.' },
+  'control_carrito': { type: 'hook', label: 'Zustand Store', color: 'violet', note: 'Store Zustand persistido que orquesta el carrito de compras.' },
+  'control_inactividad': { type: 'hook', label: 'Custom Hook', color: 'violet', note: 'Hook para el rastreo y timeout por inactividad de usuario en DOM.' },
+  'hook_ubicacion_guardada': { type: 'hook', label: 'Custom Hook', color: 'violet', note: 'Hook persistido para geolocalización o dirección guardada del cliente.' },
+  'panel_domicilio': { type: 'page', label: 'Página Completa', color: 'blue', note: 'Panel interactivo para el control y despacho de domiciliarios.' },
+  'pantalla_bienvenida': { type: 'page', label: 'Página Completa', color: 'blue', note: 'Pantalla inicial de onboarding y bienvenida de clientes.' },
+  'consola_errores_diagnostico': { type: 'complex', label: 'Módulo Completo', color: 'red', note: 'Herramienta de diagnóstico de errores en runtime e integridad.' },
+  'gestion_domicilios': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio de orquestación de domicilios, rutas y estados de entrega.' },
+  'motor_cupones': { type: 'service', label: 'Servicio', color: 'amber', note: 'Motor lógico para la aplicación y validación de cupones en checkout.' },
+  'sincronizacion_firebase': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio de sincronización en tiempo real y listeners con Firestore.' },
+  'transacciones_atomicas_inventario': { type: 'service', label: 'Servicio', color: 'amber', note: 'Transacciones para actualización segura y atómica de stocks.' },
+  'consola_diagnostico_desarrollador': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Consola integral de telemetría y diagnóstico de desarrollo.' },
+  'copiador_portapapeles': { type: 'hook', label: 'Custom Hook', color: 'violet', note: 'Hook interactivo para copiado rápido de textos en portapapeles.' },
+  'exportador_pdf': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio para la generación vectorial y exportación de facturas PDF.' },
+  'restauracion_aplicacion': { type: 'complex', label: 'Módulo Completo', color: 'red', note: 'Módulo crítico de restauración del estado a fábrica del ecosistema.' },
+  'servicio_whatsapp': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio de notificaciones y redireccionamiento unificado a WhatsApp.' },
+  'sistema_temas_dinamicos': { type: 'complex', label: 'Módulo CSS', color: 'teal', note: 'Manejador global de inyección de variables HSL cromáticas en runtime.' },
+  'modulo_commits_despliegues': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Mapeador del pipeline de git commits, logs de despliegue y telemetría.' },
 };
 
 // Mapa: nombre en minúsculas → clave de playground
@@ -707,6 +760,39 @@ export const COMPONENT_SANDBOX_MAP = {
   'cursor personalizado interactivo (customcursor)': 'custom_cursor',
   'customcursor': 'custom_cursor',
   'custom_cursor': 'custom_cursor',
+  // Mapeos adicionales de nombres de carpetas físicas para compatibilidad con linter de biblioteca
+  'telemetria_ecosistema_global': 'telemetria_centralizada',
+  'ruleta_fortuna_premios': 'ruleta_suerte',
+  'boton_regreso': 'boton_premium',
+  'entrada_moneda': 'currency_input',
+  'selector_fecha': 'date_picker',
+  'selector_variantes': 'selector_atributos',
+  'sistema_notificaciones_premium': 'sistema_notificaciones',
+  'hook_estado_local_storage': 'use_local_storage_state',
+  'hook_filtro_debounce': 'use_debounce_value',
+  'plantilla_modal': 'modal_template',
+  'selector_reservas_agenda': 'reservas_agenda_citas',
+  'carrusel_anuncios_promocionales': 'carrusel_anuncios',
+  'marquesina_marcas': 'infinite_logo_marquee',
+  'alertas_stock_critico': 'stock_heatmap',
+  // Mapeos para los nuevos 5 sandboxes interactivos
+  'formulario_producto_ia': 'formulario_producto_ia',
+  'formulario de producto con ia': 'formulario_producto_ia',
+  'productformmodal_ia': 'formulario_producto_ia',
+  'login_page': 'login_page',
+  'pagina_login': 'login_page',
+  'página de login híbrida': 'login_page',
+  'order_tracking': 'order_tracking',
+  'seguimiento_pedido': 'order_tracking',
+  'seguimiento de pedido público': 'order_tracking',
+  'catalog_filters': 'catalog_filters',
+  'creador_filtros_catalogo': 'catalog_filters',
+  'panel_filtros_catalogo': 'catalog_filters',
+  'creador de filtros de catálogo': 'catalog_filters',
+  'panel de filtros de catálogo': 'catalog_filters',
+  'pwa_install_banner': 'pwa_install_banner',
+  'banner_instalacion_pwa': 'pwa_install_banner',
+  'banner de instalación pwa': 'pwa_install_banner',
 };
 
 export function getSandboxKey(name = '', technicalName = '') {
@@ -751,6 +837,64 @@ export function getSandboxKey(name = '', technicalName = '') {
   };
   
   return check(normName) || check(normTech);
+}
+
+class SandboxErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    console.error('[SandboxErrorBoundary] Capturado error de renderizado:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] p-8 border border-red-500/20 bg-red-500/5 rounded-3xl space-y-4">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500 text-xl font-bold">
+              ⚠️
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-red-400">Error en Sandbox</h3>
+          </div>
+          <div className="text-center max-w-md space-y-2">
+            <p className="text-xs font-bold text-[var(--color-text)]">
+              El componente ha fallado al renderizarse en runtime.
+            </p>
+            <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+              Esto suele deberse a llamadas de props faltantes, estados indefinidos o efectos secundarios incompatibles con el entorno aislado.
+            </p>
+          </div>
+          {this.state.error && (
+            <div className="w-full max-w-lg p-4 bg-slate-900 rounded-2xl border border-slate-800 text-left overflow-auto font-mono text-[9px] text-red-300 max-h-[180px]">
+              <p className="font-bold mb-1">{this.state.error.toString()}</p>
+              {this.state.errorInfo && (
+                <pre className="whitespace-pre-wrap leading-relaxed opacity-80">
+                  {this.state.errorInfo.componentStack}
+                </pre>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+            className="px-4 py-2 bg-red-650 hover:bg-red-550 border border-red-500/30 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+          >
+            Reintentar Renderizado
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 export default function ComponentSandbox({ componentName = '', technicalName = '' }) {
@@ -825,7 +969,9 @@ export default function ComponentSandbox({ componentName = '', technicalName = '
 
   return (
     <div className="h-full">
-      <SandboxComponent />
+      <SandboxErrorBoundary key={sandboxKey}>
+        <SandboxComponent />
+      </SandboxErrorBoundary>
     </div>
   );
 }

@@ -872,6 +872,13 @@ export default function App() {
   const [editEnableDianBilling, setEditEnableDianBilling] = useState(false)
   const [editCostoPorFacturaDian, setEditCostoPorFacturaDian] = useState(150)
 
+  // Estados de edición de Alerta Remota del Sistema (sistemaAlerta)
+  const [editAlertActive, setEditAlertActive] = useState(false)
+  const [editAlertTitle, setEditAlertTitle] = useState('')
+  const [editAlertMessage, setEditAlertMessage] = useState('')
+  const [editAlertType, setEditAlertType] = useState('info')
+  const [editAlertDismissible, setEditAlertDismissible] = useState(true)
+
   const [fbApiKey, setFbApiKey] = useState('')
   const [fbAuthDomain, setFbAuthDomain] = useState('')
   const [fbProjectId, setFbProjectId] = useState('')
@@ -946,9 +953,13 @@ export default function App() {
   const [codeError, setCodeError] = useState(null)
 
   // Estados Interactivos del Ecosistema PROTOTIPE
-  const [crmSubTab, setCrmSubTab] = useState('directorio') // 'directorio' | 'paridad'
+  const [crmSubTab, setCrmSubTab] = useState('directorio') // 'directorio' | 'paridad' | 'firebase-rules'
   const [globalDrift, setGlobalDrift] = useState([])
   const [globalDriftLoading, setGlobalDriftLoading] = useState(false)
+  const [firebaseRulesDrift, setFirebaseRulesDrift] = useState([])
+  const [firebaseRulesDriftLoading, setFirebaseRulesDriftLoading] = useState(false)
+  const [deployingRulesClientId, setDeployingRulesClientId] = useState(null)
+  const [activeRulesDiff, setActiveRulesDiff] = useState(null) // { local: '', cloud: '', title: '' }
   const [terminalDrawer, setTerminalDrawer] = useState({ open: false, clientId: '', title: '', type: 'dev' }) // 'dev' | 'npm'
   const [terminalLogs, setTerminalLogs] = useState([])
   const [gitDiffModal, setGitDiffModal] = useState({ open: false, clientId: '', file: '', diff: '' })
@@ -1981,6 +1992,63 @@ export default function App() {
     }
   };
 
+  const fetchFirebaseRulesDrift = async () => {
+    setFirebaseRulesDriftLoading(true);
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/firebase-rules/drift-global`);
+      const data = await res.json();
+      if (data.success) {
+        setFirebaseRulesDrift(data.driftMatrix || []);
+      } else {
+        throw new Error(data.error || 'Error al obtener drift de reglas Firebase');
+      }
+    } catch (err) {
+      console.error(err);
+      addLog(`[Reglas Firebase] Error de escaneo: ${err.message}`, 'error');
+      showToast(`Fallo al escanear reglas de Firebase: ${err.message}`, { type: 'error' });
+    } finally {
+      setFirebaseRulesDriftLoading(false);
+    }
+  };
+
+  const handleDeployFirebaseRules = async (clientId, type = 'all') => {
+    const confirmText = type === 'all' 
+      ? `¿Desplegar todas las reglas de Firebase (Firestore y Storage) para la marca "${clientId}"?`
+      : `¿Desplegar reglas de ${type === 'firestore' ? 'Firestore' : 'Storage'} para la marca "${clientId}"?`;
+    const proceed = await showConfirm(confirmText);
+    if (!proceed) return;
+
+    setDeployingRulesClientId(`${clientId}_${type}`);
+    addLog(`[Firebase Rules] Iniciando despliegue de reglas (${type}) para ${clientId}...`, 'info');
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/firebase-rules/deploy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, type })
+      });
+      const data = await res.json();
+      if (data.success) {
+        addLog(`[Firebase Rules] Reglas (${type}) desplegadas con éxito para ${clientId}. Output: ${data.output || ''}`, 'success');
+        showToast(`Reglas (${type}) desplegadas correctamente en ${clientId}.`, { type: 'success' });
+        fetchFirebaseRulesDrift();
+      } else {
+        throw new Error(data.error || 'Fallo desconocido en deploy');
+      }
+    } catch (err) {
+      console.error(err);
+      addLog(`[Firebase Rules] Error al desplegar rules: ${err.message}`, 'error');
+      showToast(`Error de despliegue: ${err.message}`, { type: 'error' });
+    } finally {
+      setDeployingRulesClientId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'crm' && crmSubTab === 'firebase-rules') {
+      fetchFirebaseRulesDrift();
+    }
+  }, [activeTab, crmSubTab]);
+
   useEffect(() => {
     if (activeTab === 'crm' && crmSubTab === 'paridad') {
       fetchGlobalDrift();
@@ -2190,7 +2258,15 @@ export default function App() {
         montoFijoServicio: editMontoFijoServicio,
         pagoMensualFijo: editPagoMensualFijo,
         enableDianBilling: editEnableDianBilling,
-        costoPorFacturaDian: editCostoPorFacturaDian
+        costoPorFacturaDian: editCostoPorFacturaDian,
+        sistemaAlerta: editAlertActive ? {
+          active: true,
+          title: editAlertTitle.trim(),
+          message: editAlertMessage.trim(),
+          type: editAlertType,
+          dismissible: editAlertDismissible,
+          alertId: Date.now().toString()
+        } : null
       } : c))
       
       addLog(`[Sandbox] Configuración de cliente ${selectedCrmClientId} actualizada localmente.`, "success")
@@ -2206,7 +2282,8 @@ export default function App() {
 
     try {
       const clientRef = doc(dbInstance, 'clientes_control', selectedCrmClientId.toLowerCase())
-      await updateDoc(clientRef, {
+      
+      const updateData = {
         niche: editNiche,
         billingMode: editBillingMode,
         comisionPorcentaje: editComisionPorcentaje,
@@ -2214,7 +2291,22 @@ export default function App() {
         pagoMensualFijo: editPagoMensualFijo,
         enableDianBilling: editEnableDianBilling,
         costoPorFacturaDian: editCostoPorFacturaDian
-      })
+      }
+
+      if (editAlertActive) {
+        updateData.sistemaAlerta = {
+          active: true,
+          title: editAlertTitle.trim(),
+          message: editAlertMessage.trim(),
+          type: editAlertType,
+          dismissible: editAlertDismissible,
+          alertId: Date.now().toString()
+        }
+      } else {
+        updateData.sistemaAlerta = null
+      }
+
+      await updateDoc(clientRef, updateData)
       
       addLog(`[Firestore] Configuración de cliente ${selectedCrmClientId} guardada en Firestore central.`, "success")
       showToast('Configuración guardada correctamente', { type: 'success' })
@@ -5971,6 +6063,14 @@ export default function App() {
                                             setEditPagoMensualFijo(clientCfg.pagoMensualFijo !== undefined ? clientCfg.pagoMensualFijo : 50000);
                                             setEditEnableDianBilling(!!clientCfg.enableDianBilling);
                                             setEditCostoPorFacturaDian(clientCfg.costoPorFacturaDian !== undefined ? clientCfg.costoPorFacturaDian : 150);
+                                            
+                                            const alertCfg = clientCfg.sistemaAlerta || {};
+                                            setEditAlertActive(!!alertCfg.active);
+                                            setEditAlertTitle(alertCfg.title || '');
+                                            setEditAlertMessage(alertCfg.message || '');
+                                            setEditAlertType(alertCfg.type || 'info');
+                                            setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
+
                                             setCrmTab('config');
                                             setDriftData(null);
                                             setSelectedCrmClientId(client.name); 
@@ -6481,6 +6581,15 @@ export default function App() {
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   )}
                 </button>
+                <button onClick={() => { setCrmSubTab('firebase-rules'); fetchFirebaseRulesDrift(); }}
+                  className={`pb-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    crmSubTab === 'firebase-rules' ? 'border-indigo-500 text-indigo-400 font-extrabold' : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}>
+                  Reglas Firebase (Drift & Deploy)
+                  {firebaseRulesDrift.some(d => d.firestore.drift || d.storage.drift) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                </button>
               </div>
 
               {crmSubTab === 'directorio' ? (
@@ -6596,6 +6705,14 @@ export default function App() {
                               setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
                               setEditEnableDianBilling(!!cfg.enableDianBilling);
                               setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+                              
+                              const alertCfg = cfg.sistemaAlerta || {};
+                              setEditAlertActive(!!alertCfg.active);
+                              setEditAlertTitle(alertCfg.title || '');
+                              setEditAlertMessage(alertCfg.message || '');
+                              setEditAlertType(alertCfg.type || 'info');
+                              setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
+
                               setCrmTab('config');
                               setDriftData(null);
                               setSelectedCrmClientId(client.name); 
@@ -6614,7 +6731,7 @@ export default function App() {
                     <div className="p-12 text-center text-slate-500 text-xs">No hay clientes que coincidan con la búsqueda.</div>
                   )}
                 </div>
-              ) : (
+              ) : crmSubTab === 'paridad' ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-[var(--color-text-muted)]">Mapa de paridad física del código del ecosistema respecto a los Cores de Referencia.</p>
@@ -6731,6 +6848,13 @@ export default function App() {
                                   setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
                                   setEditEnableDianBilling(!!cfg.enableDianBilling);
                                   setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+
+                                  const alertCfg = cfg.sistemaAlerta || {};
+                                  setEditAlertActive(!!alertCfg.active);
+                                  setEditAlertTitle(alertCfg.title || '');
+                                  setEditAlertMessage(alertCfg.message || '');
+                                  setEditAlertType(alertCfg.type || 'info');
+                                  setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
                                   setSelectedCrmClientId(client.name);
                                   setActiveMetricModal('clientes');
                                   setCrmTab('drift');
@@ -6741,6 +6865,100 @@ export default function App() {
                                 </button>
                               </div>
                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-[var(--color-text-muted)]">Paridad y Despliegue de Reglas de Seguridad (Firestore y Storage) en la Nube vs Core.</p>
+                    <button onClick={fetchFirebaseRulesDrift} disabled={firebaseRulesDriftLoading}
+                      className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors">
+                      <RefreshCw size={12} className={firebaseRulesDriftLoading ? 'animate-spin' : ''} />
+                      Refrescar Reglas
+                    </button>
+                  </div>
+                  {firebaseRulesDriftLoading && firebaseRulesDrift.length === 0 ? (
+                    <div className="p-16 text-center text-slate-400 text-xs space-y-3 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
+                      <RefreshCw size={22} className="mx-auto animate-spin text-indigo-400" />
+                      <p className="font-semibold uppercase tracking-wider text-[10px]">Analizando paridad de reglas en la nube...</p>
+                    </div>
+                  ) : firebaseRulesDrift.length === 0 ? (
+                    <div className="p-12 text-center text-slate-500 text-xs bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)]">
+                      No se encontraron instancias con Firebase configurado.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+                      {firebaseRulesDrift.map(item => {
+                        const hasDrift = item.firestore.drift || item.storage.drift;
+                        const cardColor = !hasDrift ? 'border-emerald-500/20 bg-emerald-500/[0.01]' : 'border-amber-500/20 bg-amber-500/[0.01]';
+                        
+                        return (
+                          <div key={item.clientId} className={`p-4 rounded-2xl border ${cardColor} flex flex-col gap-3 relative overflow-hidden group bg-[var(--color-surface)]`}>
+                            <div>
+                              <h4 className="font-extrabold text-xs text-[var(--color-text)]">{item.projectName}</h4>
+                              <span className="text-[8px] text-[var(--color-text-muted)] font-mono block">Project: {item.firebaseProjectId}</span>
+                              <span className="text-[8px] text-[var(--color-text-muted)] font-mono block">Core: {item.templateKey}</span>
+                            </div>
+
+                            {/* Firestore Rules Status */}
+                            <div className="p-2.5 bg-[var(--color-surface-2)]/40 rounded-xl border border-[var(--color-border)] flex items-center justify-between text-[10px]">
+                              <div>
+                                <span className="font-bold block">Firestore Rules</span>
+                                <span className="text-[8px] text-[var(--color-text-muted)]">
+                                  {item.firestore.error ? `Error: ${item.firestore.error}` :
+                                   !item.firestore.hasCloud ? 'Sin desplegar en nube' :
+                                   item.firestore.drift ? '⚠️ Desviado del Core' : '✅ Alineado'}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                {item.firestore.hasLocal && item.firestore.hasCloud && (
+                                  <button onClick={() => setActiveRulesDiff({ local: item.firestore.local, cloud: item.firestore.cloud, title: `${item.projectName} - Firestore Rules` })}
+                                    className="h-5 px-1.5 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded text-[8px] font-bold border border-slate-700 cursor-pointer">
+                                    Ver Diff
+                                  </button>
+                                )}
+                                <button onClick={() => handleDeployFirebaseRules(item.clientId, 'firestore')}
+                                  disabled={deployingRulesClientId === `${item.clientId}_firestore`}
+                                  className="h-5 px-1.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded text-[8px] font-bold border-none cursor-pointer disabled:opacity-50">
+                                  {deployingRulesClientId === `${item.clientId}_firestore` ? '...' : 'Deploy'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Storage Rules Status */}
+                            <div className="p-2.5 bg-[var(--color-surface-2)]/40 rounded-xl border border-[var(--color-border)] flex items-center justify-between text-[10px]">
+                              <div>
+                                <span className="font-bold block">Storage Rules</span>
+                                <span className="text-[8px] text-[var(--color-text-muted)]">
+                                  {item.storage.error ? `Error: ${item.storage.error}` :
+                                   !item.storage.hasCloud ? 'Sin desplegar en nube' :
+                                   item.storage.drift ? '⚠️ Desviado del Core' : '✅ Alineado'}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                {item.storage.hasLocal && item.storage.hasCloud && (
+                                  <button onClick={() => setActiveRulesDiff({ local: item.storage.local, cloud: item.storage.cloud, title: `${item.projectName} - Storage Rules` })}
+                                    className="h-5 px-1.5 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded text-[8px] font-bold border border-slate-700 cursor-pointer">
+                                    Ver Diff
+                                  </button>
+                                )}
+                                <button onClick={() => handleDeployFirebaseRules(item.clientId, 'storage')}
+                                  disabled={deployingRulesClientId === `${item.clientId}_storage`}
+                                  className="h-5 px-1.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded text-[8px] font-bold border-none cursor-pointer disabled:opacity-50">
+                                  {deployingRulesClientId === `${item.clientId}_storage` ? '...' : 'Deploy'}
+                                </button>
+                              </div>
+                            </div>
+
+                            <button onClick={() => handleDeployFirebaseRules(item.clientId, 'all')}
+                              disabled={deployingRulesClientId === `${item.clientId}_all`}
+                              className="py-1.5 mt-1 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[9px] font-black uppercase tracking-wider rounded-lg flex items-center justify-center gap-1 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50">
+                              {deployingRulesClientId === `${item.clientId}_all` ? 'Desplegando...' : 'Desplegar Ambas Reglas'}
+                            </button>
                           </div>
                         );
                       })}
@@ -7004,8 +7222,8 @@ export default function App() {
                           <span className="absolute inset-0 w-full h-full rounded-xl bg-gradient-to-r from-indigo-400 to-purple-500 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300 pointer-events-none" />
                           
                           <span className="relative flex items-center gap-2">
-                            <Sparkles size={14} className="animate-spin-slow text-indigo-200 group-hover:rotate-12 transition-transform" />
-                            <span>Iniciar Asistente Premium</span>
+                            <Plus size={14} className="text-indigo-200 group-hover:rotate-90 transition-transform" />
+                            <span>Iniciar Asistente Aprovisionamiento</span>
                             <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         </button>
@@ -7018,7 +7236,7 @@ export default function App() {
                           <span className="w-0.5 h-0.5 rounded-full bg-[var(--color-border)]" />
                           <span className="flex items-center gap-1">
                             <span className="w-1 h-1 rounded-full bg-indigo-500" />
-                            Base de datos seed
+                            Preflight check de Firebase
                           </span>
                         </div>
                       </div>
@@ -8237,6 +8455,66 @@ export default function App() {
                           onChange={(e) => setEditCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
                           className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
                         />
+                      </div>
+                    )}
+                  </div>
+                  {/* Alerta Remota / Bloqueo del Sistema */}
+                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={editAlertActive} 
+                        onChange={(e) => setEditAlertActive(e.target.checked)}
+                        className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                      />
+                      Habilitar Alerta Remota / Bloqueo Administrativo
+                    </label>
+
+                    {editAlertActive && (
+                      <div className="space-y-3 animate-fade-in pl-6 border-l border-indigo-500/20">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tipo de Alerta</label>
+                          <CustomSelect
+                            value={editAlertType}
+                            onChange={(val) => setEditAlertType(val)}
+                            options={[
+                              { value: "info", label: "Información (Azul)" },
+                              { value: "warning", label: "Advertencia (Naranja)" },
+                              { value: "error", label: "Error / Bloqueante (Rojo)" }
+                            ]}
+                          />
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Título de la Alerta</label>
+                          <input 
+                            type="text" 
+                            value={editAlertTitle} 
+                            onChange={(e) => setEditAlertTitle(e.target.value)}
+                            placeholder="Ej: Prueba de Enlace de Telemetría"
+                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Mensaje de la Alerta</label>
+                          <textarea 
+                            value={editAlertMessage} 
+                            onChange={(e) => setEditAlertMessage(e.target.value)}
+                            placeholder="Mensaje de advertencia o bloqueo..."
+                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full h-20 text-[var(--color-text)] outline-none focus:border-indigo-500 resize-none"
+                          />
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-[var(--color-text-muted)] select-none">
+                          <input 
+                            type="checkbox" 
+                            checked={editAlertDismissible} 
+                            onChange={(e) => setEditAlertDismissible(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                          />
+                          Permitir al usuario cerrar el aviso (Dismissible)
+                        </label>
                       </div>
                     )}
                   </div>
@@ -10368,6 +10646,59 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                 className="px-4 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 text-[11px] font-bold rounded-xl cursor-pointer transition-all border border-slate-850"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Diff de Reglas Firebase */}
+      {activeRulesDiff && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 backdrop-blur-md animate-fade-in p-4">
+          <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[80vh]">
+            <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database size={16} className="text-indigo-400" />
+                <h4 className="font-mono text-xs font-bold text-slate-200">
+                  Comparador de Reglas: {activeRulesDiff.title}
+                </h4>
+              </div>
+              <button 
+                onClick={() => setActiveRulesDiff(null)}
+                className="text-xs text-slate-400 hover:text-white font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 grid grid-cols-2 gap-4 p-5 overflow-hidden bg-slate-950">
+              {/* Columna Local Core */}
+              <div className="flex flex-col h-full border border-slate-800/60 rounded-xl overflow-hidden">
+                <div className="bg-slate-900 px-3 py-1.5 border-b border-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-300">
+                  <span>Regla Local (Core de Referencia)</span>
+                </div>
+                <pre className="flex-1 p-4 overflow-y-auto font-mono text-[10px] text-slate-350 bg-slate-950/40 text-left select-text scrollbar-thin whitespace-pre-wrap">
+                  {activeRulesDiff.local || '// No hay regla local definida'}
+                </pre>
+              </div>
+
+              {/* Columna Nube Cliente */}
+              <div className="flex flex-col h-full border border-slate-800/60 rounded-xl overflow-hidden">
+                <div className="bg-slate-900 px-3 py-1.5 border-b border-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-300">
+                  <span>Regla Activa en la Nube (Firebase Console)</span>
+                </div>
+                <pre className="flex-1 p-4 overflow-y-auto font-mono text-[10px] text-slate-350 bg-slate-950/40 text-left select-text scrollbar-thin whitespace-pre-wrap">
+                  {activeRulesDiff.cloud || '// No hay regla desplegada en la nube'}
+                </pre>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={() => setActiveRulesDiff(null)}
+                className="px-5 py-1.5 bg-slate-850 hover:bg-slate-800 text-slate-300 text-[11px] font-bold rounded-xl cursor-pointer transition-all border border-slate-850"
+              >
+                Cerrar Comparador
               </button>
             </div>
           </div>
