@@ -491,6 +491,10 @@ const COMPONENT_META = {
   'servicio_whatsapp': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio de notificaciones y redireccionamiento unificado a WhatsApp.' },
   'sistema_temas_dinamicos': { type: 'complex', label: 'Módulo CSS', color: 'teal', note: 'Manejador global de inyección de variables HSL cromáticas en runtime.' },
   'modulo_commits_despliegues': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Mapeador del pipeline de git commits, logs de despliegue y telemetría.' },
+  'crm_interno': { type: 'complex', label: 'Especificación', color: 'teal', note: 'Especificación funcional y técnica de la aplicación web administrativa CRM Interno.' },
+  'crm_interno_especificacion': { type: 'complex', label: 'Especificación', color: 'teal', note: 'Especificación funcional y técnica de la aplicación web administrativa CRM Interno.' },
+  'crm_product_blueprint_prototipe': { type: 'complex', label: 'Especificación', color: 'teal', note: 'Definición de producto, funnel y arquitectura funcional del CRM Comercial.' },
+  'preventa_crm_comercial': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Módulo de preventa del CRM Comercial: Leads, Reuniones, Briefing Maestro y Dashboard de validación.' },
 };
 
 // Mapa: nombre en minúsculas → clave de playground

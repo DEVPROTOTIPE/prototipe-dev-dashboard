@@ -22,8 +22,9 @@ service cloud.firestore {
         request.resource.data.token,
         request.resource.data.clientId
       );
-      // Solo el desarrollador autenticado (dev-dashboard) puede leer y eliminar
-      allow read, delete: if request.auth != null;
+      // Solo el desarrollador/comercial/ops o el cliente autorizado puede leer
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.clientId));
+      allow delete: if request.auth != null && esAdmin();
     }
 
     // ─── Tokens de autenticación de instancias ────────────────────────────────────────
@@ -59,7 +60,178 @@ service cloud.firestore {
         request.resource.data.token,
         request.resource.data.clientId
       );
-      allow read, update, delete: if request.auth != null;
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.clientId));
+      allow update, delete: if request.auth != null && esAdmin();
+    }
+
+    // ─── HELPER DE ROLES PARA EL CRM (RBAC) ──────────────────────────────────────────
+    // Obtiene el rol asignado al usuario desde la colección /users
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function checkRole(role) {
+      return request.auth != null && getUserRole() == role;
+    }
+
+    function esAdmin() {
+      return checkRole('admin');
+    }
+
+    function esComercial() {
+      return checkRole('comercial');
+    }
+
+    function esOps() {
+      return checkRole('ops');
+    }
+
+    function esClienteAutorizado(clientId) {
+      return request.auth != null 
+        && exists(/databases/$(database)/documents/client_sessions/$(request.auth.uid))
+        && get(/databases/$(database)/documents/client_sessions/$(request.auth.uid)).data.clientId == clientId
+        && get(/databases/$(database)/documents/client_sessions/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+
+    // ─── Reglas de la Colección de Leads ──────────────────────────────────────────────
+    match /leads/{leadId} {
+      allow read: if request.auth != null;
+      allow create, update: if esAdmin() || esComercial();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Reuniones (Meetings) ───────────────────────────────
+    match /meetings/{meetingId} {
+      allow read: if request.auth != null;
+      allow create, update: if esAdmin() || esComercial();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Diagnósticos (Diagnostics) ─────────────────────────
+    match /diagnostics/{diagnosticId} {
+      allow read: if request.auth != null;
+      allow create, update: if esAdmin() || esComercial() || esOps();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Propuestas (Proposals) ─────────────────────────────
+    match /proposals/{proposalId} {
+      allow read: if request.auth != null;
+      allow create, update: if esAdmin() || esComercial();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Proyectos (Projects) ───────────────────────────────
+    match /projects/{projectId} {
+      allow read: if request.auth != null && (esAdmin() || esOps() || esComercial() || esClienteAutorizado(resource.data.clienteId));
+      allow create: if esAdmin() || esOps() || esComercial();
+      allow update: if esAdmin() || esOps();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Seguimientos (Followups) ───────────────────────────
+    match /followups/{followupId} {
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.clientId));
+      allow create, update: if esAdmin() || esComercial() || esOps();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Tareas (Tasks) ─────────────────────────────────────
+    match /tasks/{taskId} {
+      allow read: if request.auth != null;
+      allow create, update: if esAdmin() || esComercial() || esOps();
+      allow delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Usuarios (Users) ───────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
+
+    // ─── Reglas de Parámetros Globales (Settings) ─────────────────────────────────────
+    match /settings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Logs de Actividad (Activity Logs) ───────────────────
+    match /activity_logs/{logId} {
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.entityId));
+      allow create: if request.auth != null;
+      allow update, delete: if esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Órdenes de Aprovisionamiento (Provisioning Orders) ───
+    match /provisioning_orders/{orderId} {
+      allow read: if request.auth != null && (esAdmin() || esClienteAutorizado(resource.data.clientId));
+      allow write: if esAdmin() || esComercial() || esOps();
+    }
+
+    // ─── Reglas de la Colección de Credenciales de Clientes (Client Credentials) ──────
+    match /client_credentials/{clientId} {
+      allow read, write: if request.auth != null && esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Sesiones de Clientes (Client Sessions) ─────────────
+    match /client_sessions/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null 
+        && request.auth.uid == uid
+        && exists(/databases/$(database)/documents/client_credentials/$(request.resource.data.clientId))
+        && get(/databases/$(database)/documents/client_credentials/$(request.resource.data.clientId)).data.token == request.resource.data.token
+        && get(/databases/$(database)/documents/client_credentials/$(request.resource.data.clientId)).data.active == true
+        && request.resource.data.expiresAt <= request.time + duration.value(2, 'h')
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastAccess == request.time;
+      allow update: if request.auth != null 
+        && request.auth.uid == uid
+        && resource.data.expiresAt > request.time
+        && request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.token == resource.data.token
+        && request.resource.data.expiresAt <= request.time + duration.value(2, 'h')
+        && request.resource.data.lastAccess == request.time;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ─── Reglas de la Colección de Logs del Pipeline (Provisioning Logs) ────────────────
+    match /provisioning_logs/{logId} {
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.clientId));
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && esAdmin();
+    }
+
+    // ─── Reglas de la Colección de Reportes de Calidad (QA Reports) ─────────────────────
+    match /qa_reports/{reportId} {
+      allow read: if request.auth != null && (esAdmin() || esComercial() || esOps() || esClienteAutorizado(resource.data.clientId));
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && esAdmin();
+    }
+
+    // ─── Reglas de Telemetría (Fase 8) ──────────────────────────────────────────────────
+    match /app_metrics/{metricId} {
+      allow create: if tokenValido(request.resource.data.token, request.resource.data.clientId);
+      allow read: if request.auth != null && (esAdmin() || esOps() || esComercial() || esClienteAutorizado(resource.data.clientId));
+      allow update, delete: if request.auth != null && esAdmin();
+    }
+
+    match /app_heartbeats/{heartbeatId} {
+      allow create: if tokenValido(request.resource.data.token, request.resource.data.clientId);
+      allow read: if request.auth != null && (esAdmin() || esOps() || esComercial() || esClienteAutorizado(resource.data.clientId));
+      allow update, delete: if request.auth != null && esAdmin();
+    }
+
+    match /app_versions/{versionId} {
+      allow read: if true;
+      allow write: if request.auth != null && esAdmin();
+    }
+
+    match /system_alerts/{alertId} {
+      allow read: if request.auth != null && (esAdmin() || esOps() || esComercial() || esClienteAutorizado(resource.data.clientId));
+      allow create: if (request.resource.data.token != null && tokenValido(request.resource.data.token, request.resource.data.clientId)) 
+        || (request.auth != null && (esAdmin() || esOps()));
+      allow update: if request.auth != null && (esAdmin() || esOps());
+      allow delete: if request.auth != null && esAdmin();
     }
   }
 }

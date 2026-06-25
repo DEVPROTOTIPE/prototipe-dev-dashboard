@@ -510,3 +510,405 @@ export function exportClientDetailPDF(clientName, clientConfig, clientReports, c
 
   doc.save(`Reporte_Detalle_${clientName}.pdf`);
 }
+
+/**
+ * Genera y descarga un PDF con el soporte comercial formal de la propuesta
+ * @param {Object} proposal - El objeto propuesta
+ * @param {Object} lead - El objeto lead/prospecto asociado
+ */
+export function exportProposalPDF(proposal, lead) {
+  const doc = new jsPDF()
+  
+  const primaryColor = [99, 102, 241] // Indigo
+  const darkColor = [15, 23, 42]     // Slate-900
+  const lightBg = [248, 250, 252]    // Slate-50
+  
+  // Encabezado principal con franja Indigo
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 45, 'F')
+  
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROPUESTA COMERCIAL PROTOTIPE', 15, 22)
+  
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Referencia: ${proposal.title || 'Propuesta Core'}`, 15, 30)
+  doc.text(`Fecha de Emisión: ${new Date(proposal.createdAt?.seconds * 1000 || proposal.createdAt || Date.now()).toLocaleDateString('es-CO')}`, 15, 35)
+  doc.text(`Válida hasta: ${new Date(proposal.validUntil).toLocaleDateString('es-CO')}`, 15, 40)
+  
+  // Detalle del cliente/lead
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('INFORMACIÓN DEL PROSPECTO', 15, 60)
+  
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Empresa / Cliente: ${lead?.company || 'No especificada'}`, 15, 68)
+  doc.text(`Representante Lead: ${lead?.name || 'No especificado'}`, 15, 73)
+  doc.text(`Correo Electrónico: ${lead?.email || 'No especificado'}`, 15, 78)
+  doc.text(`Teléfono Contacto: ${lead?.phone || 'No especificado'}`, 15, 83)
+  doc.text(`Responsable Comercial PROTOTIPE: ${proposal.representative || 'No asignado'}`, 15, 88)
+
+  // Separador
+  doc.setDrawColor(226, 232, 240) // Slate-200
+  doc.line(15, 93, 195, 93)
+
+  // Resumen del modelo de monetización / Proyecciones Financieras
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TÉRMINOS Y PROYECCIÓN FINANCIERA', 15, 103)
+  
+  // Tabla de desglose financiero
+  const headers = [['Concepto Comercial', 'Detalle / Base', 'Tarifa / Monto']]
+  const formatCurrency = (val) => `$${Number(val || 0).toLocaleString('es-CO')}`;
+  
+  const data = [
+    ['Inversión Setup Inicial (Costo Único)', 'Infraestructura, despliegue de instancia base y tokenización', formatCurrency(proposal.setupValue)],
+    ['Suscripción Mensual Fija', 'Licencia base mensual de servicio y mantenimiento core', formatCurrency(proposal.monthlyValue)],
+    ['Comisión Comercial de Venta', `Tasa aplicada a ventas mensuales registradas por telemetría: ${proposal.commissionPercent}%`, `${proposal.commissionPercent}%`],
+    ['Volumen de Ventas Proyectado (Mensual)', 'Estimación del tráfico comercial del cliente', formatCurrency(proposal.projectedSalesVolume)],
+    ['Costo de Facturas DIAN Adicional', 'Servicio de integración DIAN electrónica mensual', formatCurrency(proposal.dianCost)],
+    ['Ingreso Mensual Proyectado', 'Base + (Ventas * Comisión) + DIAN', formatCurrency(proposal.projectedMonthlyRevenue)],
+    ['Ingreso Anual Proyectado (Setup + 12 Meses)', 'Setup único + proyección de mensualidad por 12 meses', formatCurrency(proposal.projectedAnnualRevenue)]
+  ]
+  
+  autoTable(doc, {
+    startY: 108,
+    head: headers,
+    body: data,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor, halign: 'left' },
+    styles: { fontSize: 8.5, cellPadding: 3.5 },
+    columnStyles: {
+      2: { halign: 'right', fontStyle: 'bold' }
+    }
+  })
+  
+  let nextY = (doc.lastAutoTable?.finalY ?? 170) + 12
+  
+  // Margen Estimado y Viabilidad
+  doc.setFillColor(...lightBg)
+  doc.rect(15, nextY, 180, 16, 'F')
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text('ANÁLISIS DE VIABILIDAD COMERCIAL Y RENTABILIDAD', 20, nextY + 6)
+  
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Margen Bruto de Contribución Estimado: ${proposal.estimatedMargin}%`, 20, nextY + 11)
+  
+  if (proposal.estimatedMargin >= 40) {
+    doc.setTextColor(16, 185, 129) // Emerald
+    doc.setFont('helvetica', 'bold')
+    doc.text('ESTADO: VIABLE / APROBADO BAJO POLÍTICAS', 130, nextY + 11)
+  } else {
+    doc.setTextColor(239, 68, 68) // Rose
+    doc.setFont('helvetica', 'bold')
+    doc.text('ESTADO: APROBACIÓN AD-HOC REQUERIDA', 125, nextY + 11)
+  }
+
+  nextY += 24
+
+  // Notas de alcance y acuerdos
+  if (proposal.notes) {
+    if (nextY > 230) {
+      doc.addPage()
+      nextY = 20
+    }
+    doc.setTextColor(...darkColor)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('COMPROMISOS TÉCNICOS Y NOTAS DE ALCANCE', 15, nextY)
+    
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(71, 85, 105)
+    
+    const splitNotes = doc.splitTextToSize(proposal.notes, 180)
+    doc.text(splitNotes, 15, nextY + 5)
+    nextY += (splitNotes.length * 4) + 12
+  }
+
+  // Firmas de formalización
+  if (nextY > 240) {
+    doc.addPage()
+    nextY = 30
+  } else {
+    nextY += 8
+  }
+
+  doc.setDrawColor(209, 213, 219)
+  doc.line(15, nextY + 15, 90, nextY + 15)
+  doc.line(120, nextY + 15, 195, nextY + 15)
+  
+  doc.setFontSize(8)
+  doc.setTextColor(107, 114, 128)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Responsable Comercial', 15, nextY + 20)
+  doc.text('PROTOTIPE Central Ecosistema', 15, nextY + 24)
+  
+  doc.text('Aceptado y Autorizado por', 120, nextY + 20)
+  doc.text(`${lead?.company || 'El Cliente'}`, 120, nextY + 24)
+  
+  doc.setFontSize(7)
+  doc.text('Este documento digital constituye una cotización oficial regulada por las políticas de licenciamiento de PROTOTIPE.', 15, 285)
+  
+  doc.save(`Propuesta_${(lead?.company || 'Cliente').replace(/\s+/g, '_')}_${proposal.title.replace(/\s+/g, '_')}.pdf`)
+}
+
+/**
+ * Genera y descarga el Reporte Ejecutivo Consolidado en PDF A4
+ */
+export function exportExecutiveReportPDF(kpis, funnel, health, activity) {
+  const doc = new jsPDF()
+  const primaryColor = [99, 102, 241] // #6366f1
+  const darkColor = [7, 11, 19]
+
+  // Encabezado
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 40, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('REPORTE EJECUTIVO CONSOLIDADO CRM', 15, 18)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Generado: ${new Date().toLocaleString('es-CO')}`, 15, 26)
+  doc.text('Confidencialidad: Interno / Dirección Ejecutiva', 15, 31)
+
+  // KPIs
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('KPIs GENERALES DE RENDIMIENTO', 15, 52)
+
+  const kpiHeaders = [['Métrica Ejecutiva', 'Valor Computado', 'Métrica de Control', 'Valor Computado']]
+  const kpiData = [
+    ['Leads Totales Generados', String(kpis.totalLeads || 0), 'Clientes Activos', String(kpis.activeClients || 0)],
+    ['Leads Ganados', String(kpis.leadsWon || 0), 'Clientes en Riesgo', String(kpis.clientsInRisk || 0)],
+    ['Leads Perdidos', String(kpis.leadsLost || 0), 'Clientes Críticos', String(kpis.clientsCritical || 0)],
+    ['Tasa de Conversión General', `${kpis.conversionRate || 0}%`, 'Proyectos Activos', String(kpis.activeProjects || 0)],
+    ['Valor total de Pipeline', `$${Number(kpis.pipelineValue || 0).toLocaleString('es-CO')}`, 'MRR Proyectado', `$${Number(kpis.mrrProyected || 0).toLocaleString('es-CO')}`]
+  ]
+
+  autoTable(doc, {
+    startY: 57,
+    head: kpiHeaders,
+    body: kpiData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8.5, cellPadding: 3.5 }
+  })
+
+  // Funnel
+  let nextY = (doc.lastAutoTable?.finalY ?? 100) + 12
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('RENDIMIENTO DEL FUNNEL COMERCIAL', 15, nextY)
+
+  const funnelHeaders = [['Etapa del Funnel', 'Código', 'Cantidad', 'Conversión etapa anterior (%)']]
+  const funnelData = [
+    ['Nuevo Lead', 'lead_new', String(funnel.lead_new || 0), '100%'],
+    ['Contactado', 'contacted', String(funnel.contacted || 0), `${funnel.rate_contacted || 0}%`],
+    ['Reunión Agendada', 'meeting_scheduled', String(funnel.meeting_scheduled || 0), `${funnel.rate_meeting_scheduled || 0}%`],
+    ['Reunión Realizada', 'meeting_done', String(funnel.meeting_done || 0), `${funnel.rate_meeting_done || 0}%`],
+    ['Diagnóstico Completado', 'diagnostic_completed', String(funnel.diagnostic_completed || 0), `${funnel.rate_diagnostic_completed || 0}%`],
+    ['Propuesta Enviada', 'proposal_sent', String(funnel.proposal_sent || 0), `${funnel.rate_proposal_sent || 0}%`],
+    ['Negociación', 'negotiation', String(funnel.negotiation || 0), `${funnel.rate_negotiation || 0}%`],
+    ['Ganado', 'won', String(funnel.won || 0), `${funnel.rate_won || 0}%`]
+  ]
+
+  autoTable(doc, {
+    startY: nextY + 5,
+    head: funnelHeaders,
+    body: funnelData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8, cellPadding: 3 }
+  })
+
+  // Page 2: Salud y Actividades
+  doc.addPage()
+  
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 15, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text('AUDITORÍA DE SALUD Y ACTIVIDADES OPERATIVAS', 15, 10)
+
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('ESTADO DE SALUD DEL PORTAFOLIO', 15, 28)
+
+  const healthHeaders = [['Rango de Salud', 'Cantidad de Clientes', 'Definición del Algoritmo']]
+  const healthData = [
+    ['Excelente (Verde)', String(health.excellent || 0), 'Telemetría limpia, facturas al día y contacto comercial frecuente.'],
+    ['Bueno (Azul)', String(health.good || 0), 'Bajo nivel de fallas activas (<2), máximo 1 cobro pendiente.'],
+    ['En Riesgo (Amarillo)', String(health.risk || 0), 'De 2 a 5 errores activos o 2 a 3 facturas pendientes.'],
+    ['Crítico (Rojo)', String(health.critical || 0), 'Más de 5 errores, o más de 3 facturas pendientes, o inactividad prolongada.']
+  ]
+
+  autoTable(doc, {
+    startY: 33,
+    head: healthHeaders,
+    body: healthData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8.5, cellPadding: 3.5 }
+  })
+
+  nextY = (doc.lastAutoTable?.finalY ?? 80) + 12
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('AUDITORÍA DE ACTIVIDADES REALIZADAS', 15, nextY)
+
+  const activityHeaders = [['Concepto de Actividad', 'Métrica Acumulada', 'Tipo de Registro']]
+  const activityData = [
+    ['Reuniones Realizadas', String(activity.meetingsDone || 0), 'Auditoría en /activity_logs (MEETING_CREATED/COMPLETED)'],
+    ['Diagnósticos Completados', String(activity.diagnosticsCompleted || 0), 'Briefings Maestros consolidados'],
+    ['Propuestas Enviadas', String(activity.proposalsSent || 0), 'Propuestas comerciales formalizadas'],
+    ['Propuestas Ganadas / Clientes Nuevos', String(activity.proposalsWon || 0), 'Conversiones atómicas a clientes'],
+    ['Seguimientos y Soportes registrados', String(activity.followupsDone || 0), 'Timeline de interacciones comerciales'],
+    ['Tareas Vencidas / Retrasos', String(activity.overdueTasks || 0), 'Tareas pendientes con fecha pasada']
+  ]
+
+  autoTable(doc, {
+    startY: nextY + 5,
+    head: activityHeaders,
+    body: activityData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8.5, cellPadding: 3.5 }
+  })
+
+  doc.setFontSize(7)
+  doc.setTextColor(107, 114, 128)
+  doc.text('Este documento digital constituye un consolidado ejecutivo de la Dirección Ejecutiva de PROTOTIPE.', 15, 285)
+
+  doc.save('Reporte_Ejecutivo_Consolidado.pdf')
+}
+
+/**
+ * Genera y descarga el Reporte Comercial en PDF A4
+ */
+export function exportCommercialReportPDF(leads, proposals, activity) {
+  const doc = new jsPDF()
+  const primaryColor = [99, 102, 241]
+  const darkColor = [7, 11, 19]
+
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 40, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('REPORTE COMERCIAL Y PIPELINE', 15, 18)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Generado: ${new Date().toLocaleString('es-CO')}`, 15, 26)
+
+  // Oportunidades
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('LEADS Y PROSPECTOS ACTIVOS', 15, 52)
+
+  const headers = [['Contacto', 'Empresa', 'Estado', 'Prioridad', 'Creación']]
+  const data = leads.map(l => [
+    l.name || 'Sin nombre',
+    l.company || 'N/A',
+    l.status || 'N/A',
+    l.priority || 'C',
+    l.createdAt ? new Date(l.createdAt).toLocaleDateString('es-CO') : 'N/A'
+  ])
+
+  autoTable(doc, {
+    startY: 57,
+    head: headers,
+    body: data.slice(0, 25), // Limitar a la primera página para no sobrecargar
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8, cellPadding: 3 }
+  })
+
+  doc.save('Reporte_Comercial_Pipeline.pdf')
+}
+
+/**
+ * Genera y descarga el Reporte Financiero en PDF A4
+ */
+export function exportFinancialReportPDF(revenue, clients) {
+  const doc = new jsPDF()
+  const primaryColor = [99, 102, 241]
+  const darkColor = [7, 11, 19]
+
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, 210, 40, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('REPORTE FINANCIERO Y RENDIMIENTO COMISIONAL', 15, 18)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Generado: ${new Date().toLocaleString('es-CO')}`, 15, 26)
+
+  // Resumen
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('RESUMEN DE INGRESOS PROYECTADOS', 15, 52)
+
+  const revHeaders = [['Métrica Financiera', 'Monto consolidado']]
+  const revData = [
+    ['Valor total de Setup Vendido (Histórico)', `$${Number(revenue.setupSold || 0).toLocaleString('es-CO')}`],
+    ['Valor total de Setup Cobrado / Conciliado', `$${Number(revenue.setupCollected || 0).toLocaleString('es-CO')}`],
+    ['MRR Estimado Recurrente (Mensualidad Base)', `$${Number(revenue.mrrEstimated || 0).toLocaleString('es-CO')}`],
+    ['Comisiones Proyectadas (Mensual)', `$${Number(revenue.commissionProjected || 0).toLocaleString('es-CO')}`],
+    ['Ingresos Proyectados Anuales (MRR * 12)', `$${Number(revenue.annualProjected || 0).toLocaleString('es-CO')}`]
+  ]
+
+  autoTable(doc, {
+    startY: 57,
+    head: revHeaders,
+    body: revData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8.5, cellPadding: 3.5 }
+  })
+
+  // Listado de clientes y comisiones
+  let nextY = (doc.lastAutoTable?.finalY ?? 100) + 12
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PORTAFOLIO DE COBRO POR CLIENTE', 15, nextY)
+
+  const cliHeaders = [['Cliente', 'Modelo de Cobro', 'Setup', 'Mensual', 'Comisión / Factor']]
+  const cliData = clients.map(c => {
+    const com = c.comercial || {}
+    return [
+      c.nombre || c.id,
+      com.modeloMonetizacion || 'N/A',
+      `$${Number(com.setupValor || 0).toLocaleString('es-CO')}`,
+      `$${Number(com.mensualidadValor || 0).toLocaleString('es-CO')}`,
+      com.modeloMonetizacion === 'percentage' ? `${com.comisionPorcentaje}%` : `$${Number(com.comisionPorcentaje || 0).toLocaleString('es-CO')}`
+    ]
+  })
+
+  autoTable(doc, {
+    startY: nextY + 5,
+    head: cliHeaders,
+    body: cliData,
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor },
+    styles: { fontSize: 8, cellPadding: 3 }
+  })
+
+  doc.save('Reporte_Financiero_CRM.pdf')
+}
+

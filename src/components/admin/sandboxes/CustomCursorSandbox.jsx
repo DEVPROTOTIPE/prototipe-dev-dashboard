@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import CustomCursor from '../../../App'; // Importamos el CustomCursor que está en App.jsx para probarlo directamente
-// Nota: En una integración limpia se importaría de su propio archivo UI. Como estamos en la consola, probamos la implementación local de App.jsx.
+import CustomCursor from '../../ui/CustomCursor';
+// Nota: Se importa del archivo UI del sistema de diseño unificado del dashboard.
 import CustomSelect from '../../ui/CustomSelect';
 
 export default function CustomCursorSandbox() {
