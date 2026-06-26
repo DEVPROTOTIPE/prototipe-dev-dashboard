@@ -158,6 +158,71 @@ const MOCK_CATALOG = {
     { id: 'g1', name: 'Canasta de Verduras Orgánicas', price: 35000, emoji: '🍎' },
     { id: 'g2', name: 'Café Tostado Especial (500g)', price: 24000, emoji: '☕' },
     { id: 'g3', name: 'Aceite de Oliva Extra Virgen', price: 42000, emoji: '🫒' }
+  ],
+  'insumos-agricolas': [
+    { id: 'ia1', name: 'Guadañadora Husqvarna 143R-II', price: 1850000, emoji: '🚜' },
+    { id: 'ia2', name: 'Bomba de Aspersión Royal Condor', price: 240000, emoji: '🎒' },
+    { id: 'ia3', name: 'Abono Fertilizante NPK (Bulto 50kg)', price: 165000, emoji: '🌱' }
+  ],
+  'alimentos-artesanales': [
+    { id: 'aa1', name: 'Torta Tres Leches (Mediana)', price: 45000, emoji: '🎂' },
+    { id: 'aa2', name: 'Caja de Achiras Huilenses x20', price: 15000, emoji: '🥯' },
+    { id: 'aa3', name: 'Mermelada Artesanal de Uchuva (250g)', price: 12000, emoji: '🍯' }
+  ],
+  'ferreteria-rural': [
+    { id: 'fr1', name: 'Rollo Alambre de Púas Cerca', price: 185000, emoji: '🧵' },
+    { id: 'fr2', name: 'Machete Bellota 18 Pulgadas', price: 32000, emoji: '🗡️' },
+    { id: 'fr3', name: 'Bulto de Cemento Gris (50kg)', price: 36000, emoji: '🧱' }
+  ],
+  'repuestos-motos': [
+    { id: 'rm1', name: 'Kit de Arrastre Pulsar 200NS', price: 145000, emoji: '⚙️' },
+    { id: 'rm2', name: 'Llanta Trasera Mitas Todoterreno', price: 220000, emoji: '🛞' },
+    { id: 'rm3', name: 'Aceite Lubricante Motul 4T 10W40', price: 48000, emoji: '🧪' }
+  ],
+  'distribuidoras-beauty': [
+    { id: 'db1', name: 'Kit de Tintura Profesional Igora', price: 28000, emoji: '🎨' },
+    { id: 'db2', name: 'Esmalte Semipermanente Masglo', price: 14000, emoji: '💅' },
+    { id: 'db3', name: 'Plancha de Cabello Babyliss Pro', price: 380000, emoji: '🔌' }
+  ],
+  'petshops-locales': [
+    { id: 'pl1', name: 'Concentrado Perro Adulto (15kg)', price: 160000, emoji: '🐶' },
+    { id: 'pl2', name: 'Alimento Húmedo Gato Cat Chow', price: 4500, emoji: '🐱' },
+    { id: 'pl3', name: 'Snack Dental Barkys (Paquete)', price: 12000, emoji: '🦴' }
+  ],
+  'repuestos-lineablanca': [
+    { id: 'rl1', name: 'Filtro de Agua Nevera Whirlpool', price: 85000, emoji: '🚰' },
+    { id: 'rl2', name: 'Bomba de Desagüe Lavadora Samsung', price: 75000, emoji: '🌀' },
+    { id: 'rl3', name: 'Tarjeta Electrónica Mabe Original', price: 210000, emoji: '💾' }
+  ],
+  'moda-local-calzado': [
+    { id: 'mc1', name: 'Zapatos de Cuero Formal Hombre', price: 180000, emoji: '👞' },
+    { id: 'mc2', name: 'Botas de Cuero Artesanales Mujer', price: 210000, emoji: '👢' },
+    { id: 'mc3', name: 'Bolso de Mano Cuero Bucaramanga', price: 140000, emoji: '👜' }
+  ],
+  'alimentacion-saludable': [
+    { id: 'as1', name: 'Proteína Vegana Orgánica (1kg)', price: 155000, emoji: '🥤' },
+    { id: 'as2', name: 'Harina de Almendras Fina (500g)', price: 24000, emoji: '🌾' },
+    { id: 'as3', name: 'Snack Mix de Nueces Naturales', price: 18000, emoji: '🥜' }
+  ],
+  'home-office-ergonomia': [
+    { id: 'he1', name: 'Silla Ergonómica Ejecutiva Reclinable', price: 480000, emoji: '🪑' },
+    { id: 'he2', name: 'Escritorio Elevable Ajustable', price: 850000, emoji: '💻' },
+    { id: 'he3', name: 'Soporte de Laptop Madera Natural', price: 75000, emoji: '🪵' }
+  ],
+  'licores-cocteleria': [
+    { id: 'lc1', name: 'Cerveza Artesanal IPA Local (Pack x6)', price: 38000, emoji: '🍺' },
+    { id: 'lc2', name: 'Ginebra Hendricks (750ml)', price: 210000, emoji: '🍸' },
+    { id: 'lc3', name: 'Kit de Coctelería Coctelera + Jigger', price: 65000, emoji: '🍹' }
+  ],
+  'coleccionismo-geek': [
+    { id: 'cg1', name: 'Figura Funko Pop Special Edition', price: 95000, emoji: '🧸' },
+    { id: 'cg2', name: 'Juego de Mesa Catan (Español)', price: 190000, emoji: '🎲' },
+    { id: 'cg3', name: 'Manga Demon Slayer Vol 1', price: 38000, emoji: '📚' }
+  ],
+  'distribucion-horeca': [
+    { id: 'dh1', name: 'Contenedor Kraft para Domicilio x50', price: 35000, emoji: '📦' },
+    { id: 'dh2', name: 'Servilleta Profesional (Caja x2000)', price: 85000, emoji: '🧻' },
+    { id: 'dh3', name: 'Bidón de Aceite Vegetal (20L)', price: 145000, emoji: '🫗' }
   ]
 };
 
@@ -825,6 +890,214 @@ const PALETTE_CATEGORIES = [
       { name: 'Cacao Brown', primary: '#78350f', secondary: '#b45309', bg: '#140a04', text: '#fffbeb' },
       { name: 'Clean Dairy', primary: '#0ea5e9', secondary: '#38bdf8', bg: '#09101d', text: '#f0f9ff' },
       { name: 'Wine Red', primary: '#991b1b', secondary: '#f87171', bg: '#180404', text: '#fff5f5' }
+    ]
+  },
+  {
+    id: "insumos-agricolas",
+    name: "🚜 Insumos y Repuestos Agrícolas",
+    palettes: [
+      { name: 'Green Cultivo', primary: '#15803d', secondary: '#86efac', bg: '#051608', text: '#f0fdf4' },
+      { name: 'Earth Fertilizer', primary: '#b45309', secondary: '#fbbf24', bg: '#160e03', text: '#fffbeb' },
+      { name: 'Harvest Gold', primary: '#ca8a04', secondary: '#fef08a', bg: '#141203', text: '#fefdf0' },
+      { name: 'Coffee Plantation', primary: '#4f1a00', secondary: '#d97706', bg: '#0f0701', text: '#fef6f0' },
+      { name: 'Fresh Eucalyptus', primary: '#0f766e', secondary: '#99f6e4', bg: '#031210', text: '#f0fdfa' },
+      { name: 'Tractor Orange', primary: '#ea580c', secondary: '#ffedd5', bg: '#150802', text: '#fff7ed' },
+      { name: 'Mud Clay', primary: '#7c2d12', secondary: '#ffedd5', bg: '#140905', text: '#fff8f6' },
+      { name: 'Silos Steel', primary: '#475569', secondary: '#cbd5e1', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Amazonas Moss', primary: '#166534', secondary: '#bbf7d0', bg: '#041107', text: '#f0fdf4' },
+      { name: 'Tropical Sun', primary: '#eab308', secondary: '#fef9c3', bg: '#141103', text: '#fefdf0' }
+    ]
+  },
+  {
+    id: "alimentos-artesanales",
+    name: "🎂 Alimentos Artesanales y Repostería",
+    palettes: [
+      { name: 'Sweet Berry', primary: '#db2777', secondary: '#fbcfe8', bg: '#190410', text: '#fff1f2' },
+      { name: 'Honey Glaze', primary: '#d97706', secondary: '#fde047', bg: '#140d04', text: '#fefdf5' },
+      { name: 'Warm Cocoa', primary: '#7c2d12', secondary: '#fdba74', bg: '#140803', text: '#fffbeb' },
+      { name: 'Vanilla Cream', primary: '#ca8a04', secondary: '#fef08a', bg: '#161305', text: '#fffbeb' },
+      { name: 'Strawberry Glaze', primary: '#e11d48', secondary: '#ffe4e6', bg: '#1c0307', text: '#fff1f2' },
+      { name: 'Mint Frosting', primary: '#0d9488', secondary: '#ccfbf1', bg: '#021110', text: '#f2fbf9' },
+      { name: 'Caramel Crepe', primary: '#b45309', secondary: '#ffedd5', bg: '#170b02', text: '#fffcf9' },
+      { name: 'Blueberry Custard', primary: '#2563eb', secondary: '#dbeafe', bg: '#070c1e', text: '#f0f5ff' },
+      { name: 'Pastel Pistachio', primary: '#16a34a', secondary: '#dcfce7', bg: '#061208', text: '#f0fdf4' },
+      { name: 'Gourmet Plum', primary: '#701a75', secondary: '#fdf4ff', bg: '#140316', text: '#fdf4ff' }
+    ]
+  },
+  {
+    id: "ferreteria-rural",
+    name: "🛠️ Ferretería y Construcción Rural",
+    palettes: [
+      { name: 'Steel Tool', primary: '#475569', secondary: '#cbd5e1', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Oxide Rust', primary: '#ca8a04', secondary: '#fef08a', bg: '#141103', text: '#fefdf0' },
+      { name: 'Safety Zinc', primary: '#0284c7', secondary: '#bae6fd', bg: '#060f1b', text: '#f0f9ff' },
+      { name: 'Brick Mortar', primary: '#b91c1c', secondary: '#fca5a5', bg: '#1a0505', text: '#fff5f5' },
+      { name: 'Asphalt Matte', primary: '#1f2937', secondary: '#9ca3af', bg: '#090d16', text: '#f9fafb' },
+      { name: 'Industrial Amber', primary: '#f59e0b', secondary: '#fef3c7', bg: '#151004', text: '#fefdf0' },
+      { name: 'Copper Oxide', primary: '#ea580c', secondary: '#ffedd5', bg: '#170a04', text: '#fff7ed' },
+      { name: 'Forest Fence', primary: '#15803d', secondary: '#bbf7d0', bg: '#041207', text: '#f0fdf4' },
+      { name: 'Clay Tile', primary: '#c2410c', secondary: '#fdba74', bg: '#170a04', text: '#fffaf0' },
+      { name: 'Concrete Core', primary: '#374151', secondary: '#d1d5db', bg: '#0b0f19', text: '#f3f4f6' }
+    ]
+  },
+  {
+    id: "repuestos-motos",
+    name: "🏍️ Repuestos y Accesorios de Motos",
+    palettes: [
+      { name: 'Moto Racing', primary: '#ef4444', secondary: '#fca5a5', bg: '#150505', text: '#fff5f5' },
+      { name: 'Carbon Fiber', primary: '#3f3f46', secondary: '#a1a1aa', bg: '#09090b', text: '#fafafa' },
+      { name: 'Nitrous Blue', primary: '#2563eb', secondary: '#93c5fd', bg: '#0a1128', text: '#f0fdfa' },
+      { name: 'Slick Asphalt', primary: '#18181b', secondary: '#71717a', bg: '#040405', text: '#f4f4f5' },
+      { name: 'Neon Brake', primary: '#f97316', secondary: '#fed7aa', bg: '#160c04', text: '#fffaf0' },
+      { name: 'Chain Lubricant', primary: '#ca8a04', secondary: '#fef08a', bg: '#161305', text: '#fefdf0' },
+      { name: 'Chassis Gray', primary: '#52525b', secondary: '#d4d4d8', bg: '#0e0e11', text: '#f4f4f5' },
+      { name: 'Laser Exhaust', primary: '#db2777', secondary: '#fbcfe8', bg: '#180410', text: '#fff1f2' },
+      { name: 'Chrome Rim', primary: '#64748b', secondary: '#e2e8f0', bg: '#0f1524', text: '#f8fafc' },
+      { name: 'Yamaha Cyan', primary: '#06b6d4', secondary: '#a5f3fc', bg: '#031316', text: '#ecfeff' }
+    ]
+  },
+  {
+    id: "distribuidoras-beauty",
+    name: "💅 Suministros de Belleza Profesional",
+    palettes: [
+      { name: 'Glam Pink', primary: '#ec4899', secondary: '#fbcfe8', bg: '#170511', text: '#fdf2f8' },
+      { name: 'Orchid Violet', primary: '#a855f7', secondary: '#e9d5ff', bg: '#0f0518', text: '#faf5ff' },
+      { name: 'Ruby Lipstick', primary: '#e11d48', secondary: '#ffe4e6', bg: '#1c0307', text: '#fff1f2' },
+      { name: 'Golden Glow', primary: '#ca8a04', secondary: '#fde047', bg: '#161205', text: '#fffdf5' },
+      { name: 'Soft Lavender', primary: '#c084fc', secondary: '#f3e8ff', bg: '#150b24', text: '#faf5ff' },
+      { name: 'Ocean Nail', primary: '#06b6d4', secondary: '#cffafe', bg: '#021113', text: '#ecfeff' },
+      { name: 'Matte Nude', primary: '#b45309', secondary: '#ffedd5', bg: '#190d06', text: '#fffbeb' },
+      { name: 'Rose Gold', primary: '#fb7185', secondary: '#ffe4e6', bg: '#1c060b', text: '#fff1f2' },
+      { name: 'Premium Emerald', primary: '#0d9488', secondary: '#ccfbf1', bg: '#021210', text: '#f2fbf9' },
+      { name: 'Night Blush', primary: '#db2777', secondary: '#fbcfe8', bg: '#13030c', text: '#fff5f7' }
+    ]
+  },
+  {
+    id: "petshops-locales",
+    name: "🐶 Alimentos y Accesorios para Mascotas",
+    palettes: [
+      { name: 'Happy Dog', primary: '#f97316', secondary: '#fed7aa', bg: '#170c04', text: '#fffaf0' },
+      { name: 'Pet Care Blue', primary: '#06b6d4', secondary: '#a5f3fc', bg: '#021214', text: '#ecfeff' },
+      { name: 'Grass Fetch', primary: '#16a34a', secondary: '#bbf7d0', bg: '#051508', text: '#f0fdf4' },
+      { name: 'Puppy Yellow', primary: '#eab308', secondary: '#fef9c3', bg: '#141103', text: '#fefdf0' },
+      { name: 'Cat Purr', primary: '#db2777', secondary: '#fbcfe8', bg: '#190410', text: '#fff1f2' },
+      { name: 'Water Splash', primary: '#0ea5e9', secondary: '#bae6fd', bg: '#040f1a', text: '#f0f9ff' },
+      { name: 'Gentle Olive', primary: '#84cc16', secondary: '#d9f99d', bg: '#0e1405', text: '#f7fee7' },
+      { name: 'Feather Purple', primary: '#8b5cf6', secondary: '#ddd6fe', bg: '#0d051a', text: '#f5f3ff' },
+      { name: 'Bone Chew', primary: '#ca8a04', secondary: '#fef08a', bg: '#161305', text: '#fffbeb' },
+      { name: 'Red Collar', primary: '#ef4444', secondary: '#fca5a5', bg: '#1a0505', text: '#fff5f5' }
+    ]
+  },
+  {
+    id: "repuestos-lineablanca",
+    name: "⚙️ Repuestos de Electrodomésticos",
+    palettes: [
+      { name: 'Electric Blue', primary: '#2563eb', secondary: '#93c5fd', bg: '#0a1128', text: '#f0f7ff' },
+      { name: 'Titanium Matte', primary: '#52525b', secondary: '#cbd5e1', bg: '#0f1219', text: '#f8fafc' },
+      { name: 'Safety Amber', primary: '#ca8a04', secondary: '#fde047', bg: '#161205', text: '#fefdf5' },
+      { name: 'Valve Teal', primary: '#0d9488', secondary: '#99f6e4', bg: '#031110', text: '#f0fdfa' },
+      { name: 'Coil Red', primary: '#b91c1c', secondary: '#fca5a5', bg: '#170505', text: '#fff5f5' },
+      { name: 'Copper Coil', primary: '#d97706', secondary: '#fcd34d', bg: '#140f06', text: '#fffdf5' },
+      { name: 'Clean White', primary: '#64748b', secondary: '#cbd5e1', bg: '#0e1320', text: '#f8fafc' },
+      { name: 'Logic Green', primary: '#16a34a', secondary: '#86efac', bg: '#051408', text: '#f0fdf4' },
+      { name: 'Laser Purple', primary: '#7c3aed', secondary: '#c084fc', bg: '#0b051a', text: '#f5f3ff' },
+      { name: 'Aqua Split', primary: '#06b6d4', secondary: '#a5f3fc', bg: '#021114', text: '#ecfeff' }
+    ]
+  },
+  {
+    id: "moda-local-calzado",
+    name: "👞 Calzado y Confección Local",
+    palettes: [
+      { name: 'Classic Leather', primary: '#7c2d12', secondary: '#ea580c', bg: '#140905', text: '#fff7ed' },
+      { name: 'Minimal Linen', primary: '#d97706', secondary: '#fcd34d', bg: '#17130a', text: '#fefdf5' },
+      { name: 'Rose Fabric', primary: '#db2777', secondary: '#fbcfe8', bg: '#1a0410', text: '#fff1f2' },
+      { name: 'Olive Tweed', primary: '#65a30d', secondary: '#d9f99d', bg: '#0d1405', text: '#f7fee7' },
+      { name: 'Deep Indigo', primary: '#312e81', secondary: '#818cf8', bg: '#050516', text: '#e0e7ff' },
+      { name: 'Gold Buckle', primary: '#ca8a04', secondary: '#fef08a', bg: '#141103', text: '#fefdf0' },
+      { name: 'Sand Canvas', primary: '#b45309', secondary: '#ffedd5', bg: '#170d04', text: '#fffbeb' },
+      { name: 'Forest Boot', primary: '#065f46', secondary: '#34d399', bg: '#030f0c', text: '#f2fbf9' },
+      { name: 'Royal Velvet', primary: '#6b21a8', secondary: '#e9d5ff', bg: '#10051a', text: '#faf5ff' },
+      { name: 'Crimson Suede', primary: '#991b1b', secondary: '#fca5a5', bg: '#180404', text: '#fff5f5' }
+    ]
+  },
+  {
+    id: "alimentacion-saludable",
+    name: "🥗 Alimentación Orgánica y Saludable",
+    palettes: [
+      { name: 'Avocado Green', primary: '#65a30d', secondary: '#bef264', bg: '#0d1405', text: '#f7fee7' },
+      { name: 'Almond White', primary: '#d97706', secondary: '#fef08a', bg: '#141005', text: '#fefdf0' },
+      { name: 'Berry Beet', primary: '#db2777', secondary: '#fbcfe8', bg: '#180410', text: '#fff1f2' },
+      { name: 'Matcha Calm', primary: '#0d9488', secondary: '#a7f3d0', bg: '#02110e', text: '#ecfdf5' },
+      { name: 'Citrus Punch', primary: '#f97316', secondary: '#fed7aa', bg: '#170c04', text: '#fffaf0' },
+      { name: 'Chia Seed', primary: '#475569', secondary: '#cbd5e1', bg: '#0f1524', text: '#f8fafc' },
+      { name: 'Turmeric Glow', primary: '#eab308', secondary: '#fef9c3', bg: '#141103', text: '#fefdf0' },
+      { name: 'Spinach Leaf', primary: '#16a34a', secondary: '#86efac', bg: '#051408', text: '#f0fdf4' },
+      { name: 'Sweet Pumpkin', primary: '#ea580c', secondary: '#ffedd5', bg: '#150802', text: '#fff7ed' },
+      { name: 'Acai Purple', primary: '#701a75', secondary: '#f5d0fe', bg: '#120316', text: '#fdf4ff' }
+    ]
+  },
+  {
+    id: "home-office-ergonomia",
+    name: "💻 Equipamiento Home Office",
+    palettes: [
+      { name: 'Desk Slate', primary: '#334155', secondary: '#94a3b8', bg: '#0f172a', text: '#f8fafc' },
+      { name: 'Eco Wood', primary: '#854d0e', secondary: '#fbbf24', bg: '#130e05', text: '#fefcf0' },
+      { name: 'Cyber Punk', primary: '#db2777', secondary: '#38bdf8', bg: '#0e031a', text: '#fdf4ff' },
+      { name: 'Studio White', primary: '#64748b', secondary: '#cbd5e1', bg: '#0e111a', text: '#f8fafc' },
+      { name: 'Minimal Steel', primary: '#18181b', secondary: '#a1a1aa', bg: '#09090b', text: '#f4f4f5' },
+      { name: 'Active Lime', primary: '#84cc16', secondary: '#bef264', bg: '#0f1405', text: '#f7fee7' },
+      { name: 'Soft Leather', primary: '#7c2d12', secondary: '#fdba74', bg: '#160803', text: '#fffbeb' },
+      { name: 'Deep Focus', primary: '#1d4ed8', secondary: '#93c5fd', bg: '#080d22', text: '#f0f7ff' },
+      { name: 'Mint Workspace', primary: '#0d9488', secondary: '#5eead4', bg: '#021110', text: '#f2fbf9' },
+      { name: 'Terracotta Office', primary: '#c2410c', secondary: '#ffedd5', bg: '#160a03', text: '#fffbf0' }
+    ]
+  },
+  {
+    id: "licores-cocteleria",
+    name: "🍹 Bodega de Licores y Coctelería",
+    palettes: [
+      { name: 'Neon Night', primary: '#a855f7', secondary: '#f472b6', bg: '#0b0312', text: '#faf5ff' },
+      { name: 'Amber Barrel', primary: '#d97706', secondary: '#fbbf24', bg: '#140d04', text: '#fffbeb' },
+      { name: 'Lime Mojito', primary: '#65a30d', secondary: '#bef264', bg: '#0d1405', text: '#f7fee7' },
+      { name: 'Blue Lagoon', primary: '#06b6d4', secondary: '#a5f3fc', bg: '#021114', text: '#ecfeff' },
+      { name: 'Rubi Cocktail', primary: '#e11d48', secondary: '#ffe4e6', bg: '#1d040a', text: '#fff1f2' },
+      { name: 'Gold Tequila', primary: '#ca8a04', secondary: '#fef08a', bg: '#151203', text: '#fefdf0' },
+      { name: 'Gin Tonic', primary: '#0ea5e9', secondary: '#93c5fd', bg: '#060f1b', text: '#f0f9ff' },
+      { name: 'Plum Liquor', primary: '#701a75', secondary: '#f5d0fe', bg: '#140316', text: '#fdf4ff' },
+      { name: 'Dry Martini', primary: '#16a34a', secondary: '#86efac', bg: '#051408', text: '#f0fdf4' },
+      { name: 'Spiced Rum', primary: '#7c2d12', secondary: '#fdba74', bg: '#140702', text: '#fffbeb' }
+    ]
+  },
+  {
+    id: "coleccionismo-geek",
+    name: "🧸 Artículos Geek y Coleccionismo",
+    palettes: [
+      { name: 'Geek Violet', primary: '#7c3aed', secondary: '#c084fc', bg: '#0e051a', text: '#faf5ff' },
+      { name: 'Laser Cyan', primary: '#06b6d4', secondary: '#22d3ee', bg: '#021114', text: '#ecfeff' },
+      { name: 'Retro Arcade', primary: '#db2777', secondary: '#fde047', bg: '#11031c', text: '#fff1f2' },
+      { name: 'Card Border', primary: '#b45309', secondary: '#fbbf24', bg: '#140f05', text: '#fffbeb' },
+      { name: 'Cyber Green', primary: '#10b981', secondary: '#86efac', bg: '#03150d', text: '#ecfdf5' },
+      { name: 'Fire Red', primary: '#e11d48', secondary: '#fda4af', bg: '#1b0307', text: '#fff1f2' },
+      { name: 'Mecha Gray', primary: '#475569', secondary: '#94a3b8', bg: '#0f131c', text: '#f8fafc' },
+      { name: 'Mana Potion', primary: '#2563eb', secondary: '#60a5fa', bg: '#050a22', text: '#eff6ff' },
+      { name: 'Toxic Slime', primary: '#84cc16', secondary: '#d9f99d', bg: '#0e1405', text: '#f7fee7' },
+      { name: 'Galaxy Purple', primary: '#c084fc', secondary: '#fbcfe8', bg: '#120524', text: '#faf5ff' }
+    ]
+  },
+  {
+    id: "distribucion-horeca",
+    name: "📦 Insumos Horeca B2B",
+    palettes: [
+      { name: 'Eco Kraft', primary: '#d97706', secondary: '#fbbf24', bg: '#130f06', text: '#fefdf5' },
+      { name: 'Pure Clean', primary: '#2563eb', secondary: '#38bdf8', bg: '#060f1b', text: '#f0f9ff' },
+      { name: 'Hygiene Mint', primary: '#0d9488', secondary: '#a7f3d0', bg: '#02110f', text: '#ecfdf5' },
+      { name: 'B2B Steel', primary: '#475569', secondary: '#cbd5e1', bg: '#0f1422', text: '#f8fafc' },
+      { name: 'Citrus Disinfectant', primary: '#f97316', secondary: '#fed7aa', bg: '#170c04', text: '#fffaf0' },
+      { name: 'Industrial Safety', primary: '#eab308', secondary: '#fef08a', bg: '#151203', text: '#fefdf0' },
+      { name: 'Eco Leaf', primary: '#16a34a', secondary: '#86efac', bg: '#051408', text: '#f0fdf4' },
+      { name: 'Chemical Purple', primary: '#7c3aed', secondary: '#ddd6fe', bg: '#0e051e', text: '#f5f3ff' },
+      { name: 'Wholesale Wheat', primary: '#b45309', secondary: '#ffedd5', bg: '#160e05', text: '#fffbeb' },
+      { name: 'Pack Blue', primary: '#0284c7', secondary: '#bae6fd', bg: '#050f1a', text: '#f0f9ff' }
     ]
   }
 ];
@@ -2309,6 +2582,36 @@ export default function App() {
       await updateDoc(clientRef, updateData)
       
       addLog(`[Firestore] Configuración de cliente ${selectedCrmClientId} guardada en Firestore central.`, "success")
+
+      // Llamada al endpoint de la CLI local para actualizar las variables de entorno físicas del cliente (.env.local)
+      try {
+        addLog(`[CLI] Propagando variables operativas al archivo de entorno local de ${selectedCrmClientId}...`, "info")
+        const envResponse = await fetch(`${CLI_URL}/api/project/env`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: selectedCrmClientId,
+            variables: {
+              VITE_DEVELOPER_BILLING_MODE: editBillingMode,
+              VITE_DEVELOPER_COMMISSION_PERCENT: editComisionPorcentaje,
+              VITE_DEVELOPER_FIXED_SERVICE_FEE: editMontoFijoServicio,
+              VITE_DEVELOPER_FLAT_MONTHLY_FEE: editPagoMensualFijo,
+              VITE_DEVELOPER_ENABLE_DIAN_BILLING: editEnableDianBilling,
+              VITE_DEVELOPER_COSTO_POR_FACTURA_DIAN: editCostoPorFacturaDian
+            }
+          })
+        });
+        const envData = await envResponse.json();
+        if (envData.success) {
+          addLog(`[CLI] Variables operativas inyectadas y fusionadas correctamente en .env.local del cliente.`, "success");
+        } else {
+          addLog(`[CLI Warning] No se pudo escribir en el archivo .env.local: ${envData.error}. Esto puede ocurrir si el cliente no está en desarrollo local.`, "warning");
+        }
+      } catch (cliErr) {
+        console.warn("CLI no disponible o error al propagar variables de entorno:", cliErr);
+        addLog(`[CLI Warning] No se pudo comunicar con el daemon de la CLI para actualizar el .env.local (${cliErr.message}).`, "warning");
+      }
+
       showToast('Configuración guardada correctamente', { type: 'success' })
       setActiveMetricModal(null)
       setSelectedCrmClientId(null)
@@ -4196,7 +4499,20 @@ export default function App() {
                             { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
                             { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
                             { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
-                            { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
+                            { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" },
+                            { id: "insumos-agricolas", name: "🚜 Insumos y Repuestos Agrícolas (insumos-agricolas)" },
+                            { id: "alimentos-artesanales", name: "🎂 Alimentos Artesanales y Repostería (alimentos-artesanales)" },
+                            { id: "ferreteria-rural", name: "🛠️ Ferretería y Construcción Rural (ferreteria-rural)" },
+                            { id: "repuestos-motos", name: "🏍️ Repuestos y Accesorios de Motos (repuestos-motos)" },
+                            { id: "distribuidoras-beauty", name: "💅 Suministros de Belleza Profesional (distribuidoras-beauty)" },
+                            { id: "petshops-locales", name: "🐶 Alimentos y Accesorios para Mascotas (petshops-locales)" },
+                            { id: "repuestos-lineablanca", name: "⚙️ Repuestos de Electrodomésticos (repuestos-lineablanca)" },
+                            { id: "moda-local-calzado", name: "👞 Calzado y Confección Local (moda-local-calzado)" },
+                            { id: "alimentacion-saludable", name: "🥗 Alimentación Orgánica y Saludable (alimentacion-saludable)" },
+                            { id: "home-office-ergonomia", name: "💻 Equipamiento Home Office (home-office-ergonomia)" },
+                            { id: "licores-cocteleria", name: "🍹 Bodega de Licores y Coctelería (licores-cocteleria)" },
+                            { id: "coleccionismo-geek", name: "🧸 Artículos Geek y Coleccionismo (coleccionismo-geek)" },
+                            { id: "distribucion-horeca", name: "📦 Insumos Horeca B2B (distribucion-horeca)" }
                           ]}
                         />
                       </div>
@@ -7307,7 +7623,20 @@ export default function App() {
                                 { id: "laundry", emoji: "🧺", name: "Lavanderías" },
                                 { id: "furniture_repair", emoji: "🛋️", name: "Restauración/Tapicería" },
                                 { id: "wellness_podology", emoji: "💆", name: "Estética/Podología" },
-                                { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" }
+                                { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" },
+                                { id: "insumos-agricolas", emoji: "🚜", name: "Insumos y Repuestos Agrícolas" },
+                                { id: "alimentos-artesanales", emoji: "🎂", name: "Alimentos Artesanales" },
+                                { id: "ferreteria-rural", emoji: "🛠️", name: "Ferretería Rural" },
+                                { id: "repuestos-motos", emoji: "🏍️", name: "Repuestos Motos" },
+                                { id: "distribuidoras-beauty", emoji: "💅", name: "Distribuidoras Belleza" },
+                                { id: "petshops-locales", emoji: "🐶", name: "Petshops Locales" },
+                                { id: "repuestos-lineablanca", emoji: "⚙️", name: "Repuestos Línea Blanca" },
+                                { id: "moda-local-calzado", emoji: "👞", name: "Moda y Calzado" },
+                                { id: "alimentacion-saludable", emoji: "🥗", name: "Alimentación Saludable" },
+                                { id: "home-office-ergonomia", emoji: "💻", name: "Home Office/Ergonomía" },
+                                { id: "licores-cocteleria", emoji: "🍹", name: "Licores y Coctelería" },
+                                { id: "coleccionismo-geek", emoji: "🧸", name: "Coleccionismo Geek" },
+                                { id: "distribucion-horeca", emoji: "📦", name: "Distribución Horeca B2B" }
                               ].find(n => n.id === client.niche) || { emoji: "📦", name: client.niche || "Desconocido" }
                               
                               return (
@@ -7391,7 +7720,20 @@ export default function App() {
                               { id: "laundry", emoji: "🧺", name: "Lavanderías" },
                               { id: "furniture_repair", emoji: "🛋️", name: "Restauración/Tapicería" },
                               { id: "wellness_podology", emoji: "💆", name: "Estética/Podología" },
-                              { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" }
+                              { id: "grocery_food", emoji: "🍎", name: "Minimarkets/Alimentos" },
+                              { id: "insumos-agricolas", emoji: "🚜", name: "Insumos y Repuestos Agrícolas" },
+                              { id: "alimentos-artesanales", emoji: "🎂", name: "Alimentos Artesanales" },
+                              { id: "ferreteria-rural", emoji: "🛠️", name: "Ferretería Rural" },
+                              { id: "repuestos-motos", emoji: "🏍️", name: "Repuestos Motos" },
+                              { id: "distribuidoras-beauty", emoji: "💅", name: "Distribuidoras Belleza" },
+                              { id: "petshops-locales", emoji: "🐶", name: "Petshops Locales" },
+                              { id: "repuestos-lineablanca", emoji: "⚙️", name: "Repuestos Línea Blanca" },
+                              { id: "moda-local-calzado", emoji: "👞", name: "Moda y Calzado" },
+                              { id: "alimentacion-saludable", emoji: "🥗", name: "Alimentación Saludable" },
+                              { id: "home-office-ergonomia", emoji: "💻", name: "Home Office/Ergonomía" },
+                              { id: "licores-cocteleria", emoji: "🍹", name: "Licores y Coctelería" },
+                              { id: "coleccionismo-geek", emoji: "🧸", name: "Coleccionismo Geek" },
+                              { id: "distribucion-horeca", emoji: "📦", name: "Distribución Horeca B2B" }
                             ].find(n => n.id === client.niche) || { emoji: "📦", name: client.niche || "Desconocido" }
 
                             return (
@@ -8015,7 +8357,20 @@ export default function App() {
                                  client.niche === 'carpentry' ? '🪚' :
                                  client.niche === 'laundry' ? '🧺' :
                                  client.niche === 'furniture_repair' ? '🛋️' :
-                                 client.niche === 'grocery_food' ? '🛒' : '📦'}
+                                 client.niche === 'grocery_food' ? '🛒' :
+                                 client.niche === 'insumos-agricolas' ? '🚜' :
+                                 client.niche === 'alimentos-artesanales' ? '🎂' :
+                                 client.niche === 'ferreteria-rural' ? '🛠️' :
+                                 client.niche === 'repuestos-motos' ? '🏍️' :
+                                 client.niche === 'distribuidoras-beauty' ? '💅' :
+                                 client.niche === 'petshops-locales' ? '🐶' :
+                                 client.niche === 'repuestos-lineablanca' ? '⚙️' :
+                                 client.niche === 'moda-local-calzado' ? '👞' :
+                                 client.niche === 'alimentacion-saludable' ? '🥗' :
+                                 client.niche === 'home-office-ergonomia' ? '💻' :
+                                 client.niche === 'licores-cocteleria' ? '🍹' :
+                                 client.niche === 'coleccionismo-geek' ? '🧸' :
+                                 client.niche === 'distribucion-horeca' ? '📦' : '📦'}
                               </span>
                               <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate select-all">{client.id}</h4>
                             </div>
@@ -8378,7 +8733,20 @@ export default function App() {
                         { id: "laundry", name: "🧺 Lavanderías y Tintorerías (laundry)" },
                         { id: "furniture_repair", name: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
                         { id: "wellness_podology", name: "💆 Estética, Podología y Bienestar (wellness_podology)" },
-                        { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" }
+                        { id: "grocery_food", name: "🍎 Minimarkets y Alimentos (grocery_food)" },
+                        { id: "insumos-agricolas", name: "🚜 Insumos y Repuestos Agrícolas (insumos-agricolas)" },
+                        { id: "alimentos-artesanales", name: "🎂 Alimentos Artesanales y Repostería (alimentos-artesanales)" },
+                        { id: "ferreteria-rural", name: "🛠️ Ferretería y Construcción Rural (ferreteria-rural)" },
+                        { id: "repuestos-motos", name: "🏍️ Repuestos y Accesorios de Motos (repuestos-motos)" },
+                        { id: "distribuidoras-beauty", name: "💅 Suministros de Belleza Profesional (distribuidoras-beauty)" },
+                        { id: "petshops-locales", name: "🐶 Alimentos y Accesorios para Mascotas (petshops-locales)" },
+                        { id: "repuestos-lineablanca", name: "⚙️ Repuestos de Electrodomésticos (repuestos-lineablanca)" },
+                        { id: "moda-local-calzado", name: "👞 Calzado y Confección Local (moda-local-calzado)" },
+                        { id: "alimentacion-saludable", name: "🥗 Alimentación Orgánica y Saludable (alimentacion-saludable)" },
+                        { id: "home-office-ergonomia", name: "💻 Equipamiento Home Office (home-office-ergonomia)" },
+                        { id: "licores-cocteleria", name: "🍹 Bodega de Licores y Coctelería (licores-cocteleria)" },
+                        { id: "coleccionismo-geek", name: "🧸 Artículos Geek y Coleccionismo (coleccionismo-geek)" },
+                        { id: "distribucion-horeca", name: "📦 Insumos Horeca B2B (distribucion-horeca)" }
                       ]}
                     />
                   </div>

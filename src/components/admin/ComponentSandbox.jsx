@@ -491,6 +491,7 @@ const COMPONENT_META = {
   'servicio_whatsapp': { type: 'service', label: 'Servicio', color: 'amber', note: 'Servicio de notificaciones y redireccionamiento unificado a WhatsApp.' },
   'sistema_temas_dinamicos': { type: 'complex', label: 'Módulo CSS', color: 'teal', note: 'Manejador global de inyección de variables HSL cromáticas en runtime.' },
   'modulo_commits_despliegues': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Mapeador del pipeline de git commits, logs de despliegue y telemetría.' },
+  'propuesta_dashboard_interactivo': { type: 'document', label: 'Documento Técnico', color: 'slate', note: 'Propuesta de interactividad directa (Playable Preview) para la ilustración del Hero.' },
 };
 
 // Mapa: nombre en minúsculas → clave de playground
