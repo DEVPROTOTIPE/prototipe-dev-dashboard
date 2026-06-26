@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   Layers, CheckCircle, StopCircle, Play, Copy, ChevronDown, ChevronRight,
-  Zap, RefreshCw, Trash2, ArrowRight, Check, X
+  Zap, RefreshCw, Trash2, ArrowRight, Check, X, Eye
 } from 'lucide-react'
 import CustomSelect from '../ui/CustomSelect'
 
@@ -46,10 +46,53 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
   const [fixing, setFixing] = useState({})
   const [actionLogs, setActionLogs] = useState([])
   const [actionLoading, setActionLoading] = useState(false)
+  
+  // Estados para visualizador de diferencias y drift del Core
+  const [showDiffModal, setShowDiffModal] = useState(false)
+  const [diffData, setDiffData] = useState(null)
+  const [loadingDiff, setLoadingDiff] = useState(false)
+  const [expandedFile, setExpandedFile] = useState(null)
 
   // UX de doble confirmación
   const [confirmingDeleteKey, setConfirmingDeleteKey] = useState(null)
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+
+  const fetchCoreDrift = async (silent = false) => {
+    if (!silent) setLoadingDiff(true)
+    try {
+      const res = await fetch(`${CLI_URL}/api/cores/${core.clave}/drift`)
+      const data = await res.json()
+      if (data.success) {
+        setDiffData(data)
+        if (!silent) setShowDiffModal(true)
+      } else {
+        showToast?.(data.error || 'Error al calcular diferencias.', 'error')
+      }
+    } catch (err) {
+      showToast?.('Error de red al conectar con el backend CLI.', 'error')
+    } finally {
+      if (!silent) setLoadingDiff(false)
+    }
+  }
+
+  const syncCoreFromModal = async () => {
+    setLoadingDiff(true)
+    try {
+      const res = await fetch(`${CLI_URL}/api/cores/${core.clave}/sync`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        showToast?.('Sincronización completada correctamente.', 'success')
+        if (loadCores) loadCores()
+        await fetchCoreDrift(true)
+      } else {
+        showToast?.(data.error || 'Error al sincronizar.', 'error')
+      }
+    } catch (err) {
+      showToast?.('Error al conectar con la API de sincronización.', 'error')
+    } finally {
+      setLoadingDiff(false)
+    }
+  }
 
   const runAudit = async () => {
     setAuditLoading(true)
@@ -401,14 +444,24 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                 </div>
                 <p className="text-[10px] text-slate-500">Copia el código del core a templates/ del CLI sin activar en el wizard.</p>
                 <div className="flex-1" />
-                <button
-                  onClick={() => runAction(`/api/cores/${core.clave}/sync`, {})}
-                  disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-1.5 bg-amber-600/20 hover:bg-amber-600/30 disabled:opacity-40 text-amber-400 border border-amber-500/30 text-[11px] px-2 py-1.5 rounded-lg transition-all font-semibold mt-auto cursor-pointer"
-                >
-                  {actionLoading ? <RefreshCw size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                  Sync → CLI
-                </button>
+                <div className="flex gap-2 mt-auto">
+                  <button
+                    onClick={() => runAction(`/api/cores/${core.clave}/sync`, {})}
+                    disabled={actionLoading}
+                    className="flex-1 flex items-center justify-center gap-1 bg-amber-600/20 hover:bg-amber-600/30 disabled:opacity-40 text-amber-400 border border-amber-500/30 text-[10px] px-1 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                  >
+                    {actionLoading ? <RefreshCw size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                    Sync
+                  </button>
+                  <button
+                    onClick={() => fetchCoreDrift()}
+                    disabled={loadingDiff || actionLoading}
+                    className="flex-1 flex items-center justify-center gap-1 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 text-[10px] px-1 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                  >
+                    {loadingDiff ? <RefreshCw size={10} className="animate-spin" /> : <Eye size={10} />}
+                    Diferencias
+                  </button>
+                </div>
               </div>
 
               {/* Estado Wizard */}
@@ -740,6 +793,225 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
               {actionLoading && <p className="text-[11px] font-mono text-indigo-400 animate-pulse">⏳ Procesando...</p>}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de diferencias y drift de plantillas Core */}
+      {showDiffModal && diffData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-4xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            
+            {/* Header del Modal */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-2)]/20">
+              <div className="flex items-center gap-2">
+                <Layers className="text-amber-400" size={18} />
+                <h3 className="text-sm font-bold text-[var(--color-text)]">
+                  Auditoría de Sincronización — Core "{core.clave.toUpperCase()}"
+                </h3>
+              </div>
+              <button 
+                onClick={() => { setShowDiffModal(false); setExpandedFile(null); }}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Cuerpo del Modal */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              
+              {/* Sección de Resumen y Paridad */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-[var(--color-surface-2)]/40 p-4 border border-[var(--color-border)] rounded-xl">
+                <div className="flex items-center gap-4">
+                  {/* Círculo SVG de paridad */}
+                  <div className="relative flex items-center justify-center w-20 h-20">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-slate-800"
+                        strokeWidth="3"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className={
+                          diffData.parityPercent === 100 
+                            ? 'text-emerald-400' 
+                            : diffData.parityPercent >= 90 
+                            ? 'text-amber-400' 
+                            : 'text-red-400'
+                        }
+                        strokeDasharray={`${diffData.parityPercent}, 100`}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center">
+                      <span className="text-base font-bold text-[var(--color-text)]">
+                        {diffData.parityPercent}%
+                      </span>
+                      <span className="text-[8px] text-slate-500 font-semibold tracking-wider uppercase">Paridad</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-[var(--color-text)]">
+                      {diffData.parityPercent === 100 
+                        ? 'Sincronización Perfecta' 
+                        : 'Desviaciones Detectadas'}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {diffData.parityPercent === 100
+                        ? 'La plantilla en la CLI tiene paridad física absoluta con el código de desarrollo.'
+                        : `El Core tiene ${diffData.differences.length} archivo(s) con desajustes o pendientes.`}
+                    </p>
+                    <div className="text-[10px] font-mono text-slate-400 mt-1">
+                      Archivos Idénticos: {diffData.syncedCount} / {diffData.totalCount}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acciones de Sincronización del Modal */}
+                {diffData.parityPercent < 100 && (
+                  <button
+                    onClick={syncCoreFromModal}
+                    disabled={loadingDiff}
+                    className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs px-4 py-2 rounded-lg font-bold transition-all shadow-md cursor-pointer"
+                  >
+                    {loadingDiff ? <RefreshCw size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                    Sincronizar Core → CLI
+                  </button>
+                )}
+              </div>
+
+              {/* Contenido de Diferencias */}
+              {diffData.differences.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-900/10 border border-dashed border-[var(--color-border)] rounded-xl">
+                  <CheckCircle className="text-emerald-400 mb-2" size={24} />
+                  <p className="text-xs font-bold text-slate-300">Todo el código está sincronizado.</p>
+                  <p className="text-[10px] text-slate-500 mt-1">No hay diferencias ni archivos pendientes por copiar.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  
+                  {/* Lista de archivos faltantes (pendientes por copiar) */}
+                  {diffData.differences.some(d => d.status === 'missing_in_template') && (
+                    <div className="space-y-2">
+                      <h5 className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                        📁 Pendientes por Sincronizar (No existen en el CLI)
+                      </h5>
+                      <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl p-3">
+                        <ul className="space-y-1.5">
+                          {diffData.differences
+                            .filter(d => d.status === 'missing_in_template')
+                            .map((diff, idx) => (
+                              <li key={idx} className="flex items-center justify-between text-[11px] font-mono text-slate-300 border-b border-[var(--color-border)]/30 pb-1.5 last:border-0 last:pb-0">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                  {diff.file}
+                                </span>
+                                <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 font-semibold">
+                                  Pendiente
+                                </span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lista de archivos modificados con acordeones de diffs */}
+                  {diffData.differences.some(d => d.status === 'modified') && (
+                    <div className="space-y-2">
+                      <h5 className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">
+                        📝 Archivos Modificados (Diferencias de código)
+                      </h5>
+                      <div className="space-y-2">
+                        {diffData.differences
+                          .filter(d => d.status === 'modified')
+                          .map((diff, idx) => {
+                            const isExpanded = expandedFile === diff.file;
+                            return (
+                              <div key={idx} className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl overflow-hidden">
+                                
+                                {/* Botón Acordeón Cabecera */}
+                                <button
+                                  onClick={() => setExpandedFile(isExpanded ? null : diff.file)}
+                                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-2)]/60 transition-colors cursor-pointer text-left"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <ChevronDown 
+                                      size={14} 
+                                      className={`text-slate-400 transition-transform ${isExpanded ? 'transform rotate-180' : 'transform -rotate-90'}`} 
+                                    />
+                                    <span className="text-[11px] font-mono text-[var(--color-text)] font-semibold">
+                                      {diff.file}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-semibold font-mono">
+                                    Modificado
+                                  </span>
+                                </button>
+
+                                {/* Previsualizador de Diff (Cuerpo del Acordeón) */}
+                                {isExpanded && (
+                                  <div className="border-t border-[var(--color-border)] bg-[#070b13] p-4 overflow-x-auto max-h-[350px] overflow-y-auto font-mono text-[10px] leading-relaxed">
+                                    {diff.isBinary ? (
+                                      <p className="text-slate-400 italic">Archivo binario modificado (sin previsualización de diferencias de texto).</p>
+                                    ) : !diff.diff ? (
+                                      <p className="text-slate-400 italic">Archivo demasiado grande para previsualizar diferencias inline (&gt;150KB).</p>
+                                    ) : (
+                                      <div className="space-y-0.5">
+                                        {diff.diff.map((part, pIdx) => {
+                                          const isAdd = part.added;
+                                          const isRem = part.removed;
+                                          const colorCls = isAdd 
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-500/50' 
+                                            : isRem 
+                                            ? 'bg-red-500/10 text-red-400 border-l-2 border-l-red-500/50 line-through' 
+                                            : 'text-slate-400 pl-1';
+                                          const prefix = isAdd ? '+' : isRem ? '-' : ' ';
+                                          
+                                          return part.value.split('\n').map((line, lIdx) => {
+                                            if (lIdx === part.value.split('\n').length - 1 && line === '') return null;
+                                            return (
+                                              <div key={`${pIdx}-${lIdx}`} className={`flex items-start ${colorCls} py-0.5 px-2`}>
+                                                <span className="w-4 select-none opacity-50 mr-1 text-right">{prefix}</span>
+                                                <pre className="whitespace-pre-wrap flex-1">{line}</pre>
+                                              </div>
+                                            );
+                                          });
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface-2)]/20 flex items-center justify-end">
+              <button
+                onClick={() => { setShowDiffModal(false); setExpandedFile(null); }}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
