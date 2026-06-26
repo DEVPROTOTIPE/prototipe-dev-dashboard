@@ -163,7 +163,7 @@
   --color-pink-550: #db2777;
 }
 
-html, body {
+body {
   font-family: var(--font-sans);
   background-color: var(--color-bg);
   color: var(--color-text);
@@ -182,10 +182,10 @@ html, body {
 
 .tech-bg-dots {
   position: fixed;
-  width: 120vw;
-  height: 120vh;
-  top: -10vh;
-  left: -10vw;
+  width: 110vw;
+  height: 110vh;
+  top: -5vh;
+  left: -5vw;
   z-index: 0;
   pointer-events: none;
   background-image: radial-gradient(circle, var(--dot-color) 1.2px, transparent 1.2px);
@@ -196,7 +196,7 @@ html, body {
 
 .tech-bg-orb-1 {
   position: fixed;
-  inset: -15%;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   background:
@@ -208,7 +208,7 @@ html, body {
 
 .tech-bg-orb-2 {
   position: fixed;
-  inset: -15%;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   background:
