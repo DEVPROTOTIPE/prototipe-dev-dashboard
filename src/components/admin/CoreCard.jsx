@@ -934,12 +934,14 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                           .filter(d => d.status === 'modified')
                           .map((diff, idx) => {
                             const isExpanded = expandedFile === diff.file;
+                            const isCurrentFileLoading = loadingFileDiff[diff.file];
+                            const currentDiff = fileDiffs[diff.file];
                             return (
                               <div key={idx} className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl overflow-hidden">
                                 
                                 {/* Botón Acordeón Cabecera */}
                                 <button
-                                  onClick={() => setExpandedFile(isExpanded ? null : diff.file)}
+                                  onClick={() => toggleExpandFile(diff.file, diff.isBinary)}
                                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-2)]/60 transition-colors cursor-pointer text-left"
                                 >
                                   <div className="flex items-center gap-2">
@@ -961,11 +963,16 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                                   <div className="border-t border-[var(--color-border)] bg-[#070b13] p-4 overflow-x-auto max-h-[350px] overflow-y-auto font-mono text-[10px] leading-relaxed">
                                     {diff.isBinary ? (
                                       <p className="text-slate-400 italic">Archivo binario modificado (sin previsualización de diferencias de texto).</p>
-                                    ) : !diff.diff ? (
-                                      <p className="text-slate-400 italic">Archivo demasiado grande para previsualizar diferencias inline (&gt;150KB).</p>
+                                    ) : isCurrentFileLoading ? (
+                                      <div className="flex items-center gap-2 text-indigo-400 animate-pulse py-2">
+                                        <RefreshCw size={12} className="animate-spin" />
+                                        <span>Calculando diferencias del archivo...</span>
+                                      </div>
+                                    ) : !currentDiff ? (
+                                      <p className="text-slate-400 italic">No se pudieron cargar las diferencias.</p>
                                     ) : (
                                       <div className="space-y-0.5">
-                                        {diff.diff.map((part, pIdx) => {
+                                        {currentDiff.map((part, pIdx) => {
                                           const isAdd = part.added;
                                           const isRem = part.removed;
                                           const colorCls = isAdd 
