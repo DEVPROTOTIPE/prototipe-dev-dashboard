@@ -43,6 +43,44 @@ const ChangeBadge = ({ hasChanges, count }) => {
   )
 }
 
+const SyncStateBadge = ({ state, ahead, behind, onRefresh, loading }) => {
+  if (state === 'sync') return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+      <Cloud size={9} /> Sincronizado
+    </span>
+  )
+  if (state === 'ahead') return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full" title={`${ahead} commits por subir`}>
+      <Upload size={9} /> Adelantado (+{ahead})
+    </span>
+  )
+  if (state === 'behind') return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse" title={`${behind} commits por traer`}>
+      <CloudOff size={9} /> Atrasado (-{behind})
+    </span>
+  )
+  if (state === 'diverged') return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full animate-pulse">
+      <AlertTriangle size={9} /> Divergente
+    </span>
+  )
+  if (state === 'local') return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2 py-0.5 rounded-full">
+      <Info size={9} /> Solo Local
+    </span>
+  )
+  return (
+    <button
+      type="button"
+      onClick={onRefresh}
+      disabled={loading}
+      className="inline-flex items-center gap-1 text-[9px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full hover:bg-violet-500/20 transition-all cursor-pointer disabled:opacity-50"
+    >
+      <RefreshCw size={9} className={loading ? 'animate-spin' : ''} /> Comprobar GitHub
+    </button>
+  )
+}
+
 // ─── Subcomponente: Target Item ───────────────────────────────────────────────
 const TargetItem = ({ target, isSelected, onClick, categoryLabel }) => {
   if (!target) return null
@@ -83,7 +121,7 @@ const TargetItem = ({ target, isSelected, onClick, categoryLabel }) => {
 }
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
-export default function GitBackupPanel({ showToast }) {
+export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
   const [targets, setTargets] = useState(null)
   const [loadingTargets, setLoadingTargets] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -97,6 +135,11 @@ export default function GitBackupPanel({ showToast }) {
   const eventSourceRef = useRef(null)
   const logsEndRef = useRef(null)
   const abortRef = useRef(false)
+
+  // F2, F3: Nuevos estados de control Git
+  const [commits, setCommits] = useState([])
+  const [loadingCommits, setLoadingCommits] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
 
   // Auto-scroll terminal
   useEffect(() => {
@@ -120,16 +163,37 @@ export default function GitBackupPanel({ showToast }) {
 
   useEffect(() => { fetchTargets() }, [fetchTargets])
 
-  // Cargar status del target seleccionado
-  const fetchStatus = useCallback(async (target) => {
-    if (!target?.hasGit && !target?.path) return
-    setLoadingStatus(true)
-    setGitStatus(null)
+  // F2: Cargar historial de commits recientes
+  const fetchCommits = useCallback(async (target) => {
+    if (!target?.path) return
+    setLoadingCommits(true)
     try {
       const params = new URLSearchParams({ path: target.path })
+      const res = await fetch(`${CLI_BASE}/api/git/log?${params}`)
+      const data = await res.json()
+      if (data.success) {
+        setCommits(data.commits || [])
+      }
+    } catch {
+      console.warn('[Git Log] No se pudo leer el historial de commits.')
+    } finally {
+      setLoadingCommits(false)
+    }
+  }, [])
+
+  // Cargar status del target seleccionado (con soporte de fetch remoto)
+  const fetchStatus = useCallback(async (target, fetchRemote = false) => {
+    if (!target?.hasGit && !target?.path) return
+    setLoadingStatus(true)
+    if (!fetchRemote) setGitStatus(null)
+    try {
+      const params = new URLSearchParams({ path: target.path, fetch: String(fetchRemote) })
       const res = await fetch(`${CLI_BASE}/api/git/status?${params}`)
       const data = await res.json()
-      if (data.success) setGitStatus(data)
+      if (data.success) {
+        setGitStatus(data)
+        if (fetchRemote) showToast?.('Estado remoto actualizado con GitHub', { type: 'success' })
+      }
       else showToast?.(`Error de estado: ${data.error}`, { type: 'error' })
     } catch {
       showToast?.('No se pudo leer el estado Git', { type: 'error' })
@@ -145,11 +209,56 @@ export default function GitBackupPanel({ showToast }) {
     }
     setSelected(target)
     setGitStatus(null)
+    setCommits([])
     setLogs([])
     setStreamState('idle')
     setCommitMessage('')
     setDoAutoMerge(false)
     fetchStatus(target)
+    fetchCommits(target)
+  }
+
+  // F1: Descartar cambios locales (individual o total)
+  const handleDiscardChanges = async (file = null) => {
+    if (!selected?.path) return
+    
+    const isAll = file === null
+    const confirm = await showConfirm?.({
+      title: isAll ? '¿Descartar todos los cambios?' : '¿Descartar cambios del archivo?',
+      message: isAll 
+        ? 'Esto revertirá de forma permanente todas las modificaciones locales sin guardar en este repositorio. Esta acción NO se puede deshacer.'
+        : `Esto revertirá todas las modificaciones del archivo "${file}". No se puede deshacer.`,
+      variant: 'danger',
+      confirmText: 'Sí, Descartar',
+      cancelText: 'Cancelar'
+    })
+
+    if (!confirm) return
+
+    setDiscarding(true)
+    try {
+      const res = await fetch(`${CLI_BASE}/api/git/discard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: selected.path,
+          file,
+          all: isAll
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast?.(data.message, { type: 'success' })
+        fetchStatus(selected)
+        fetchTargets()
+      } else {
+        showToast?.(`Error al descartar: ${data.error}`, { type: 'error' })
+      }
+    } catch {
+      showToast?.('No se pudo comunicar con el servidor', { type: 'error' })
+    } finally {
+      setDiscarding(false)
+    }
   }
 
   // Auto-generar mensaje de commit
@@ -238,6 +347,7 @@ export default function GitBackupPanel({ showToast }) {
       eventSourceRef.current = null
       // Refrescar status tras backup exitoso
       fetchStatus(selected)
+      fetchCommits(selected)
       fetchTargets()
       showToast?.('✅ Respaldo completado con éxito', { type: 'success' })
     })
@@ -390,7 +500,7 @@ export default function GitBackupPanel({ showToast }) {
           ) : (
             <>
               {/* Info del Target seleccionado */}
-              <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl flex items-center justify-between gap-4">
+              <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
                     <GitBranch size={16} className="text-violet-400" />
@@ -403,10 +513,17 @@ export default function GitBackupPanel({ showToast }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <SyncStateBadge
+                    state={gitStatus?.syncState}
+                    ahead={gitStatus?.aheadCount}
+                    behind={gitStatus?.behindCount}
+                    loading={loadingStatus}
+                    onRefresh={() => fetchStatus(selected, true)}
+                  />
                   <BranchBadge branch={gitStatus?.branch || selected.branch} />
                   <button
                     type="button"
-                    onClick={() => fetchStatus(selected)}
+                    onClick={() => { fetchStatus(selected); fetchCommits(selected); }}
                     disabled={loadingStatus}
                     className="p-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
                     title="Recargar estado"
@@ -449,7 +566,20 @@ export default function GitBackupPanel({ showToast }) {
                       </span>
                     )}
                   </span>
-                  {loadingStatus && <RefreshCw size={12} className="animate-spin text-[var(--color-text-muted)]" />}
+                  <div className="flex items-center gap-2">
+                    {gitStatus?.changes?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDiscardChanges(null)}
+                        disabled={discarding || streamState === 'running'}
+                        className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[9px] font-black text-red-400 rounded-lg cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <Trash2 size={10} />
+                        Descartar todo
+                      </button>
+                    )}
+                    {loadingStatus && <RefreshCw size={12} className="animate-spin text-[var(--color-text-muted)]" />}
+                  </div>
                 </div>
 
                 {!loadingStatus && !gitStatus && (
@@ -466,9 +596,20 @@ export default function GitBackupPanel({ showToast }) {
                 {gitStatus?.changes?.length > 0 && (
                   <div className="max-h-44 overflow-y-auto scrollbar-thin divide-y divide-[var(--color-border)]/40">
                     {gitStatus.changes.map((c, i) => (
-                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface-2)]/30 transition-colors">
-                        {fileTypeIcon(c.type)}
-                        <span className="text-[10px] font-mono text-[var(--color-text)] truncate">{c.file}</span>
+                      <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-[var(--color-surface-2)]/30 transition-colors group/row">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {fileTypeIcon(c.type)}
+                          <span className="text-[10px] font-mono text-[var(--color-text)] truncate">{c.file}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDiscardChanges(c.file)}
+                          disabled={discarding || streamState === 'running'}
+                          className="opacity-0 group-hover/row:opacity-100 p-1 bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-md text-[var(--color-text-muted)] hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 cursor-pointer transition-all active:scale-90"
+                          title="Descartar cambios de este archivo"
+                        >
+                          <RefreshCw size={10} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -589,6 +730,43 @@ export default function GitBackupPanel({ showToast }) {
                   >
                     <StopCircle size={14} />
                   </button>
+                )}
+              </div>
+
+              {/* Visor de Historial de Commits (F2) */}
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden mt-4">
+                <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+                  <span className="text-xs font-black text-[var(--color-text)] flex items-center gap-1.5">
+                    <GitCommit size={13} className="text-violet-400" />
+                    Historial de Commits Recientes
+                  </span>
+                  {loadingCommits && <RefreshCw size={12} className="animate-spin text-[var(--color-text-muted)]" />}
+                </div>
+
+                {loadingCommits && commits.length === 0 ? (
+                  <div className="p-4 text-xs text-[var(--color-text-muted)] text-center animate-pulse">
+                    Cargando historial de commits...
+                  </div>
+                ) : commits.length === 0 ? (
+                  <div className="p-4 text-xs text-[var(--color-text-muted)] text-center">
+                    No se encontraron commits previos.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-border)]/40 max-h-48 overflow-y-auto scrollbar-thin">
+                    {commits.map((c, i) => (
+                      <div key={i} className="px-4 py-2.5 hover:bg-[var(--color-surface-2)]/30 transition-colors flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-[var(--color-text)] truncate">{c.message}</p>
+                          <p className="text-[9px] text-[var(--color-text-muted)] mt-0.5">
+                            Autor: <span className="font-semibold">{c.author}</span> • {c.date}
+                          </p>
+                        </div>
+                        <code className="text-[9px] font-mono font-bold bg-[var(--color-surface-2)] border border-[var(--color-border)] text-violet-400 px-1.5 py-0.5 rounded shrink-0">
+                          {c.hash}
+                        </code>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </>

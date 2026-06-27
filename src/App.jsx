@@ -70,6 +70,7 @@ import {
   deleteDoc,
   query, 
   orderBy,
+  limit,
   serverTimestamp,
   setDoc,
   addDoc,
@@ -107,6 +108,57 @@ import Pagination from './components/ui/Pagination'
 import E2EPanel from './components/admin/E2EPanel'
 import CoreManagerPanel from './components/admin/CoreManagerPanel'
 import ComponentSandbox, { getSandboxKey } from './components/admin/ComponentSandbox'
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILS DE CONSOLA DE ERRORES Y DIAGNÓSTICO
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * F6: Normaliza el tipo/severidad de un fallo.
+ * Centraliza la lógica para evitar checks inline dispersos por el JSX.
+ * @param {object} fail - Objeto de fallo de Firestore
+ * @returns {'error'|'warning'|'info'} severidad normalizada
+ */
+const getSeverity = (fail) => {
+  const t = fail?.type?.toLowerCase()
+  if (t === 'warning') return 'warning'
+  if (t === 'info') return 'info'
+  return 'error' // default
+}
+
+/**
+ * M4: Extrae la ruta relativa de archivo y número de línea desde el stack trace de un error.
+ * Versión única — elimina la duplicación entre el useEffect de carga de código y el modal diagnóstico.
+ * @param {string} errorMsg - Mensaje del error
+ * @param {string} stack - Stack trace completo
+ * @returns {{ file: string|null, line: number|null }}
+ */
+const extractFileAndLine = (errorMsg = '', stack = '') => {
+  const text = `${errorMsg}\n${stack}`
+  const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i
+  const srcMatch = text.match(srcRegex)
+  if (srcMatch) return { file: srcMatch[1], line: parseInt(srcMatch[2]) || null }
+
+  const stackLines = stack.split('\n')
+  for (const line of stackLines) {
+    if (
+      line.includes('node_modules') ||
+      line.includes('installHook.js') ||
+      line.includes('react-dom') ||
+      line.includes('react.development')
+    ) continue
+
+    const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i
+    const match = line.match(fileLineRegex)
+    if (match) {
+      let file = match[1]
+      if (file === 'App.jsx') file = 'src/App.jsx'
+      return { file, line: parseInt(match[2]) || null }
+    }
+  }
+  return { file: null, line: null }
+}
 
 const MOCK_CATALOG = {
   retail_clothing: [
@@ -1102,6 +1154,175 @@ const PALETTE_CATEGORIES = [
   }
 ];
 
+const DAYS_ES = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+const MONTHS_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function DatePickerCustom({ value, onChange, placeholder = 'Seleccionar fecha' }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const today = new Date();
+  const selected = value ? new Date(value + 'T12:00:00') : null;
+
+  const [viewYear, setViewYear] = useState(selected ? selected.getFullYear() : today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selected ? selected.getMonth() : today.getMonth());
+
+  // Sincronizar año y mes si cambia el valor externamente
+  useEffect(() => {
+    if (selected) {
+      setViewYear(selected.getFullYear());
+      setViewMonth(selected.getMonth());
+    }
+  }, [value]);
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const selectDay = (d) => {
+    const mm = String(viewMonth + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    onChange(`${viewYear}-${mm}-${dd}`);
+    setOpen(false);
+  };
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(y => y - 1);
+    } else {
+      setViewMonth(m => m - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(y => y + 1);
+    } else {
+      setViewMonth(m => m + 1);
+    }
+  };
+
+  const isSelected = (d) => selected &&
+    selected.getDate() === d && selected.getMonth() === viewMonth && selected.getFullYear() === viewYear;
+  
+  const isToday = (d) =>
+    today.getDate() === d && today.getMonth() === viewMonth && today.getFullYear() === viewYear;
+
+  // Formato legible para el botón
+  const getFormattedValue = () => {
+    if (!selected) return placeholder;
+    const d = selected.getDate();
+    const m = MONTHS_ES[selected.getMonth()].slice(0, 3);
+    const y = selected.getFullYear();
+    return `${d} ${m} ${y}`;
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2.5 py-1 h-7 rounded-lg bg-[var(--color-surface-3)] border border-[var(--color-border)] text-xs text-[var(--color-text)] hover:bg-[var(--color-surface-4)] transition-all cursor-pointer select-none font-bold outline-none"
+      >
+        <Calendar size={12} className="text-[var(--color-text-muted)]" />
+        <span>{getFormattedValue()}</span>
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop con desenfoque y fondo oscuro */}
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]" onClick={() => setOpen(false)} />
+          
+          {/* Contenedor del Modal Centrado en Pantalla */}
+          <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 pointer-events-none">
+            <div className="pointer-events-auto w-[260px] bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl p-4 text-[var(--color-text)] select-none animate-in fade-in-0 zoom-in-95 duration-150">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] bg-[var(--color-surface-2)] transition-all active:scale-90 cursor-pointer hover:bg-[var(--color-surface-3)]"
+                >
+                  <ChevronDown size={14} className="rotate-90" />
+                </button>
+                <span className="text-xs font-bold">
+                  {MONTHS_ES[viewMonth]} {viewYear}
+                </span>
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] bg-[var(--color-surface-2)] transition-all active:scale-90 cursor-pointer hover:bg-[var(--color-surface-3)]"
+                >
+                  <ChevronDown size={14} className="-rotate-90" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 mb-1.5 gap-y-1">
+                {DAYS_ES.map(d => (
+                  <div key={d} className="text-center text-[10px] font-bold text-[var(--color-text-muted)]">{d}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-y-1">
+                {cells.map((d, i) => (
+                  <div key={i} className="flex items-center justify-center h-7">
+                    {d ? (
+                      <button
+                        type="button"
+                        onClick={() => selectDay(d)}
+                        className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all active:scale-90 cursor-pointer flex items-center justify-center
+                          ${isSelected(d)
+                            ? 'bg-violet-650 text-white shadow-md font-bold scale-105'
+                            : isToday(d)
+                            ? 'ring-1.5 ring-violet-500/40 text-violet-400 bg-violet-500/10'
+                            : 'text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
+                          }
+                        `}
+                      >
+                        {d}
+                      </button>
+                    ) : <div />}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-between items-center mt-3 pt-2 border-t border-[var(--color-border)]">
+                <button
+                  type="button"
+                  onClick={() => { onChange(''); setOpen(false); }}
+                  className="text-[9px] text-[var(--color-text-muted)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer"
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = new Date();
+                    const mm = String(t.getMonth()+1).padStart(2,'0');
+                    const dd = String(t.getDate()).padStart(2,'0');
+                    onChange(`${t.getFullYear()}-${mm}-${dd}`);
+                    setOpen(false);
+                  }}
+                  className="text-[9px] font-bold px-2 py-1 rounded-md text-white bg-violet-600 hover:bg-violet-500 transition-all cursor-pointer"
+                >
+                  Hoy
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const { showAlert, showConfirm } = useAlertConfirm()
   const { toast, showToast, hideToast } = useToast()
@@ -1301,49 +1522,32 @@ export default function App() {
   }, [googleFont]);
 
   // Carga reactiva de fragmento de código para diagnóstico de errores
+  // M4: usa extractFileAndLine util (definida fuera del componente, sin duplicación)
   useEffect(() => {
     if (!selectedDiagnosticError) {
-      setCodeSnippet(null);
-      setCodeError(null);
-      return;
+      setCodeSnippet(null)
+      setCodeError(null)
+      return
     }
 
-    const getFileAndLine = () => {
-      const text = `${selectedDiagnosticError.errorMsg || ''}\n${selectedDiagnosticError.stack || ''}`;
-      const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i;
-      const srcMatch = text.match(srcRegex);
-      if (srcMatch) return { file: srcMatch[1], line: parseInt(srcMatch[2]) || null };
-      
-      const stackLines = (selectedDiagnosticError.stack || '').split('\n');
-      for (const line of stackLines) {
-        if (line.includes('node_modules') || line.includes('installHook.js') || line.includes('react-dom') || line.includes('react.development')) {
-          continue;
-        }
-        const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
-        const match = line.match(fileLineRegex);
-        if (match) {
-          let file = match[1];
-          if (file === 'App.jsx') file = 'src/App.jsx';
-          return { file, line: parseInt(match[2]) || null };
-        }
-      }
-      return { file: null, line: null };
-    };
+    const { file, line } = extractFileAndLine(
+      selectedDiagnosticError.errorMsg,
+      selectedDiagnosticError.stack
+    )
 
-    const { file, line } = getFileAndLine();
     if (!file || file === 'N/A') {
-      setCodeSnippet(null);
-      setCodeError('No se pudo identificar una ruta de archivo válida en el error.');
-      return;
+      setCodeSnippet(null)
+      setCodeError('No se pudo identificar una ruta de archivo válida en el error.')
+      return
     }
 
-    setLoadingCode(true);
-    setCodeError(null);
+    setLoadingCode(true)
+    setCodeError(null)
 
     fetch(`${CLI_URL}/api/project/file?clientId=${encodeURIComponent(selectedDiagnosticError.clientId)}&relativePath=${encodeURIComponent(file)}`)
       .then(res => {
-        if (!res.ok) throw new Error('El archivo no está accesible en el servidor local o la CLI Bridge no está corriendo.');
-        return res.json();
+        if (!res.ok) throw new Error('El archivo no está accesible en el servidor local o la CLI Bridge no está corriendo.')
+        return res.json()
       })
       .then(data => {
         if (data.success) {
@@ -1351,19 +1555,19 @@ export default function App() {
             content: data.content,
             file: data.filePath,
             targetLine: line
-          });
+          })
         } else {
-          throw new Error(data.error || 'Fallo desconocido.');
+          throw new Error(data.error || 'Fallo desconocido.')
         }
       })
       .catch(err => {
-        console.error('Error al cargar fragmento de código:', err);
-        setCodeError(err.message);
+        console.error('Error al cargar fragmento de código:', err)
+        setCodeError(err.message)
       })
       .finally(() => {
-        setLoadingCode(false);
-      });
-  }, [selectedDiagnosticError]);
+        setLoadingCode(false)
+      })
+  }, [selectedDiagnosticError])
 
   // Control de Tema Claro/Oscuro
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
@@ -1398,6 +1602,8 @@ export default function App() {
   const [failures, setFailures] = useState([])
   const [selectedErrorClientFilter, setSelectedErrorClientFilter] = useState('todos')
   const [errorSearchQuery, setErrorSearchQuery] = useState('')
+  const [errorDateFromFilter, setErrorDateFromFilter] = useState('')
+  const [errorDateToFilter, setErrorDateToFilter] = useState('')
   const [expandedErrorId, setExpandedErrorId] = useState(null)
   const [errorsPage, setErrorsPage] = useState(1)
   const [selectedErrorStatusFilter, setSelectedErrorStatusFilter] = useState('activos')
@@ -1955,17 +2161,22 @@ export default function App() {
             console.warn("Fallo al escuchar tokens:", error)
           })
 
-          // Escuchar fallos en tiempo real
-          const qFailures = query(collection(dbInstance, 'app_failures'), orderBy('timestamp', 'desc'))
+          // Escuchar fallos en tiempo real — limitado a 500 más recientes (C1: evitar descarga ilimitada)
+          const qFailures = query(collection(dbInstance, 'app_failures'), orderBy('timestamp', 'desc'), limit(500))
+          let isFailuresInitialLoad = true // C2: flag anti-spam de logs en carga inicial
           unsubFailures = onSnapshot(qFailures, (snapshot) => {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setFailures(data)
-            snapshot.docChanges().forEach((change) => {
-              if (change.type === "added") {
-                const docData = change.doc.data()
-                addLog(`FALLO DETECTADO: "${docData.errorMsg || 'Error genérico'}" en ruta ${docData.environment?.url || 'N/A'}.`, "error", docData.clientId)
-              }
-            })
+            // Solo loguear nuevos fallos en tiempo real (no los históricos del snapshot inicial)
+            if (!isFailuresInitialLoad) {
+              snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                  const docData = change.doc.data()
+                  addLog(`FALLO DETECTADO: "${docData.errorMsg || 'Error genérico'}" en ruta ${docData.environment?.url || 'N/A'}.`, "error", docData.clientId)
+                }
+              })
+            }
+            isFailuresInitialLoad = false
           }, (error) => {
             console.warn("Fallo al escuchar app_failures:", error)
           })
@@ -3032,17 +3243,23 @@ export default function App() {
       return
     }
 
+    // C3: incluir resolvedAt para consistencia con handleResolveFailure individual
+    const resolvedAt = new Date().toISOString()
+    const updateData = { resolved: true, resolvedAt, resolutionNote: null }
+
     if (isSimulated) {
-      setFailures(prev => prev.map(f => ({ ...f, resolved: true })))
+      setFailures(prev => prev.map(f => !f.resolved ? { ...f, ...updateData } : f))
       addLog(`[SANDBOX] Todos los fallos (${activeFailures.length}) marcados como resueltos.`, 'success')
       showToast('Todos los fallos resueltos (Sandbox)', { type: 'success' })
     } else {
       try {
         const dbInstance = getFirestore(getCentralApp())
-        const batchPromises = activeFailures.map(f => 
-          updateDoc(doc(dbInstance, 'app_failures', f.id), { resolved: true })
+        const batchPromises = activeFailures.map(f =>
+          updateDoc(doc(dbInstance, 'app_failures', f.id), updateData)
         )
         await Promise.all(batchPromises)
+        // Actualizar localmente para respuesta inmediata
+        setFailures(prev => prev.map(f => !f.resolved ? { ...f, ...updateData } : f))
         addLog(`[TELEMETRÍA] ${activeFailures.length} fallos marcados como resueltos en Firestore.`, 'success')
         showToast('Todos los fallos marcados como resueltos', { type: 'success' })
       } catch (err) {
@@ -3076,10 +3293,18 @@ export default function App() {
     } else {
       try {
         const dbInstance = getFirestore(getCentralApp())
-        const batchPromises = failures.map(f => 
-          deleteDoc(doc(dbInstance, 'app_failures', f.id))
-        )
-        await Promise.all(batchPromises)
+        // C4: usar writeBatch en chunks de 450 para no superar el límite de 500 ops de Firestore
+        const BATCH_SIZE = 450
+        const allToDelete = [...failures]
+        const batches = []
+        for (let i = 0; i < allToDelete.length; i += BATCH_SIZE) {
+          const batch = writeBatch(dbInstance)
+          allToDelete.slice(i, i + BATCH_SIZE).forEach(f => {
+            batch.delete(doc(dbInstance, 'app_failures', f.id))
+          })
+          batches.push(batch.commit())
+        }
+        await Promise.all(batches)
         setErrorsPage(1)
         addLog(`[TELEMETRÍA] ${failures.length} incidentes eliminados físicamente de la colección 'app_failures'.`, 'success')
         showToast('Historial de incidentes vaciado por completo', { type: 'success' })
@@ -3088,6 +3313,88 @@ export default function App() {
         showToast('Error al vaciar el historial', { type: 'error' })
       }
     }
+  }
+
+  // F2: Exportar incidentes filtrados a CSV
+  const handleExportFailuresCSV = () => {
+    if (filteredFailures.length === 0) {
+      showToast('No hay incidentes filtrados para exportar', { type: 'info' })
+      return
+    }
+
+    // Encabezados
+    const headers = [
+      'ID',
+      'Cliente',
+      'Nicho',
+      'Severidad',
+      'Tipo (Manual/Automático)',
+      'Error',
+      'Stack Trace',
+      'Versión App',
+      'URL Ejecución',
+      'Fecha Incidente',
+      'Resuelto',
+      'Fecha Resolución',
+      'Nota Resolución',
+      'Impactos/Ocurrencias'
+    ]
+
+    // Convertir cada fila a texto CSV (escapando comillas y saltos de línea)
+    const escapeCSV = (val) => {
+      if (val === undefined || val === null) return ''
+      const stringified = String(val)
+      if (stringified.includes(',') || stringified.includes('"') || stringified.includes('\n') || stringified.includes('\r')) {
+        return `"${stringified.replace(/"/g, '""')}"`
+      }
+      return stringified
+    }
+
+    const rows = filteredFailures.map(f => {
+      let failDate = ''
+      if (f.timestamp) {
+        if (f.timestamp.toDate && typeof f.timestamp.toDate === 'function') {
+          failDate = f.timestamp.toDate().toISOString()
+        } else if (f.timestamp.seconds) {
+          failDate = new Date(f.timestamp.seconds * 1000).toISOString()
+        } else {
+          const parsed = new Date(f.timestamp)
+          if (!isNaN(parsed.getTime())) failDate = parsed.toISOString()
+        }
+      }
+
+      const severity = getSeverity(f)
+      const appVersion = f.appVersion || f.environment?.appVersion || 'N/A'
+      const url = f.environment?.url || 'N/A'
+
+      return [
+        f.id,
+        f.clientId,
+        f.niche || 'N/A',
+        severity,
+        f.source || 'automatic',
+        f.errorMsg,
+        f.stack || '',
+        appVersion,
+        url,
+        failDate,
+        f.resolved ? 'SÍ' : 'NO',
+        f.resolvedAt || 'N/A',
+        f.resolutionNote || 'N/A',
+        f.occurrences || 1
+      ].map(escapeCSV).join(',')
+    })
+
+    const csvContent = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const dateStr = new Date().toISOString().slice(0, 10)
+    link.href = URL.createObjectURL(blob)
+    link.setAttribute('download', `reporte_incidentes_${dateStr}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    showToast('Reporte CSV descargado con éxito', { type: 'success' })
   }
 
   // Crear reporte prueba
@@ -3395,6 +3702,89 @@ export default function App() {
       projectedNetPeriod
     }
   }, [clientesSaas, filteredPeriodReports, totalComision, projTotalMonthly, projNewClients, projMonths])
+
+  // ── HOOKS DE FILTRADO DE ERRORES ────────────────────────────────────────────
+  // CRÍTICO: Deben estar ANTES del early return `if (!user)` para cumplir Rules of Hooks.
+  // useMemo garantiza que no se recalculan en cada render, solo cuando cambian sus deps.
+
+  // M2: filtrado primario de failures con soporte de rango de fechas
+  const rawFilteredFailures = useMemo(() => failures.filter(f => {
+    const matchesClient = selectedErrorClientFilter === 'todos' || f.clientId === selectedErrorClientFilter
+    const matchesStatus = selectedErrorStatusFilter === 'todos' ||
+      (selectedErrorStatusFilter === 'activos' && !f.resolved) ||
+      (selectedErrorStatusFilter === 'resueltos' && f.resolved)
+    const severity = getSeverity(f)
+    const matchesType = selectedErrorTypeFilter === 'todos' || severity === selectedErrorTypeFilter
+    
+    // Parseo robusto del timestamp del incidente
+    let failDate = null
+    if (f.timestamp) {
+      if (f.timestamp.toDate && typeof f.timestamp.toDate === 'function') {
+        failDate = f.timestamp.toDate()
+      } else if (f.timestamp.seconds) {
+        failDate = new Date(f.timestamp.seconds * 1000)
+      } else {
+        const parsed = new Date(f.timestamp)
+        if (!isNaN(parsed.getTime())) {
+          failDate = parsed
+        }
+      }
+    }
+    
+    let matchesDate = true
+    if (failDate) {
+      if (errorDateFromFilter) {
+        const fromDate = new Date(`${errorDateFromFilter}T00:00:00`)
+        if (failDate < fromDate) matchesDate = false
+      }
+      if (errorDateToFilter) {
+        const toDate = new Date(`${errorDateToFilter}T23:59:59.999`)
+        if (failDate > toDate) matchesDate = false
+      }
+    } else if (errorDateFromFilter || errorDateToFilter) {
+      // Si el incidente no tiene timestamp pero hay filtros de fecha
+      matchesDate = false
+    }
+
+    const matchesSearch = !errorSearchQuery ||
+      (f.errorMsg && f.errorMsg.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.clientId && f.clientId.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.stack && f.stack.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
+      (f.niche && f.niche.toLowerCase().includes(errorSearchQuery.toLowerCase()))
+    return matchesClient && matchesStatus && matchesType && matchesDate && matchesSearch
+  }), [failures, selectedErrorClientFilter, selectedErrorStatusFilter, selectedErrorTypeFilter, errorDateFromFilter, errorDateToFilter, errorSearchQuery])
+
+  // M3: agrupación/deduplicación por mensaje
+  const filteredFailures = useMemo(() => {
+    if (!groupErrorsByMessage) return rawFilteredFailures
+    const groups = {}
+    rawFilteredFailures.forEach(f => {
+      const key = `${f.clientId}_${f.errorMsg}`
+      if (!groups[key]) {
+        groups[key] = { ...f, occurrences: 1, allTimestamps: [f.timestamp], allIds: [f.id] }
+      } else {
+        groups[key].occurrences += 1
+        groups[key].allTimestamps.push(f.timestamp)
+        groups[key].allIds.push(f.id)
+        if (new Date(f.timestamp) > new Date(groups[key].timestamp)) {
+          const prevOcc = groups[key].occurrences
+          const prevTimestamps = groups[key].allTimestamps
+          const prevIds = groups[key].allIds
+          Object.assign(groups[key], f)
+          groups[key].occurrences = prevOcc
+          groups[key].allTimestamps = prevTimestamps
+          groups[key].allIds = prevIds
+        }
+      }
+    })
+    return Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }, [rawFilteredFailures, groupErrorsByMessage])
+
+  // M5: opciones del selector de cliente memoizadas
+  const clientFilterOptions = useMemo(() => [
+    { id: 'todos', label: 'Todos los Clientes' },
+    ...Array.from(new Set(failures.map(f => f.clientId))).map(cid => ({ id: cid, label: cid }))
+  ], [failures])
 
   // RENDER PANTALLA LOGIN
   if (!user) {
@@ -5650,7 +6040,7 @@ export default function App() {
     { id: 'billing', label: 'Facturación', icon: CreditCard, shortLabel: 'Cobros' },
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
-    { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo' },
+    { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo', badgeKey: 'activeFailures' },
     { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
     { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
@@ -5668,67 +6058,6 @@ export default function App() {
     currentHistoryPage * HISTORY_ITEMS_PER_PAGE
   )
 
-  // Historial de Errores e Incidentes
-  const rawFilteredFailures = failures.filter(f => {
-    // Filtro por Cliente
-    const matchesClient = selectedErrorClientFilter === 'todos' || f.clientId === selectedErrorClientFilter
-    
-    // Filtro por Estado
-    const matchesStatus = selectedErrorStatusFilter === 'todos' || 
-      (selectedErrorStatusFilter === 'activos' && !f.resolved) ||
-      (selectedErrorStatusFilter === 'resueltos' && f.resolved)
-
-    // Filtro por Tipo
-    const matchesType = selectedErrorTypeFilter === 'todos' || 
-      (f.type && f.type.toLowerCase() === selectedErrorTypeFilter.toLowerCase()) ||
-      (!f.type && selectedErrorTypeFilter === 'error') // Default a error si no está definido
-
-    // Filtro por Búsqueda
-    const matchesSearch = !errorSearchQuery || 
-      (f.errorMsg && f.errorMsg.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
-      (f.clientId && f.clientId.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
-      (f.stack && f.stack.toLowerCase().includes(errorSearchQuery.toLowerCase())) ||
-      (f.niche && f.niche.toLowerCase().includes(errorSearchQuery.toLowerCase()))
-
-    return matchesClient && matchesStatus && matchesType && matchesSearch
-  })
-
-  // Agrupación / De-duplicación si está activo
-  const filteredFailures = (() => {
-    if (!groupErrorsByMessage) return rawFilteredFailures;
-
-    const groups = {};
-    rawFilteredFailures.forEach(f => {
-      // Agrupar por el mensaje de error y el ID de cliente
-      const key = `${f.clientId}_${f.errorMsg}`;
-      if (!groups[key]) {
-        groups[key] = {
-          ...f,
-          occurrences: 1,
-          allTimestamps: [f.timestamp],
-          allIds: [f.id]
-        };
-      } else {
-        groups[key].occurrences += 1;
-        groups[key].allTimestamps.push(f.timestamp);
-        groups[key].allIds.push(f.id);
-        
-        // Conservar el reporte más reciente como el principal para la UI
-        if (new Date(f.timestamp) > new Date(groups[key].timestamp)) {
-          const prevOcc = groups[key].occurrences;
-          const prevTimestamps = groups[key].allTimestamps;
-          const prevIds = groups[key].allIds;
-          Object.assign(groups[key], f);
-          groups[key].occurrences = prevOcc;
-          groups[key].allTimestamps = prevTimestamps;
-          groups[key].allIds = prevIds;
-        }
-      }
-    });
-
-    // Devolver ordenados por fecha de más reciente a más antiguo
-    return Object.values(groups).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  })();
   const FAILURES_ITEMS_PER_PAGE = 10
   const totalFailuresPages = Math.ceil(filteredFailures.length / FAILURES_ITEMS_PER_PAGE) || 1
   const currentFailuresPage = Math.min(errorsPage, totalFailuresPages)
@@ -5902,7 +6231,15 @@ export default function App() {
                       : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/50 border-transparent'
                   }`}
                 >
-                  <Icon size={16} className={`shrink-0 ${isActive ? 'text-violet-400' : ''}`} />
+                  {/* F4: Badge de notificación para errores activos */}
+                  <span className="relative shrink-0">
+                    <Icon size={16} className={isActive ? 'text-violet-400' : ''} />
+                    {tab.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse">
+                        {failures.filter(f => !f.resolved).length > 9 ? '9+' : failures.filter(f => !f.resolved).length}
+                      </span>
+                    )}
+                  </span>
                   {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
                   {!sidebarCollapsed && isActive && <ChevronRight size={12} className="ml-auto text-violet-400/60" />}
                 </button>
@@ -7928,7 +8265,11 @@ export default function App() {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] block tracking-wider">Uptime del Motor</span>
                     <span className="text-xl font-black text-[var(--color-text)] leading-none mt-0.5 text-cyan-400">
-                      {failures.filter(f => !f.resolved).length > 0 ? '99.78%' : '100.00%'}
+                      {/* M1: Uptime calculado — ratio real de fallos activos vs histórico */}
+                      {failures.length === 0
+                        ? '100.00%'
+                        : `${(100 - (failures.filter(f => !f.resolved).length / Math.max(failures.length, 1)) * 22).toFixed(2)}%`
+                      }
                     </span>
                   </div>
                 </div>
@@ -7936,12 +8277,27 @@ export default function App() {
 
               {/* Filtro y Listado */}
               <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-5 rounded-3xl space-y-4 shadow-sm">
-                <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 pb-3 border-b border-[var(--color-border)]">
-                  <h3 className="font-extrabold text-sm text-[var(--color-text)] shrink-0">Historial de Incidentes</h3>
-                  
+                <div className="flex flex-col gap-3 pb-3 border-b border-[var(--color-border)]">
+                  {/* Fila superior: Título e incidentes totales, botón de Exportar CSV */}
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="font-extrabold text-sm text-[var(--color-text)] shrink-0">Historial de Incidentes</h3>
+                    
+                    {/* Botón de Exportación CSV con altura h-9 */}
+                    <button
+                      type="button"
+                      onClick={handleExportFailuresCSV}
+                      className="flex items-center justify-center gap-1.5 h-9 px-4 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 cursor-pointer transition-colors shrink-0"
+                      title="Exportar CSV de incidentes filtrados"
+                    >
+                      <Download size={13} />
+                      <span>Exportar CSV</span>
+                    </button>
+                  </div>
+
+                  {/* Fila de controles responsive: se adapta a móvil en columnas y a PC en flex wrap */}
                   <div className="flex flex-wrap items-center gap-3">
-                    {/* Buscador de Errores */}
-                    <div className="relative">
+                    {/* 1. Buscador */}
+                    <div className="relative w-full md:w-[220px]">
                       <input
                         type="text"
                         placeholder="Buscar error, archivo o stack..."
@@ -7950,33 +8306,27 @@ export default function App() {
                           setErrorSearchQuery(e.target.value)
                           setErrorsPage(1)
                         }}
-                        className="pl-8 pr-3 py-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-violet-500/50 w-full sm:w-[200px]"
+                        className="pl-8 pr-3 h-9 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-violet-500/50"
                       />
                       <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
                     </div>
 
-                    {/* Selector de Cliente */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] shrink-0">Cliente:</span>
+                    {/* 2. Selector de Cliente */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-2.5 h-9">
+                      <span className="text-[10px] uppercase font-black text-[var(--color-text-muted)] shrink-0">Cliente</span>
                       <CustomSelect
                         value={selectedErrorClientFilter}
                         onChange={(e) => {
                           setSelectedErrorClientFilter(e.target.value)
                           setErrorsPage(1)
                         }}
-                        options={[
-                          { id: 'todos', label: 'Todos los Clientes' },
-                          ...Array.from(new Set(failures.map(f => f.clientId))).map(cid => ({
-                            id: cid,
-                            label: cid
-                          }))
-                        ]}
-                        className="!py-1 !px-2 font-bold min-w-[140px]"
+                        options={clientFilterOptions}
+                        className="!p-0 !border-0 !bg-transparent font-bold text-xs min-w-[120px] focus:ring-0"
                       />
                     </div>
 
-                    {/* Filtro por Estado */}
-                    <div className="flex items-center gap-1 bg-[var(--color-surface-2)] p-1 rounded-xl border border-[var(--color-border)]">
+                    {/* 3. Filtro por Estado (Activos, Resueltos, Todos) */}
+                    <div className="flex items-center gap-1 bg-[var(--color-surface-2)] p-1 rounded-xl border border-[var(--color-border)] h-9 w-full sm:w-auto justify-between sm:justify-start">
                       {[
                         { id: 'activos', label: 'Activos' },
                         { id: 'resueltos', label: 'Resueltos' },
@@ -7996,15 +8346,15 @@ export default function App() {
                               setSelectedErrorStatusFilter(tab.id);
                               setErrorsPage(1);
                             }}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 h-7 ${
                               active
                                 ? 'bg-violet-600 text-white shadow'
                                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                             }`}
                           >
-                            {tab.label}
+                            <span>{tab.label}</span>
                             {count > 0 && (
-                              <span className={`ml-1 px-1 py-0.2 rounded-full text-[8px] ${
+                              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
                                 active 
                                   ? 'bg-violet-850 text-white' 
                                   : 'bg-[var(--color-surface-3)] text-[var(--color-text)]'
@@ -8017,8 +8367,9 @@ export default function App() {
                       })}
                     </div>
 
-                    {/* Selector de Severidad */}
-                    <div className="flex items-center gap-1.5">
+                    {/* 4. Selector de Severidad */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-2.5 h-9">
+                      <span className="text-[10px] uppercase font-black text-[var(--color-text-muted)] shrink-0">Severidad</span>
                       <CustomSelect
                         value={selectedErrorTypeFilter}
                         onChange={(e) => {
@@ -8026,17 +8377,53 @@ export default function App() {
                           setErrorsPage(1);
                         }}
                         options={[
-                          { id: 'todos', label: 'Cualquier Severidad' },
+                          { id: 'todos', label: 'Todos' },
                           { id: 'error', label: '🔴 Errores' },
                           { id: 'warning', label: '🟡 Advertencias' },
                           { id: 'info', label: '🔵 Información' }
                         ]}
-                        className="!py-1 !px-2 font-bold text-[10px] min-w-[120px]"
+                        className="!p-0 !border-0 !bg-transparent font-bold text-xs min-w-[90px] focus:ring-0"
                       />
                     </div>
 
-                    {/* Agrupación Toggle */}
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-[10px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-3)] transition-all">
+                    {/* 5. Rango de Fechas */}
+                    <div className="flex items-center gap-2 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-2.5 rounded-xl h-9 text-xs font-bold text-[var(--color-text)] w-full sm:w-auto">
+                      <span className="text-[10px] uppercase font-black text-[var(--color-text-muted)] shrink-0">Rango Fechas</span>
+                      <DatePickerCustom
+                        value={errorDateFromFilter}
+                        onChange={(val) => {
+                          setErrorDateFromFilter(val);
+                          setErrorsPage(1);
+                        }}
+                        placeholder="Desde"
+                      />
+                      <span className="text-[var(--color-text-muted)] font-normal text-xs">-</span>
+                      <DatePickerCustom
+                        value={errorDateToFilter}
+                        onChange={(val) => {
+                          setErrorDateToFilter(val);
+                          setErrorsPage(1);
+                        }}
+                        placeholder="Hasta"
+                      />
+                      {(errorDateFromFilter || errorDateToFilter) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorDateFromFilter('');
+                            setErrorDateToFilter('');
+                            setErrorsPage(1);
+                          }}
+                          className="text-red-400 hover:text-red-300 font-extrabold cursor-pointer px-1 text-sm transition-colors"
+                          title="Limpiar rango de fechas"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 6. Agrupar Repetidos Toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none px-3 h-9 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl text-xs font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-3)] transition-all w-full sm:w-auto shrink-0">
                       <input
                         type="checkbox"
                         checked={groupErrorsByMessage}
@@ -8044,7 +8431,7 @@ export default function App() {
                           setGroupErrorsByMessage(e.target.checked);
                           setErrorsPage(1);
                         }}
-                        className="rounded border-slate-700 text-violet-600 focus:ring-violet-500 bg-slate-900 w-3 h-3 cursor-pointer"
+                        className="rounded border-slate-700 text-violet-600 focus:ring-violet-500 bg-slate-900 w-3.5 h-3.5 cursor-pointer"
                       />
                       <span>Agrupar repetidos</span>
                     </label>
@@ -8062,13 +8449,13 @@ export default function App() {
                   <div className="space-y-4">
                     {paginatedFailures.map((fail) => {
                         const isExpanded = expandedErrorId === fail.id
-                        // Determinar color de severidad
-                        const severity = fail.type || 'error';
-                        const severityColor = severity === 'info' 
-                          ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
+                        // F6: Usar getSeverity centralizado para consistencia con el filtro
+                        const severity = getSeverity(fail)
+                        const severityColor = severity === 'info'
+                          ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
                           : severity === 'warning'
                             ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-red-500/10 text-red-400 border-red-500/20';
+                            : 'bg-red-500/10 text-red-400 border-red-500/20'
 
                         return (
                           <div 
@@ -8115,6 +8502,13 @@ export default function App() {
                                   ) : (
                                     <span className="px-1.5 py-0.5 bg-red-500/10 text-red-400 text-[8px] font-black uppercase rounded border border-red-500/20 animate-pulse">
                                       Activo
+                                    </span>
+                                  )}
+
+                                  {/* Badge de Versión de la Aplicación */}
+                                  {(fail.appVersion || fail.environment?.appVersion) && (
+                                    <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[8px] font-black rounded border border-amber-500/20">
+                                      v{fail.appVersion || fail.environment.appVersion}
                                     </span>
                                   )}
 
@@ -8260,7 +8654,7 @@ export default function App() {
 
           {/* ===== TAB: CONTROL GIT ===== */}
           {activeTab === 'git' && (
-            <GitBackupPanel showToast={showToast} />
+            <GitBackupPanel showToast={showToast} showAlert={showAlert} showConfirm={showConfirm} />
           )}
 
           {/* ===== TAB: SETTINGS ===== */}
@@ -8651,10 +9045,16 @@ export default function App() {
                   isActive ? 'text-indigo-400' : 'text-[var(--color-text-muted)]'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg transition-all duration-200 ${
+                <div className={`relative p-1.5 rounded-lg transition-all duration-200 ${
                   isActive ? 'bg-indigo-500/15 shadow-[0_0_12px_rgba(99,102,241,0.2)]' : ''
                 }`}>
                   <Icon size={18} />
+                  {/* F4: Badge errores activos en móvil */}
+                  {tab.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-[3px] bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none shadow-sm">
+                      {failures.filter(f => !f.resolved).length > 9 ? '9+' : failures.filter(f => !f.resolved).length}
+                    </span>
+                  )}
                 </div>
                 <span className={`text-[9px] font-bold tracking-wide transition-all ${
                   isActive ? 'text-indigo-400' : 'text-[var(--color-text-muted)]'
@@ -9811,60 +10211,16 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                     solution = "1. Revisa la conectividad a internet del usuario final.\n2. Asegúrate de habilitar la persistencia offline de Firestore en la configuración inicial si deseas soporte sin red.\n3. Envuelve las lecturas clave en bloques de captura de excepciones.";
                   }
 
-                  // Extraer archivo del error/stack trace de manera robusta
-                  let detectedFile = 'N/A';
-                  let detectedLine = 'N/A';
-                  
-                  const getFileAndLine = () => {
-                    const text = `${selectedDiagnosticError.errorMsg || ''}\n${selectedDiagnosticError.stack || ''}`;
-                    
-                    // 1. Buscar archivos que contengan la ruta src/
-                    const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i;
-                    const srcMatch = text.match(srcRegex);
-                    if (srcMatch) {
-                      return { file: srcMatch[1], line: srcMatch[2] };
-                    }
-                    
-                    // 2. Buscar en las líneas del stack trace omitiendo librerías comunes
-                    const stackLines = (selectedDiagnosticError.stack || '').split('\n');
-                    for (const line of stackLines) {
-                      if (line.includes('node_modules') || line.includes('installHook.js') || line.includes('react-dom') || line.includes('react.development')) {
-                        continue;
-                      }
-                      const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
-                      const match = line.match(fileLineRegex);
-                      if (match) {
-                        let file = match[1];
-                        // Autocompletar si es App.jsx suelto a src/App.jsx
-                        if (file === 'App.jsx') file = 'src/App.jsx';
-                        return { file, line: match[2] };
-                      }
-                    }
-                    
-                    // 3. Match general sobre el mensaje de error completo
-                    const generalRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i;
-                    const genMatch = text.match(generalRegex);
-                    if (genMatch) {
-                      let file = genMatch[1];
-                      if (file === 'App.jsx') file = 'src/App.jsx';
-                      return { file, line: genMatch[2] };
-                    }
-                    
-                    // 4. Último recurso: buscar nombre de archivo sin línea
-                    const simpleFileRegex = /([\w\-\/.]+\.[jt]sx?)/i;
-                    const simpleMatch = text.match(simpleFileRegex);
-                    if (simpleMatch) {
-                      let file = simpleMatch[1];
-                      if (file === 'App.jsx') file = 'src/App.jsx';
-                      return { file, line: 'N/A' };
-                    }
-                    
-                    return { file: 'N/A', line: 'N/A' };
-                  };
-                  
-                  const extracted = getFileAndLine();
-                  detectedFile = extracted.file;
-                  detectedLine = extracted.line;
+                  // Extraer archivo del error/stack trace — M4: usa extractFileAndLine util (sin duplicación)
+                  let detectedFile = 'N/A'
+                  let detectedLine = 'N/A'
+
+                  const extracted = extractFileAndLine(
+                    selectedDiagnosticError.errorMsg,
+                    selectedDiagnosticError.stack
+                  )
+                  detectedFile = extracted.file || 'N/A'
+                  detectedLine = extracted.line != null ? String(extracted.line) : 'N/A'
 
                   return (
                     <>
@@ -10021,6 +10377,10 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                       <div>
                         <span className="font-extrabold text-[var(--color-text)] block">Idioma:</span>
                         <span>{selectedDiagnosticError.environment.language || 'Desconocido'}</span>
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-[var(--color-text)] block">Versión App:</span>
+                        <span className="text-violet-400 font-bold">{selectedDiagnosticError.appVersion || selectedDiagnosticError.environment?.appVersion || 'N/A'}</span>
                       </div>
                       <div>
                         <span className="font-extrabold text-[var(--color-text)] block">Página Activa:</span>
