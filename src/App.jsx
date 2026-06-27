@@ -4868,6 +4868,68 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
+                    <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
+                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Contraste Botón Primario */}
+                        {(() => {
+                          const ratio = getContrastRatio(primaryColor, '#ffffff');
+                          const feedback = getContrastFeedback(ratio);
+                          return (
+                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
+                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
+                                  {feedback.text}
+                                </span>
+                                <div 
+                                  className="px-2 py-1 rounded text-[9px] font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: primaryColor }}
+                                >
+                                  Botón Primario
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Contraste Fondo vs Texto */}
+                        {(() => {
+                          const ratio = getContrastRatio(bgColor, textColor);
+                          const feedback = getContrastFeedback(ratio);
+                          return (
+                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
+                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
+                                  {feedback.text}
+                                </span>
+                                <div 
+                                  className="p-1 rounded text-[8px] border font-medium truncate max-w-[120px]"
+                                  style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
+                                >
+                                  Texto de Ejemplo
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 )}
 
