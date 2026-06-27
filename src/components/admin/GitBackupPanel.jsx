@@ -214,7 +214,11 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
     setLogs([])
     setStreamState('idle')
     setCommitMessage('')
-    setDoAutoMerge(true)
+    
+    // Auto-Merge habilitado por defecto solo si NO es una instancia de cliente
+    const isInstance = target.path?.includes('Instancias Clientes')
+    setDoAutoMerge(!isInstance)
+    
     fetchStatus(target)
     fetchCommits(target)
   }
@@ -647,8 +651,8 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
                     }`} />
                   </button>
                 </div>
-                {/* AutoMerge toggle — solo si push activo y rama != main */}
-                {doPush && gitStatus?.branch && gitStatus.branch !== 'main' && gitStatus.branch !== 'master' && (
+                {/* AutoMerge toggle — solo si push activo, rama != main y NO es una instancia de cliente */}
+                {doPush && gitStatus?.branch && gitStatus.branch !== 'main' && gitStatus.branch !== 'master' && !selected?.path?.includes('Instancias Clientes') && (
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <GitMerge size={13} className={doAutoMerge ? 'text-amber-400' : 'text-slate-500'} />
