@@ -57,9 +57,11 @@ import {
   Upload,
   RotateCcw,
   AlertCircle,
-  Calendar
+  Calendar,
+  Globe
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
+import html2canvas from 'html2canvas'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
   getFirestore, 
@@ -1323,6 +1325,155 @@ function DatePickerCustom({ value, onChange, placeholder = 'Seleccionar fecha' }
   );
 }
 
+function PeriodPickerCustom({ value, onChange, placeholder = 'Seleccionar periodo' }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const today = new Date();
+  
+  // Parsear el valor actual YYYY-MM
+  const parseValue = (val) => {
+    if (!val) return null;
+    const parts = val.split('-');
+    if (parts.length !== 2) return null;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+    return { year, month };
+  };
+
+  const parsed = parseValue(value);
+  const [viewYear, setViewYear] = useState(parsed ? parsed.year : today.getFullYear());
+
+  // Sincronizar el año de vista si cambia el valor externamente
+  useEffect(() => {
+    const p = parseValue(value);
+    if (p) {
+      setViewYear(p.year);
+    }
+  }, [value]);
+
+  const selectMonth = (mIndex) => {
+    const mm = String(mIndex + 1).padStart(2, '0');
+    onChange(`${viewYear}-${mm}`);
+    setOpen(false);
+  };
+
+  const prevYear = () => {
+    setViewYear(y => y - 1);
+  };
+
+  const nextYear = () => {
+    setViewYear(y => y + 1);
+  };
+
+  const isSelected = (mIndex) => {
+    return parsed && parsed.month === mIndex && parsed.year === viewYear;
+  };
+
+  const isCurrentMonth = (mIndex) => {
+    return today.getMonth() === mIndex && today.getFullYear() === viewYear;
+  };
+
+  // Formato legible: "Junio de 2026"
+  const getFormattedValue = () => {
+    if (!parsed) return placeholder;
+    const monthName = MONTHS_ES[parsed.month];
+    return `${monthName} de ${parsed.year}`;
+  };
+
+  return (
+    <div className="relative w-full animate-in fade-in duration-200" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between gap-1.5 px-3 py-2 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-xs text-[var(--color-text)] hover:border-emerald-500 transition-all cursor-pointer select-none font-bold outline-none w-full text-left min-h-[36px]"
+      >
+        <div className="flex items-center gap-2">
+          <Calendar size={13} className="text-emerald-500" />
+          <span>{getFormattedValue()}</span>
+        </div>
+        <ChevronDown size={12} className={`text-[var(--color-text-muted)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop con desenfoque y fondo oscuro */}
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9998]" onClick={() => setOpen(false)} />
+          
+          {/* Contenedor del Modal Centrado en Pantalla */}
+          <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 pointer-events-none">
+            <div className="pointer-events-auto w-[280px] bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-2xl p-4 text-[var(--color-text)] select-none animate-in fade-in-0 zoom-in-95 duration-150">
+              {/* Selector de Año */}
+              <div className="flex items-center justify-between mb-4 border-b border-[var(--color-border)] pb-2">
+                <button
+                  type="button"
+                  onClick={prevYear}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] bg-[var(--color-surface-2)] transition-all active:scale-90 cursor-pointer hover:bg-[var(--color-surface-3)]"
+                >
+                  <ChevronDown size={14} className="rotate-90 text-[var(--color-text)]" />
+                </button>
+                <span className="text-xs font-black tracking-wider text-emerald-500">
+                  {viewYear}
+                </span>
+                <button
+                  type="button"
+                  onClick={nextYear}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] bg-[var(--color-surface-2)] transition-all active:scale-90 cursor-pointer hover:bg-[var(--color-surface-3)]"
+                >
+                  <ChevronDown size={14} className="-rotate-90 text-[var(--color-text)]" />
+                </button>
+              </div>
+
+              {/* Grid de Meses (3 columnas x 4 filas) */}
+              <div className="grid grid-cols-3 gap-2">
+                {MONTHS_ES.map((monthName, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => selectMonth(i)}
+                    className={`h-9 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center border
+                      ${isSelected(i)
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-md font-black scale-105'
+                        : isCurrentMonth(i)
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 ring-1 ring-emerald-500/30'
+                        : 'bg-[var(--color-surface-2)]/40 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] border-transparent'
+                      }
+                    `}
+                  >
+                    {monthName.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Botón de limpiar y cerrar al pie del calendario */}
+              <div className="flex justify-between items-center mt-4 pt-2 border-t border-[var(--color-border)]">
+                <button
+                  type="button"
+                  onClick={() => { onChange(''); setOpen(false); }}
+                  className="text-[9px] text-[var(--color-text-muted)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] font-bold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-[var(--color-border)]"
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const mm = String(today.getMonth() + 1).padStart(2, '0');
+                    onChange(`${today.getFullYear()}-${mm}`);
+                    setOpen(false);
+                  }}
+                  className="text-[9px] font-bold px-2.5 py-1.5 rounded-lg text-white bg-emerald-600 hover:bg-emerald-500 transition-all cursor-pointer shadow-sm"
+                >
+                  Este mes
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const { showAlert, showConfirm } = useAlertConfirm()
   const { toast, showToast, hideToast } = useToast()
@@ -1570,7 +1721,7 @@ export default function App() {
   }, [selectedDiagnosticError])
 
   // Control de Tema Claro/Oscuro
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
+  const [theme, setTheme] = useState(() => localStorage.getItem('prototipe_dev_dashboard_theme') || 'dark')
 
   // Estados de carga, búsqueda y UI general
   const [isLoading, setIsLoading] = useState(true)
@@ -1667,12 +1818,12 @@ export default function App() {
     {
       id: 'recordatorio-urgente',
       name: 'Recordatorio Urgente',
-      body: '⚠️ *{cliente}*, tu saldo de comisión del mes *{periodo}* por *${comision}* aún no ha sido recibido. Por favor regulariza para evitar inconvenientes con el servicio.'
+      body: String.fromCodePoint(0x26A0) + '\uFE0F *{cliente}*, tu saldo de comisión del mes *{periodo}* por *${comision}* aún no ha sido recibido. Por favor regulariza para evitar inconvenientes con el servicio.'
     },
     {
       id: 'confirmacion-pago',
       name: 'Confirmación de Pago Recibido',
-      body: '✅ Hola *{cliente}*, confirmamos recibo del pago de comisión correspondiente al periodo *{periodo}* por *${comision}*. ¡Muchas gracias!'
+      body: String.fromCodePoint(0x2705) + ' Hola *{cliente}*, confirmamos recibo del pago de comisión correspondiente al periodo *{periodo}* por *${comision}*. ¡Muchas gracias!'
     }
   ])
   const [selectedWaTemplate, setSelectedWaTemplate] = useState('recordatorio-simple')
@@ -1681,6 +1832,7 @@ export default function App() {
   const [waComision, setWaComision] = useState('')
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [editingTemplateBody, setEditingTemplateBody] = useState('')
+  const [updatingReportId, setUpdatingReportId] = useState(null)
 
   // Listado unificado de clientes que envían telemetría
   const telemetryClientsList = useMemo(() => {
@@ -1741,8 +1893,30 @@ export default function App() {
     } else {
       document.documentElement.classList.remove('light')
     }
-    localStorage.setItem('theme', theme)
+    localStorage.setItem('prototipe_dev_dashboard_theme', theme)
   }, [theme])
+
+  // Limpieza de Service Workers obsoletos en la raíz (/) del origen
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          // Si el scope es la raíz (/) y no está restringido a /landing/, lo desregistramos
+          if (registration.scope && !registration.scope.includes('/landing/')) {
+            registration.unregister().then(success => {
+              if (success) {
+                console.log('[Service Worker Cleanup] Desregistrado SW de la raíz:', registration.scope);
+              }
+            }).catch(err => {
+              console.error('[Service Worker Cleanup] Error al desregistrar:', err);
+            });
+          }
+        }
+      }).catch(err => {
+        console.error('[Service Worker Cleanup] Error obteniendo registros:', err);
+      });
+    }
+  }, [])
 
   // Cola Reactiva de Despliegue Global
   useEffect(() => {
@@ -2091,6 +2265,7 @@ export default function App() {
     let unsubClientes = null
     let unsubTokens = null
     let unsubFailures = null
+    let unsubWaTemplates = null
 
     const cleanUpListeners = () => {
       if (typeof unsubDocs === 'function') {
@@ -2108,6 +2283,10 @@ export default function App() {
       if (typeof unsubFailures === 'function') {
         unsubFailures()
         unsubFailures = null
+      }
+      if (typeof unsubWaTemplates === 'function') {
+        unsubWaTemplates()
+        unsubWaTemplates = null
       }
     }
 
@@ -2179,6 +2358,85 @@ export default function App() {
             isFailuresInitialLoad = false
           }, (error) => {
             console.warn("Fallo al escuchar app_failures:", error)
+          })
+
+          // Escuchar plantillas de WhatsApp en tiempo real
+          const qWaTemplates = collection(dbInstance, 'whatsappTemplates')
+          unsubWaTemplates = onSnapshot(qWaTemplates, async (snapshot) => {
+            if (snapshot.empty) {
+              // Colección vacía: Autocuración. Guardar plantillas base por defecto
+              addLog("[Firestore] Colección whatsappTemplates vacía. Creando plantillas por defecto...", "info")
+              const defaultTemplates = [
+                {
+                  id: 'recordatorio-simple',
+                  name: 'Recordatorio Simple',
+                  body: 'Hola *{cliente}*, te informamos que la comisión del periodo *{periodo}* por valor de *${comision}* está pendiente. ¡Gracias por tu atención!'
+                },
+                {
+                  id: 'recordatorio-urgente',
+                  name: 'Recordatorio Urgente',
+                  body: String.fromCodePoint(0x26A0) + '\uFE0F *{cliente}*, tu saldo de comisión del mes *{periodo}* por *${comision}* aún no ha sido recibido. Por favor regulariza para evitar inconvenientes con el servicio.'
+                },
+                {
+                  id: 'confirmacion-pago',
+                  name: 'Confirmación de Pago Recibido',
+                  body: String.fromCodePoint(0x2705) + ' Hola *{cliente}*, confirmamos recibo del pago de comisión correspondiente al periodo *{periodo}* por *${comision}*. ¡Muchas gracias!'
+                }
+              ]
+              for (const t of defaultTemplates) {
+                try {
+                  await setDoc(doc(dbInstance, 'whatsappTemplates', t.id), t)
+                } catch (err) {
+                  console.error("Error al sembrar plantilla por defecto:", err)
+                }
+              }
+            } else {
+              const data = snapshot.docs.map(d => {
+                const docData = d.data()
+                let body = docData.body || ''
+                
+                // Determinar corrupción de forma robusta e infalible mediante prefijo unicode esperado
+                let hasCorruption = false
+                if (d.id === 'confirmacion-pago' && !body.startsWith(String.fromCodePoint(0x2705))) {
+                  hasCorruption = true
+                } else if (d.id === 'recordatorio-urgente' && !body.startsWith(String.fromCodePoint(0x26A0))) {
+                  hasCorruption = true
+                } else if (d.id === 'recordatorio-simple' && !body.startsWith('Hola')) {
+                  hasCorruption = true
+                }
+                
+                // También si incluye el caracter literal de reemplazo unicode en cualquier posición
+                if (body.includes('\uFFFD')) {
+                  hasCorruption = true
+                }
+                
+                if (hasCorruption) {
+                  if (d.id === 'confirmacion-pago') {
+                    body = String.fromCodePoint(0x2705) + ' Hola *{cliente}*, confirmamos recibo del pago de comisión correspondiente al periodo *{periodo}* por *${comision}*. ¡Muchas gracias!'
+                  } else if (d.id === 'recordatorio-urgente') {
+                    body = String.fromCodePoint(0x26A0) + '\uFE0F *{cliente}*, tu saldo de comisión del mes *{periodo}* por *${comision}* aún no ha sido recibido. Por favor regulariza para evitar inconvenientes con el servicio.'
+                  } else if (d.id === 'recordatorio-simple') {
+                    body = 'Hola *{cliente}*, te informamos que la comisión del periodo *{periodo}* por valor de *${comision}* está pendiente. ¡Gracias por tu atención!'
+                  }
+                  
+                  // Escribir la corrección en Firestore en segundo plano para limpiar la BD definitivamente
+                  if (!isSimulated) {
+                    const docRef = doc(dbInstance, 'whatsappTemplates', d.id)
+                    updateDoc(docRef, { body }).catch(e => console.error("Error al autocurar plantilla en Firestore:", e))
+                  }
+                }
+                
+                return {
+                  id: d.id,
+                  ...docData,
+                  body
+                }
+              })
+              setWaTemplates(data)
+              addLog(`Sincronizadas ${data.length} plantillas de cobro WhatsApp en tiempo real.`, "success")
+            }
+          }, (error) => {
+            console.warn("Fallo al escuchar whatsappTemplates:", error)
           })
         } catch (dbErr) {
           console.error("Error setting up Firestore listeners:", dbErr)
@@ -2334,6 +2592,8 @@ export default function App() {
 
   // Toggle estado de pago
   const handleTogglePayment = async (report) => {
+    if (updatingReportId === report.id) return
+
     const nuevoEstado = (report.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? 'pendiente' : 'pagado'
     
     const confirmed = await showConfirm({
@@ -2346,29 +2606,30 @@ export default function App() {
     
     if (!confirmed) return
 
+    setUpdatingReportId(report.id)
     addLog(`Cambiando estado de pago para ${report.clientId} (${report.periodo}) a ${nuevoEstado.toUpperCase()}...`, "info")
     
-    if (isSimulated) {
-      setReports(prev => prev.map(r => r.id === report.id ? { 
-        ...r, 
-        estadoPago: nuevoEstado,
-        updatedAt: { toDate: () => new Date() }
-      } : r))
-      
-      // Actualizar inspector si está abierto
-      if (selectedReport && selectedReport.id === report.id) {
-        setSelectedReport(prev => ({ ...prev, estadoPago: nuevoEstado, updatedAt: { toDate: () => new Date() } }))
-      }
-      addLog(`[Sandbox] Estado de pago actualizado localmente para ${report.clientId}.`, "success")
-      showToast(`[Sandbox] Pago actualizado a ${nuevoEstado}`, { type: 'success' })
-      return
-    }
-
-    const centralApp = getCentralApp()
-    if (!centralApp) return
-    const dbInstance = getFirestore(centralApp)
-
     try {
+      if (isSimulated) {
+        setReports(prev => prev.map(r => r.id === report.id ? { 
+          ...r, 
+          estadoPago: nuevoEstado,
+          updatedAt: { toDate: () => new Date() }
+        } : r))
+        
+        // Actualizar inspector si está abierto
+        if (selectedReport && selectedReport.id === report.id) {
+          setSelectedReport(prev => ({ ...prev, estadoPago: nuevoEstado, updatedAt: { toDate: () => new Date() } }))
+        }
+        addLog(`[Sandbox] Estado de pago actualizado localmente para ${report.clientId}.`, "success")
+        showToast(`[Sandbox] Pago actualizado a ${nuevoEstado}`, { type: 'success' })
+        return
+      }
+
+      const centralApp = getCentralApp()
+      if (!centralApp) return
+      const dbInstance = getFirestore(centralApp)
+
       const docRef = doc(dbInstance, 'reportesBilling', report.id)
       await updateDoc(docRef, {
         estadoPago: nuevoEstado,
@@ -2380,6 +2641,8 @@ export default function App() {
       console.error("Error actualizando pago:", err)
       addLog(`Error al guardar estado de pago: ${err.message}`, "error")
       showToast(`Error al actualizar pago: ${err.message}`, { type: 'error' })
+    } finally {
+      setUpdatingReportId(null)
     }
   }
 
@@ -3456,6 +3719,8 @@ export default function App() {
       const tokenDoc = telemetryTokens.find(t => t.clientId === targetClient)
       const activeToken = tokenDoc ? tokenDoc.id : DEV_TOKEN
       const docRef = doc(dbInstance, 'reportesBilling', reportId)
+      
+      // 1. Crear el reporte de prueba/pendiente en la base de datos central
       await setDoc(docRef, {
         clientId: targetClient,
         token: activeToken,
@@ -3466,7 +3731,14 @@ export default function App() {
         estadoPago: 'pendiente',
         updatedAt: serverTimestamp()
       })
-      addLog(`[Firestore] Telemetría enviada con éxito a la nube central.`, "success", targetClient)
+
+      // 2. Disparar el trigger en el cliente a través de clientes_control para que se actualice dinámicamente con sus métricas reales
+      const clientRef = doc(dbInstance, 'clientes_control', targetClient.toLowerCase())
+      await updateDoc(clientRef, {
+        triggerTelemetryReport: Date.now()
+      })
+      
+      addLog(`[Firestore] Telemetría de prueba enviada e instanciado el trigger de respuesta para ${targetClient}.`, "success", targetClient)
     } catch (err) {
       console.error(err)
       addLog(`Error al enviar telemetría: ${err.message}`, "error")
@@ -6132,30 +6404,88 @@ export default function App() {
   const getWaPreview = () => {
     const tmpl = waTemplates.find(t => t.id === selectedWaTemplate)
     if (!tmpl) return ''
-    const clientPending = reports
-      .filter(r => r.clientId === waClientId && (r.estadoPago || 'pendiente') === 'pendiente')
+
+    // Calcular comisiones del periodo seleccionado
+    const reportPeriodoActual = reports.find(r => r.clientId === waClientId && r.periodo === waPeriodo)
+    const comisionPeriodoActual = reportPeriodoActual ? (reportPeriodoActual.comisionValor || 0) : 0
+
+    // Calcular comisiones pendientes de otros periodos
+    const comisionOtrosPeriodos = reports
+      .filter(r => r.clientId === waClientId && r.periodo !== waPeriodo && (r.estadoPago || 'pendiente').toLowerCase() === 'pendiente')
       .reduce((sum, r) => sum + (r.comisionValor || 0), 0)
-    const comVal = waComision || clientPending.toLocaleString('es-CO')
-    return tmpl.body
-      .replace(/{cliente}/g, waClientId || '{cliente}')
-      .replace(/{periodo}/g, waPeriodo || '{periodo}')
-      .replace(/{comision}/g, comVal || '{comision}')
+
+    // Formatear comisión manual o calculada del periodo
+    let comValRaw = waComision
+    if (!comValRaw) {
+      comValRaw = waClientId ? comisionPeriodoActual.toLocaleString('es-CO') : '[Monto]'
+    } else {
+      // B3: Sanitizar quitando cualquier caracter no numérico ($ o puntos/comas si el usuario los mete)
+      // para evitar duplicidad de signo de moneda o formato corrupto
+      comValRaw = comValRaw.replace(/[$\s]/g, '')
+    }
+
+    // Si la comisión final resulta vacía o no hay cliente y es 0, mostramos placeholder amigable
+    if (!comValRaw || (comValRaw === '0' && !waClientId)) {
+      comValRaw = '[Monto]'
+    }
+
+    let msg = tmpl.body
+      .replace(/{cliente}/g, waClientId || '[Cliente]')
+      .replace(/{periodo}/g, waPeriodo || '[Periodo]')
+      .replace(/{comision}/g, comValRaw)
+
+    // Si hay saldos vencidos de otros periodos, añadir una nota explicativa clara al final
+    if (comisionOtrosPeriodos > 0 && waClientId) {
+      msg += `\n\n*Nota:* Registramos un saldo pendiente de periodos anteriores por valor de *$${comisionOtrosPeriodos.toLocaleString('es-CO')}*.`
+    }
+
+    return msg
   }
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     const msg = getWaPreview()
     if (!msg.trim()) {
       showToast('Completa los campos del mensaje', { type: 'error' })
       return
     }
+
+    // B4 / F1: Actualizar la última transmisión en el reporte del período
+    if (waClientId && waPeriodo) {
+      const report = reports.find(r => r.clientId === waClientId && r.periodo === waPeriodo)
+      if (report) {
+        if (!isSimulated) {
+          const centralApp = getCentralApp()
+          if (centralApp) {
+            try {
+              const dbInstance = getFirestore(centralApp)
+              const docRef = doc(dbInstance, 'reportesBilling', report.id)
+              await updateDoc(docRef, {
+                ultimaTransmision: serverTimestamp()
+              })
+              addLog(`[Firestore] Registro de transmisión de cobro guardado para ${report.clientId} (${report.periodo}).`, "success")
+            } catch (err) {
+              console.error("Error al registrar transmisión:", err)
+            }
+          }
+        } else {
+          // En sandbox, simular actualización local
+          setReports(prev => prev.map(r => r.id === report.id ? {
+            ...r,
+            ultimaTransmision: { toDate: () => new Date() }
+          } : r))
+          addLog(`[Sandbox] Registro de transmisión simulado para ${report.clientId} (${report.periodo}).`, "success")
+        }
+      }
+    }
+
     const encoded = encodeURIComponent(msg)
-    window.open(`https://wa.me/?text=${encoded}`, '_blank')
+    window.open(`https://api.whatsapp.com/send/?text=${encoded}`, '_blank')
     showToast('Abriendo WhatsApp con el mensaje...', { type: 'success' })
   }
 
   const handleCopyWaMessage = () => {
     const msg = getWaPreview()
-    copy(msg)
+    navigator.clipboard.writeText(msg)
     showToast('Mensaje copiado al portapapeles ✓', { type: 'success' })
   }
 
@@ -6384,6 +6714,17 @@ export default function App() {
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">Visión consolidada de ingresos y estado del sistema en tiempo real.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:flex sm:flex-row gap-2 w-full lg:w-auto items-center shrink-0">
+                  {/* Acceso a Landing Page para atracción de clientes */}
+                  <a 
+                    href="/landing/index.html" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2.5 sm:py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-[var(--color-border)] active:scale-[0.98] cursor-pointer w-full sm:w-auto"
+                  >
+                    <Globe size={13} className="text-violet-400 animate-pulse" />
+                    <span>Ver Landing Page</span>
+                  </a>
+
                   {/* Selector de Periodo Premium */}
                   <div ref={periodPickerRef} className="relative w-full sm:w-auto">
                     <button 
@@ -7737,7 +8078,8 @@ export default function App() {
                           <th className="p-4 text-center uppercase tracking-wider text-[10px]">Tarifa</th>
                           <th className="p-4 text-right uppercase tracking-wider text-[10px]">Comisión</th>
                           <th className="p-4 text-center uppercase tracking-wider text-[10px]">Estado</th>
-                          <th className="p-4 pr-5 text-right uppercase tracking-wider text-[10px]">Transmisión</th>
+                          <th className="p-4 text-center uppercase tracking-wider text-[10px]">Transmisión</th>
+                          <th className="p-4 pr-5 text-right uppercase tracking-wider text-[10px]">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--color-border)]">
@@ -7764,19 +8106,55 @@ export default function App() {
                               })()}
                             </td>
                             <td className="p-4 text-right font-mono font-extrabold text-indigo-600 dark:text-indigo-300">${report.comisionValor.toLocaleString('es-CO')}</td>
-                            <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => handleTogglePayment(report)}
-                                className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all duration-300 cursor-pointer flex items-center gap-1.5 mx-auto ${
-                                  report.estadoPago === 'pagado'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                                }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${report.estadoPago === 'pagado' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                            <td className="p-4 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                report.estadoPago === 'pagado'
+                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                              }`}>
                                 {report.estadoPago === 'pagado' ? 'Pagado' : 'Pendiente'}
-                              </button>
+                              </span>
                             </td>
-                            <td className="p-4 pr-5 text-right font-mono text-[10px] text-[var(--color-text-muted)] opacity-80">
-                              {report.updatedAt?.toDate ? report.updatedAt.toDate().toLocaleDateString('es-CO') : 'Reciente'}
+                            <td className="p-4 text-center font-mono text-[10px] text-[var(--color-text-muted)] opacity-85">
+                              {report.ultimaTransmision?.toDate 
+                                ? report.ultimaTransmision.toDate().toLocaleDateString('es-CO')
+                                : <span className="opacity-40 italic">No cobrado</span>}
+                            </td>
+                            <td className="p-4 pr-5 text-right font-mono text-[10px]" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-2">
+                                {/* Botón de cambio de estado de pago (Toggle) con indicador de carga */}
+                                <button onClick={() => handleTogglePayment(report)}
+                                  disabled={updatingReportId === report.id}
+                                  className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border transition-all duration-200 cursor-pointer flex items-center gap-1 active:scale-[0.98] ${
+                                    updatingReportId === report.id ? 'opacity-50 cursor-not-allowed border-[var(--color-border)]' : ''
+                                  } ${
+                                    report.estadoPago === 'pagado'
+                                      ? 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-600/20'
+                                      : 'bg-amber-600/10 text-amber-400 border-amber-500/20 hover:bg-amber-600/20'
+                                  }`}>
+                                  {updatingReportId === report.id ? (
+                                    <>
+                                      <RefreshCw size={10} className="animate-spin text-indigo-400" />
+                                      Cargando
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle size={10} className={report.estadoPago === 'pagado' ? 'text-emerald-400' : 'text-amber-400'} />
+                                      {report.estadoPago === 'pagado' ? 'Pendiente' : 'Aprobar'}
+                                    </>
+                                  )}
+                                </button>
+
+                                {/* Botón Descargar Soporte PDF */}
+                                <button onClick={() => {
+                                    exportCommissionReceiptPDF(report)
+                                    showToast('Descargando comprobante PDF...', { type: 'success' })
+                                  }}
+                                  title="Descargar Soporte PDF"
+                                  className="p-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 rounded-lg hover:scale-[1.05] active:scale-[0.98] cursor-pointer transition-all">
+                                  <Download size={11} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -7817,13 +8195,12 @@ export default function App() {
                         <CustomSelect
                           value={waClientId}
                           onChange={e => setWaClientId(e.target.value)}
-                          options={[{ id: '', name: '-- Seleccionar --' }, ...Object.keys(clientAggregated).map(k => ({ id: k, name: k }))]}
+                          options={[{ id: '', name: '-- Seleccionar --' }, ...clientesSaas.map(c => ({ id: c.id, name: c.id }))] }
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[9px] uppercase font-bold text-[var(--color-text-muted)] block">Periodo ({'{periodo}'})</label>
-                        <input type="month" value={waPeriodo} onChange={e => setWaPeriodo(e.target.value)}
-                          className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 w-full" />
+                        <PeriodPickerCustom value={waPeriodo} onChange={setWaPeriodo} />
                       </div>
                       <div className="space-y-1 sm:col-span-2">
                         <label className="text-[9px] uppercase font-bold text-[var(--color-text-muted)] block">Comisión Manual ({'{comision}'}) <span className="font-normal">— Opcional, se auto-calcula si está vacío</span></label>
@@ -7838,8 +8215,25 @@ export default function App() {
                         <textarea rows={4} value={editingTemplateBody} onChange={e => setEditingTemplateBody(e.target.value)}
                           className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 w-full resize-none font-mono" />
                         <div className="flex gap-2">
-                          <button onClick={() => {
-                              setWaTemplates(prev => prev.map(t => t.id === editingTemplate ? { ...t, body: editingTemplateBody } : t))
+                          <button onClick={async () => {
+                              if (isSimulated) {
+                                setWaTemplates(prev => prev.map(t => t.id === editingTemplate ? { ...t, body: editingTemplateBody } : t))
+                              } else {
+                                const centralApp = getCentralApp()
+                                if (centralApp) {
+                                  try {
+                                    const dbInstance = getFirestore(centralApp)
+                                    const docRef = doc(dbInstance, 'whatsappTemplates', editingTemplate)
+                                    await updateDoc(docRef, {
+                                      body: editingTemplateBody
+                                    })
+                                    addLog(`[Firestore] Plantilla de WhatsApp [${editingTemplate}] actualizada con éxito.`, "success")
+                                  } catch (err) {
+                                    console.error("Error actualizando plantilla en Firestore:", err)
+                                    showToast(`Error al guardar: ${err.message}`, { type: 'error' })
+                                  }
+                                }
+                              }
                               setEditingTemplate(null)
                               showToast('Plantilla actualizada', { type: 'success' })
                             }}
@@ -9562,7 +9956,7 @@ export default function App() {
                 <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Historial de Transacciones</h4>
                 <button
                   onClick={() => {
-                    exportGeneralMetricsPDF({ totalComision, totalCobrado, totalPendiente, clientesActivos }, chartData, { projExistingMonthly, projTotalMonthly, projTotalYear })
+                    exportGeneralMetricsPDF({ totalComision, totalCobrado, totalPendiente, clientesActivos }, chartData, { projNewClients, projAvgSales, projRate, projMonths, projExistingMonthly, projTotalMonthly, projTotalYear })
                     addLog('Reporte general de métricas exportado a PDF.', 'success')
                   }}
                   className="px-2.5 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/30 text-violet-400 text-[9px] font-bold rounded-lg cursor-pointer transition-all active:scale-95 flex items-center gap-1"

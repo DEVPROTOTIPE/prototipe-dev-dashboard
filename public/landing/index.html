@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="canonical" href="https://prototipe.com/" />
+  
+  <!-- SEO Básico y Avanzado -->
+  <title>PROTOTIPE - Herramientas a la Medida para Organizar tu Negocio</title>
+  <meta name="description" content="En PROTOTIPE creamos aplicaciones personalizadas que te ayudan a controlar ventas, clientes, inventarios, citas y tareas de forma simple y organizada." />
+  <meta name="robots" content="index, follow" />
+  
+  <!-- Esquema de Datos Estructurados JSON-LD (SEO Google) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "PROTOTIPE",
+    "image": "https://prototipe.com/assets/og-image.png",
+    "@id": "https://prototipe.com/#website",
+    "url": "https://prototipe.com/",
+    "telephone": "+573167527660",
+    "priceRange": "$$",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Bogotá",
+      "addressCountry": "CO"
+    },
+    "description": "En PROTOTIPE creamos aplicaciones personalizadas y herramientas a la medida que ayudan a controlar ventas, clientes, inventarios, citas y tareas de forma simple.",
+    "providerMobility": "dynamic",
+    "areaServed": [
+      {
+        "@type": "AdministrativeArea",
+        "name": "Colombia"
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "América Latina"
+      }
+    ]
+  }
+  </script>
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="PROTOTIPE - Herramientas a la Medida para Organizar tu Negocio" />
+  <meta property="og:description" content="En PROTOTIPE creamos aplicaciones personalizadas que te ayudan a controlar ventas, clientes, inventarios, citas y tareas de forma simple y organizada." />
+  <meta property="og:url" content="https://prototipe.com/" />
+  <meta property="og:image" content="https://prototipe.com/assets/og-image.png" />
+  <meta property="og:locale" content="es_ES" />
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PROTOTIPE - Herramientas a la Medida para Organizar tu Negocio" />
+  <meta name="twitter:description" content="En PROTOTIPE creamos aplicaciones personalizadas que te ayudan a controlar ventas, clientes, inventarios, citas y tareas de forma simple y organizada." />
+  <meta name="twitter:image" content="https://prototipe.com/assets/og-image.png" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563EB' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m12 2-10 5 10 5 10-5-10-5Z'/><path d='m2 17 10 5 10-5'/><path d='m2 12 10 5 10-5'/></svg>" />
+  
+  <!-- Google Fonts - Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    // Script Anti-Flash de Tema Oscuro antes del Renderizado
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
+
+    <link rel="stylesheet" href="css/styles.css?v=3.1">
+</head>
+<body>
+
+  <!-- SCROLL PROGRESS BAR -->
+  <div id="scroll-progress-bar" aria-hidden="true"></div>
+
+  <!-- HEADER / NAVBAR -->
+  <header>
+    <div class="container">
+      <nav class="navbar">
+        <a href="#" class="logo-container">
+          <svg class="logo-svg" viewBox="0 0 24 24">
+            <path d="m12 2-10 5 10 5 10-5-10-5Z"/>
+            <path d="m2 17 10 5 10-5"/>
+            <path d="m2 12 10 5 10-5"/>
+          </svg>
+          <span class="logo-text">PROTOTIPE</span>
+        </a>
+
+        <ul class="nav-links" id="navbar-menu">
+          <li><a href="#problema">El Problema</a></li>
+          <li><a href="#solucion">La Solución</a></li>
+          <li><a href="#beneficios">Beneficios</a></li>
+          <li><a href="#como-funciona">Cómo Funciona</a></li>
+          <li><a href="#soporte">Soporte</a></li>
+          <li>
+            <a href="https://api.whatsapp.com/send?phone=573167527660&text=Hola,%20quiero%20solicitar%20un%20diagn%C3%B3stico%20gratuito%20de%20mi%20negocio." 
+               class="btn btn-primary btn-navbar" 
+               target="_blank" 
+               rel="noopener noreferrer">
+              Asesoría Gratis
+            </a>
+          </li>
+        </ul>
+
+        <div class="nav-actions">
+          <button class="theme-toggle-btn" id="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+            </svg>
+          </button>
+          <div class="menu-toggle" id="menu-hamburger" aria-label="Menu de navegación">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. HERO PRINCIPAL -->
+    <section id="hero">
+      <canvas id="hero-canvas" aria-hidden="true"></canvas>
+      <div class="glow-blob glow-blob-primary" aria-hidden="true"></div>
+      <div class="glow-blob glow-blob-secondary" aria-hidden="true"></div>
+      <div class="container">
+        <div class="hero-grid">
+          <div class="hero-content reveal">
+            
+            <h1>Detén las fugas de dinero y toma el control total de tu negocio con una herramienta diseñada para ti.</h1>
+            <p class="hero-desc">En PROTOTIPE creamos aplicaciones personalizadas que ayudan a controlar ventas, clientes, inventarios, citas, tareas y procesos de forma simple y organizada.</p>
+            <div class="hero-actions">
+              <a href="https://api.whatsapp.com/send?phone=573167527660&text=Hola,%20quiero%20solicitar%20una%20asesor%C3%ADa%20gratuita." 
+                 class="btn btn-primary" 
+                 target="_blank" 
+                 rel="noopener noreferrer">
+                <span>Solicitar asesoría gratuita</span>
+              </a>
+              <a href="#como-funciona" class="btn btn-secondary">
+                <span>Conocer cómo funciona</span>
+              </a>
+            </div>
+            <!-- Trust Badges -->
+            <div class="hero-trust-badges">
+              <span>Sin costos ocultos</span>
+              <span>Soporte directo por WhatsApp</span>
+              <span>Adaptado a tu negocio</span>
+            </div>
+          </div>
+          <div class="hero-illustration-wrapper reveal">
+            <div class="svg-interactive-hint">Pruébame 👆</div>
+            <!-- Ilustración SVG amigable de orden de negocio -->
+            <svg class="hero-illustration" viewBox="0 0 500 450" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg-hero-title svg-hero-desc">
+              <title id="svg-hero-title">Ilustración del Sistema Administrativo PROTOTIPE</title>
+              <desc id="svg-hero-desc">Diagrama interactivo que muestra las ventas del mes, una lista de control de tareas y los últimos pedidos del negocio organizados.</desc>
+              <!-- Fondo de Ilustración -->
+              <rect x="30" y="50" width="440" height="340" rx="20" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="2"/>
+              <rect x="50" y="30" width="400" height="340" rx="16" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="2"/>
+              
+              <!-- Barra Superior de Navegación del Sistema -->
+              <line x1="50" y1="75" x2="450" y2="75" stroke="var(--color-border)" stroke-width="2"/>
+              <circle cx="75" cy="52" r="6" fill="#ef4444"/>
+              <circle cx="95" cy="52" r="6" fill="#f59e0b"/>
+              <circle cx="115" cy="52" r="6" fill="#10b981"/>
+              
+              <!-- Píldora LIVE -->
+              <g class="svg-live-badge">
+                <rect x="340" y="42" width="90" height="20" rx="10" fill="var(--color-success-light)" stroke="var(--color-success)" stroke-width="1"/>
+                <circle cx="355" cy="52" r="3.5" fill="var(--color-success)" class="svg-live-dot"/>
+                <text x="365" y="56" fill="var(--color-success)" font-family="sans-serif" font-weight="bold" font-size="10" letter-spacing="0.05em">LIVE</text>
+              </g>
+              
+              <!-- Elemento de Reporte/Gráfico -->
+              <g class="svg-card-interactive" data-dashboard-module="ventas" tabindex="0" role="button" aria-label="Abrir módulo interactivo de Ventas del Mes">
+                <rect x="80" y="110" width="160" height="110" rx="10" fill="var(--color-bg)" stroke="var(--color-border)" stroke-width="1.5"/>
+                <path class="svg-chart-line" d="M100 190 C115 160, 130 150, 145 170 C160 190, 175 125, 190 125 C205 125, 215 130, 235 90" stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round"/>
+                
+                <!-- Guías verticales para el hover -->
+                <line class="svg-chart-guide" x1="145" y1="110" x2="145" y2="210" stroke="var(--color-primary)" stroke-width="1" stroke-dasharray="2 2" opacity="0" style="transition: opacity 0.25s; pointer-events: none;"/>
+                <line class="svg-chart-guide" x1="190" y1="110" x2="190" y2="210" stroke="var(--color-primary)" stroke-width="1" stroke-dasharray="2 2" opacity="0" style="transition: opacity 0.25s; pointer-events: none;"/>
+                <line class="svg-chart-guide" x1="235" y1="110" x2="235" y2="210" stroke="var(--color-primary)" stroke-width="1" stroke-dasharray="2 2" opacity="0" style="transition: opacity 0.25s; pointer-events: none;"/>
+
+                <circle class="svg-chart-dot-hit" data-index="1" data-val="$350,000" cx="145" cy="170" r="10" fill="transparent" style="cursor: pointer;"/>
+                <circle class="svg-chart-dot" cx="145" cy="170" r="4" fill="var(--color-primary)" style="transition: r 0.25s, fill 0.25s; pointer-events: none;"/>
+
+                <circle class="svg-chart-dot-hit" data-index="2" data-val="$420,000" cx="190" cy="125" r="10" fill="transparent" style="cursor: pointer;"/>
+                <circle class="svg-chart-dot svg-chart-dot-delayed" cx="190" cy="125" r="4" fill="var(--color-primary)" style="transition: r 0.25s, fill 0.25s; pointer-events: none;"/>
+
+                <circle class="svg-chart-dot-glow" cx="235" cy="90" r="10" fill="var(--color-primary)" style="pointer-events: none;"/>
+                <circle class="svg-chart-dot-hit" data-index="3" data-val="$520,000" cx="235" cy="90" r="12" fill="transparent" style="cursor: pointer;"/>
+                <circle class="svg-chart-dot-growing" cx="235" cy="90" r="4" fill="var(--color-primary)" style="transition: r 0.25s; pointer-events: none;"/>
+
+                <text x="95" y="135" fill="var(--color-text-main)" font-family="sans-serif" font-weight="bold" font-size="12">Ventas del Mes</text>
+
+                <!-- Tooltip del gráfico dentro del SVG -->
+                <g id="svg-chart-tooltip" opacity="0" transform="translate(0, 0)" style="transition: opacity 0.25s, transform 0.25s; pointer-events: none;">
+                  <rect x="0" y="0" width="56" height="18" rx="4" fill="var(--color-primary)" opacity="0.95"/>
+                  <text x="28" y="12" fill="#ffffff" font-family="sans-serif" font-size="9" font-weight="bold" text-anchor="middle">value</text>
+                </g>
+              </g>
+              
+              <!-- Lista de Tareas Ordenada (Checklist) -->
+              <g class="svg-card-interactive" data-dashboard-module="tareas" tabindex="0" role="button" aria-label="Abrir lista de control interactiva">
+                <rect x="260" y="110" width="160" height="110" rx="10" fill="var(--color-bg)" stroke="var(--color-border)" stroke-width="1.5"/>
+                <text x="275" y="135" fill="var(--color-text-main)" font-family="sans-serif" font-weight="bold" font-size="12">Lista de Control</text>
+                
+                <g class="svg-todo-item" data-checked="true" data-index="1">
+                  <rect class="todo-chk-rect" x="275" y="152" width="12" height="12" rx="3" fill="#10b981"/>
+                  <path class="todo-chk-path" d="M278 158 l2 2 l4 -4" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line class="todo-text-line" x1="295" y1="158" x2="390" y2="158" stroke="var(--color-text-muted)" stroke-width="2"/>
+                </g>
+                
+                <g class="svg-todo-item" data-checked="true" data-index="2">
+                  <rect class="todo-chk-rect" x="275" y="172" width="12" height="12" rx="3" fill="#10b981"/>
+                  <path class="todo-chk-path" d="M278 178 l2 2 l4 -4" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <line class="todo-text-line" x1="295" y1="178" x2="370" y2="178" stroke="var(--color-text-muted)" stroke-width="2"/>
+                </g>
+
+                <g class="svg-todo-item" data-checked="false" data-index="3">
+                  <rect class="todo-chk-rect" x="275" y="192" width="12" height="12" rx="3" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1.5"/>
+                  <path class="todo-chk-path" d="M278 198 l2 2 l4 -4" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0;"/>
+                  <line class="todo-text-line" x1="295" y1="198" x2="385" y2="198" stroke="var(--color-text-main)" stroke-width="2"/>
+                </g>
+              </g>
+              
+              <!-- Vista de Inventario / Base de Datos Simplificada -->
+              <g class="svg-card-interactive" data-dashboard-module="pedidos" tabindex="0" role="button" aria-label="Abrir monitor de pedidos interactivo">
+                <rect x="80" y="240" width="340" height="100" rx="10" fill="var(--color-bg)" stroke="var(--color-border)" stroke-width="1.5"/>
+                <text x="95" y="265" fill="var(--color-text-main)" font-family="sans-serif" font-weight="bold" font-size="12">Últimos Pedidos</text>
+                
+                <circle cx="105" cy="295" r="12" fill="var(--color-primary-light)"/>
+                <path d="M102 295 h6 M105 292 v6" stroke="var(--color-primary)" stroke-width="2"/>
+                <rect x="130" y="290" width="80" height="10" rx="3" fill="var(--color-text-main)"/>
+                <rect x="130" y="305" width="50" height="8" rx="2" fill="var(--color-text-muted)"/>
+                
+                <g class="svg-interactive-status" data-status="entregado">
+                  <rect class="status-rect" x="320" y="290" width="80" height="20" rx="10" fill="var(--color-success-light)" stroke="var(--color-success)" stroke-width="1" style="transition: fill 0.25s, stroke 0.25s;"/>
+                  <text class="status-text" x="360" y="304" text-anchor="middle" fill="var(--color-success)" font-family="sans-serif" font-weight="bold" font-size="10" style="transition: fill 0.25s;">Entregado</text>
+                </g>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECCIÓN RUBROS -->
+    <section id="rubros">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>¿Qué tipo de negocio tienes?</h2>
+          <p>Trabajamos con todo tipo de negocios. Si lo atiendes tú o tu equipo todos los días, podemos ayudarte a organizarlo. <span class="mobile-tap-hint">Toca una tarjeta para ver un ejemplo del sistema.</span></p>
+        </div>
+        <div class="rubros-grid reveal">
+          <!-- Tarjeta 1: Ferretería -->
+          <div class="rubro-card" data-rubro="Ferretería" tabindex="0" role="button" aria-label="Solución para Ferretería">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🔩</div>
+              <div class="rubro-label">Ferretería</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Ferretería</h4>
+              <p>Buscador rápido de tornillos, stock de tubos y alertas automáticas de reposición.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 2: Restaurante -->
+          <div class="rubro-card" data-rubro="Restaurante" tabindex="0" role="button" aria-label="Solución para Restaurante">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🍽️</div>
+              <div class="rubro-label">Restaurante</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Restaurante</h4>
+              <p>Toma de pedidos en mesa, control de caja diaria y comanda directa a cocina.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 3: Taller Mecánico -->
+          <div class="rubro-card" data-rubro="Taller Mecánico" tabindex="0" role="button" aria-label="Solución para Taller Mecánico">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🔧</div>
+              <div class="rubro-label">Taller Mecánico</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Taller Mecánico</h4>
+              <p>Registro de placas, orden de trabajo, repuestos usados y abonos de clientes.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 4: Peluquería -->
+          <div class="rubro-card" data-rubro="Peluquería" tabindex="0" role="button" aria-label="Solución para Peluquería">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">✂️</div>
+              <div class="rubro-label">Peluquería</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Peluquería</h4>
+              <p>Agenda interactiva de citas, recordatorios por WhatsApp y comisiones de estilistas.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 5: Tienda de Barrio -->
+          <div class="rubro-card" data-rubro="Tienda de Barrio" tabindex="0" role="button" aria-label="Solución para Tienda de Barrio">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🛒</div>
+              <div class="rubro-label">Tienda de Barrio</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Tienda de Barrio</h4>
+              <p>Ventas rápidas con escáner, control de fiados y balance de ganancias del día.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 6: Farmacia -->
+          <div class="rubro-card" data-rubro="Farmacia" tabindex="0" role="button" aria-label="Solución para Farmacia">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">💊</div>
+              <div class="rubro-label">Farmacia</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Farmacia</h4>
+              <p>Control de fechas de vencimiento, stock mínimo y búsqueda por principio activo.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 7: Emprendimiento -->
+          <div class="rubro-card" data-rubro="Emprendimiento" tabindex="0" role="button" aria-label="Solución para Emprendimiento">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🌱</div>
+              <div class="rubro-label">Emprendimiento</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Emprendimiento</h4>
+              <p>Catálogo digital en vivo para clientes y recepción de pedidos directo a tu WhatsApp.</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta 8: Negocio Familiar -->
+          <div class="rubro-card" data-rubro="Negocio Familiar" tabindex="0" role="button" aria-label="Solución para Negocio Familiar">
+            <div class="rubro-card-content">
+              <div class="rubro-emoji">🏠</div>
+              <div class="rubro-label">Negocio Familiar</div>
+              <span class="rubro-tap-hint">Toca para ver 👆</span>
+            </div>
+            <div class="rubro-overlay">
+              <h4>Negocio Familiar</h4>
+              <p>Caja registradora compartida, control de gastos y roles sencillos para la familia.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TARJETA TRIGGER DE CALCULADORA COLAPSADA (CRO) -->
+        <div class="configurador-trigger-card glass-card reveal" id="configurador-trigger" tabindex="0" role="button" aria-label="Abrir Calculadora de Diagnóstico Express">
+          <div class="trigger-icon-wrapper">
+            <svg class="calculator-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+              <line x1="8" y1="6" x2="16" y2="6"></line>
+              <line x1="16" y1="14" x2="16" y2="18"></line>
+              <line x1="16" y1="10" x2="16" y2="10"></line>
+              <line x1="12" y1="10" x2="12" y2="10"></line>
+              <line x1="8" y1="10" x2="8" y2="10"></line>
+              <line x1="12" y1="14" x2="12" y2="14"></line>
+              <line x1="8" y1="14" x2="8" y2="14"></line>
+              <line x1="12" y1="18" x2="12" y2="18"></line>
+              <line x1="8" y1="18" x2="8" y2="18"></line>
+            </svg>
+          </div>
+          <div class="trigger-text-wrapper">
+            <h4>¿Quieres ver un ejemplo del sistema para tu negocio?</h4>
+            <p>Calcula un diagnóstico express y una recomendación automatizada en menos de 30 segundos. ¡Haz clic para abrir!</p>
+          </div>
+          <div class="trigger-arrow">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </div>
+        </div>
+
+        <!-- CALCULADORA DE DIAGNÓSTICO EXPRESS (CRO) -->
+        <div class="configurador-container glass-card" id="configurador-calculator">
+          <button class="configurador-close-btn" id="config-close-btn" aria-label="Cerrar Diagnóstico">&times;</button>
+          <div class="configurador-header">
+            <h3>Calculadora de Diagnóstico Express</h3>
+            <p>Selecciona tu tipo de negocio y tu mayor reto diario para ver tu solución personalizada.</p>
+          </div>
+
+          <!-- Opciones de Entrada: Seleccionar o Escribir (Switcher Superior) -->
+          <div class="reto-toggle-container">
+            <div class="reto-toggle-group">
+              <label class="reto-toggle-label">
+                <input type="radio" name="reto-tipo" value="select" checked>
+                <span>Seleccionar de la lista</span>
+              </label>
+              <label class="reto-toggle-label">
+                <input type="radio" name="reto-tipo" value="write">
+                <span>Prefiero escribirlo</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="configurador-inputs">
+            <div class="input-group">
+              <label for="config-nicho">¿Qué tipo de negocio tienes?</label>
+              <!-- Select Nativo Oculto -->
+              <select id="config-nicho" class="config-select" style="display: none;">
+                <option value="Ferretería" selected>🔩 Ferretería</option>
+                <option value="Restaurante">🍽️ Restaurante</option>
+                <option value="Taller Mecánico">🔧 Taller Mecánico</option>
+                <option value="Peluquería">✂️ Peluquería</option>
+                <option value="Tienda de Barrio">🛒 Tienda de Barrio</option>
+                <option value="Farmacia">💊 Farmacia</option>
+                <option value="Emprendimiento">🌱 Emprendimiento / Catálogo</option>
+                <option value="Negocio Familiar">🏠 Negocio Familiar</option>
+              </select>
+              <!-- Custom Select Wrapper -->
+              <div class="custom-select-container" id="custom-select-nicho-wrapper">
+                <div class="custom-select-trigger" tabindex="0" role="button" aria-haspopup="listbox" id="custom-select-nicho-trigger">
+                  <span>🔩 Ferretería</span>
+                  <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <div class="custom-options" id="custom-options-nicho">
+                  <!-- Se poblará dinámicamente -->
+                </div>
+              </div>
+            </div>
+            <div class="input-group">
+              <label for="config-dolor">¿Cuál es tu mayor reto hoy?</label>
+
+              <!-- Select Nativo Oculto -->
+              <select id="config-dolor" class="config-select" style="display: none;">
+                <!-- Se poblará dinámicamente -->
+              </select>
+              <!-- Custom Select Wrapper -->
+              <div class="custom-select-container" id="custom-select-dolor-wrapper">
+                <div class="custom-select-trigger" tabindex="0" role="button" aria-haspopup="listbox" id="custom-select-dolor-trigger">
+                  <span>Cargando retos...</span>
+                  <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <div class="custom-options" id="custom-options-dolor">
+                  <!-- Se poblará dinámicamente -->
+                </div>
+              </div>
+
+              <!-- Input de Texto (para cuando es write) -->
+              <div class="custom-input-wrapper" id="custom-reto-write-wrapper" style="display: none;">
+                <textarea id="config-dolor-custom" class="config-input-text" placeholder="Describe aquí detalladamente cuál es el mayor problema o lo que necesitas exactamente en tu negocio..."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="configurador-result" id="config-result-box">
+            <h4>💡 Solución Recomendada para ti:</h4>
+            <p id="config-recommendation">Cargando propuesta...</p>
+            
+            <!-- Simulador de Pérdidas Financieras Dinámico (CRO) -->
+            <div class="calculator-leak-container" id="calculator-leak-box">
+              <div class="calculator-leak-title">
+                ⚠️ Pérdida Financiera Estimada en tu <span id="calculator-area-name">Negocio</span>:
+              </div>
+              <div class="calculator-leak-bar">
+                <div class="calculator-leak-fill" id="calculator-leak-bar-fill"></div>
+              </div>
+              <div class="calculator-leak-meta" id="calculator-leak-amount">
+                Pérdida mensual promedio: $0 COP
+              </div>
+              
+              <!-- Anclaje Financiero de Ahorro Neto (P2) -->
+              <div class="price-anchoring-box" id="price-anchoring-box" style="display: none;">
+                <div class="price-anchoring-item">
+                  <span>Inversión estimada PROTOTIPE:</span>
+                  <strong class="anchoring-cost">$80.000 COP/mes</strong>
+                </div>
+                <div class="price-anchoring-item highlight">
+                  <span>Tu Ahorro Neto Mensual:</span>
+                  <strong class="anchoring-saving" id="anchoring-saving-amount">$0 COP</strong>
+                </div>
+              </div>
+
+              <!-- Progreso de Eficiencia Digital (P4) -->
+              <div class="efficiency-progress-container" id="efficiency-progress-box" style="display: none;">
+                <div class="efficiency-progress-label">
+                  📈 Eficiencia Operativa en tu Mostrador:
+                </div>
+                <div class="efficiency-progress-track">
+                  <div class="efficiency-progress-bar" id="efficiency-progress-bar-fill">20%</div>
+                </div>
+                <div class="efficiency-progress-sub">
+                  Con PROTOTIPE subes al <span class="highlight-target">85%</span>. El 15% restante lo ajustamos en la llamada de asesoría.
+                </div>
+              </div>
+            </div>
+            <a href="#" id="config-cta-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.4rem; vertical-align: middle;">
+                <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+              </svg>
+              <span>Solicitar esta solución por WhatsApp</span>
+            </a>
+          </div>
+        </div>
+
+        <p class="rubros-footer-note reveal" style="margin-top: 2rem;">
+          ¿Tu negocio no aparece aquí? Igual podemos ayudarte.
+          <a href="https://api.whatsapp.com/send?phone=573167527660&text=Hola,%20quiero%20saber%20si%20PROTOTIPE%20puede%20ayudar%20a%20mi%20negocio." target="_blank" rel="noopener noreferrer">Cuéntanos qué haces →</a>
+        </p>
+      </div>
+
+    </section>
+
+    <!-- 2. SECCIÓN PROBLEMA -->
+    <section id="problema">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Muchos negocios trabajan más de lo necesario.</h2>
+          <p>Operar sin la estructura correcta produce fricción diaria, errores administrativos y fatiga.</p>
+          <div class="dolor-badge" id="dolor-badge" style="display:none;">
+            <span class="dolor-dot"></span>
+            <span>Horas de trabajo manual acumuladas hoy en un negocio sin sistema: <span id="dolor-count">0.00</span>h</span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="glass-card pain-card reveal">
+            <div class="pain-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <line x1="10" y1="9" x2="8" y2="9"/>
+              </svg>
+            </div>
+            <div class="pain-info">
+              <h3>Uso excesivo de papel</h3>
+              <p>Anotar pedidos, cuentas y stock en libretas expone a pérdidas físicas, confusiones de letra y dificultad para encontrar datos rápidamente.</p>
+            </div>
+          </div>
+
+          <div class="glass-card pain-card reveal">
+            <div class="pain-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div class="pain-info">
+              <h3>Pérdida de tiempo</h3>
+              <p>Horas al final de la jornada sumando boletas de venta, cuadrando cajas a mano y descifrando inventarios en lugar de descansar o expandir el negocio.</p>
+            </div>
+          </div>
+
+          <div class="glass-card pain-card reveal">
+            <div class="pain-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <div class="pain-info">
+              <h3>Información dispersa</h3>
+              <p>Tener datos del cliente en chats de WhatsApp, inventarios en libretas y finanzas en Excel sin que nada se conecte entre sí.</p>
+            </div>
+          </div>
+
+          <div class="glass-card pain-card reveal">
+            <div class="pain-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div class="pain-info">
+              <h3>Falta de control</h3>
+              <p>No saber con certeza cuánto dinero real queda de ganancia neta, quiénes tienen deudas activas o qué productos se están agotando.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta Antes y Después -->
+        <div class="glass-card before-after-card reveal" style="margin-top: 3rem;">
+          <div class="before-after-grid">
+            <div class="before-col">
+              <h4>El negocio en el día a día manual</h4>
+              <p class="before-subtitle">Fricción, olvidos y horas extra sumando papeles</p>
+              <ul class="before-list">
+                <li>
+                  <span class="icon">📒</span>
+                  <div>
+                    <strong>Cuentas en libretas:</strong>
+                    <span>Riesgo de pérdida y letra ilegible.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="icon">📱</span>
+                  <div>
+                    <strong>Pedidos por WhatsApp:</strong>
+                    <span>Mensajes perdidos o sin registrar.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="icon">🧾</span>
+                  <div>
+                    <strong>Papeles y facturas sueltas:</strong>
+                    <span>Dificultad para cuadrar caja al final del día.</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="icon">📊</span>
+                  <div>
+                    <strong>Excel desactualizado:</strong>
+                    <span>Fórmulas rotas y datos incompletos.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            
+            <div class="divider-line"></div>
+            
+            <div class="after-col">
+              <h4>El negocio organizado con PROTOTIPE</h4>
+              <p class="after-subtitle">Tranquilidad, control y tiempo libre para ti</p>
+              <ul class="after-list progressive-checklist">
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Ventas organizadas:</strong>
+                    <span>Registros al instante con un solo toque.</span>
+                  </div>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Clientes organizados:</strong>
+                    <span>Saber quién debe y cuánto de forma clara.</span>
+                  </div>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Inventario organizado:</strong>
+                    <span>Alertas cuando un producto esté por agotarse.</span>
+                  </div>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong>Información centralizada:</strong>
+                    <span>Todo conectado y visible desde tu celular o tablet.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. SECCIÓN SOLUCIÓN -->
+    <section id="solucion">
+      <div class="container">
+        <div class="glass-card solution-box reveal">
+          <div class="solution-icon-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>Una herramienta adaptada a tu negocio.</h3>
+          <p>No utilizamos soluciones genéricas. Analizamos cómo funciona tu negocio y construimos una herramienta que se adapta exactamente a tus necesidades y rutinas de trabajo.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. BENEFICIOS -->
+    <section id="beneficios">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Lo que lograrás organizando tu negocio</h2>
+          <p>Diseñamos herramientas que te devuelven el control de tu día de trabajo.</p>
+        </div>
+
+        <div class="grid">
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1"/>
+                <rect x="14" y="3" width="7" height="5" rx="1"/>
+                <rect x="14" y="12" width="7" height="9" rx="1"/>
+                <rect x="3" y="16" width="7" height="5" rx="1"/>
+              </svg>
+            </div>
+            <h3>Más organización</h3>
+            <p>Toda la información de tus productos, cuentas y ventas concentrada en un único sitio fácil de consultar.</p>
+          </div>
+
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <h3>Más control</h3>
+            <p>Visualiza en tiempo real cierres de caja detallados, balances claros de ganancia e historial de abonos a cuentas.</p>
+          </div>
+
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+            <h3>Menos errores</h3>
+            <p>El sistema realiza los cálculos matemáticos por ti, evitando errores de cambio o confusión con cuentas del cliente.</p>
+          </div>
+
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <h3>Más tiempo para lo importante</h3>
+            <p>Automatiza el registro diario de stock y tareas administrativas pesadas para poder enfocarte en tus prioridades.</p>
+          </div>
+
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              </svg>
+            </div>
+            <h3>Mejor atención al cliente</h3>
+            <p>Respuestas más rápidas, seguimiento automatizado de pedidos y control preciso de preferencias e historiales.</p>
+          </div>
+
+          <div class="glass-card benefit-card reveal">
+            <div class="benefit-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                <polyline points="17 6 23 6 23 12"/>
+              </svg>
+            </div>
+            <h3>Crecimiento ordenado</h3>
+            <p>Estandariza los flujos de tu negocio para poder delegar responsabilidades en empleados de forma segura.</p>
+          </div>
+        </div>
+
+        <!-- Bloque de Tarjetas Ilustrativas Auxiliares -->
+        <div class="benefits-visual-grid reveal" style="margin-top: 4rem;">
+          <!-- Tarjeta 1: Tu negocio hoy (Lista de control) -->
+          <div class="glass-card visual-card">
+            <h3>Tu negocio hoy, bajo control</h3>
+            <p class="visual-card-desc">Cada aspecto operativo registrado al instante y sin complicaciones.</p>
+            <ul class="progressive-checklist">
+              <li>
+                <div class="check-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong>Registro de Ventas:</strong>
+                  <span>Cuentas automáticas sin calculadora.</span>
+                </div>
+              </li>
+              <li>
+                <div class="check-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong>Control de Clientes:</strong>
+                  <span>Historial de deudas, abonos y contactos.</span>
+                </div>
+              </li>
+              <li>
+                <div class="check-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong>Monitoreo de Inventario:</strong>
+                  <span>Entradas y salidas de mercancía al día.</span>
+                </div>
+              </li>
+              <li>
+                <div class="check-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div>
+                  <strong>Gestión de Cobros:</strong>
+                  <span>Recordatorios amigables de pagos pendientes.</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Tarjeta 2: Menos tiempo organizando, más tiempo atendiendo -->
+          <div class="glass-card visual-card">
+            <h3>Menos tiempo organizando, más tiempo atendiendo</h3>
+            <p class="visual-card-desc">Compara el tiempo que dedicas a tareas de administración diaria.</p>
+            <div class="time-comparison-wrapper">
+              <div class="time-comparison-row">
+                <div class="time-label">
+                  <strong>Antes:</strong>
+                  <span>Procesos manuales y cuadres de caja en papel</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+                  <div class="time-bar-container" style="flex: 1; height: 28px; background-color: var(--color-bg); border-radius: 6px; overflow: hidden; border: 1px solid var(--color-border); margin: 0;">
+                    <div class="time-bar time-bar-before" style="--target-width: 100%; height: 100%;"></div>
+                  </div>
+                  <span style="font-weight: 700; font-size: 0.9rem; color: var(--color-danger); width: 125px; flex-shrink: 0; white-space: nowrap; text-align: right;">3 Horas / día</span>
+                </div>
+              </div>
+              <div class="time-comparison-row">
+                <div class="time-label">
+                  <strong>Con PROTOTIPE:</strong>
+                  <span>Todo automatizado y registrado en segundos</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+                  <div class="time-bar-container" style="flex: 1; height: 28px; background-color: var(--color-bg); border-radius: 6px; overflow: hidden; border: 1px solid var(--color-border); margin: 0;">
+                    <div class="time-bar time-bar-after" style="--target-width: 16.7%; height: 100%;"></div>
+                  </div>
+                  <span style="font-weight: 700; font-size: 0.9rem; color: var(--color-success); width: 125px; flex-shrink: 0; white-space: nowrap; text-align: right;">30 Minutos / día</span>
+                </div>
+              </div>
+            </div>
+            <div class="time-comparison-footer">
+              <span class="time-badge">¡Recupera 2.5 horas libres al día!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NUEVA SECCIÓN: ASÍ SE VE UN NEGOCIO ORGANIZADO -->
+    <section id="negocio-organizado" class="reveal">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Así se siente un negocio organizado</h2>
+          <p>Imagina terminar tu día de trabajo con la tranquilidad de tener todo bajo control.</p>
+        </div>
+        
+        <div class="organizado-grid">
+          <!-- Tarjeta 1: Ventas del día -->
+          <div class="glass-card organizado-card reveal">
+            <div class="organizado-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <h3>Ventas del día</h3>
+            <div class="organizado-value" id="counter-ventas">$0</div>
+            <div class="organizado-status-badge">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Todo registrado</span>
+            </div>
+          </div>
+
+          <!-- Tarjeta 2: Inventario -->
+          <div class="glass-card organizado-card reveal">
+            <div class="organizado-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <h3>Inventario disponible</h3>
+            <div class="organizado-value" id="counter-inventario">0%</div>
+            <div class="organizado-status-badge">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Actualizado</span>
+            </div>
+          </div>
+
+          <!-- Tarjeta 3: Clientes atendidos -->
+          <div class="glass-card organizado-card reveal">
+            <div class="organizado-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <h3>Clientes atendidos</h3>
+            <div class="organizado-value" id="counter-clientes">0</div>
+            <div class="organizado-status-badge">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Sin pendientes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN TESTIMONIOS -->
+    <section id="testimonios">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Lo que dicen quienes ya trabajan con nosotros</h2>
+          <p>Negocios reales que pasaron del desorden a tener todo bajo control.</p>
+        </div>
+             <div class="testimonials-grid" id="testimonials-grid">
+
+          <!-- Testimonio 1 -->
+          <div class="testimonial-card reveal" tabindex="0" role="button" aria-label="Testimonio de Carlos M.">
+            <div class="flip-inner">
+              <div class="flip-front">
+                <div class="testimonial-quote-icon">&ldquo;</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"Antes perdía más de 4 horas al día buscando tornillos en desorden mientras los clientes se aburrían en la fila. Con el catálogo rápido y visual de PROTOTIPE, atiendo el doble de personas al día y ya no llego agotado a casa."</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-avatar" style="background: var(--color-primary-light); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; border-radius: 50%; width: 44px; height: 44px; margin-right: 0.75rem;">CM</div>
+                  <div class="testimonial-author-info">
+                    <strong>Carlos Martínez</strong>
+                    <span>Ferretería El Clavo &mdash; Bogotá</span>
+                  </div>
+                </div>
+                <div class="flip-hint-btn" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                </div>
+                <div class="flip-hint-text">Toca para ver el sistema 🔄</div>
+              </div>
+              <div class="flip-back">
+                <div class="flip-back-emoji">🔩</div>
+                <div class="flip-back-title">Ferretería en Bogotá</div>
+                <div class="flip-back-tag">Control de inventario y ventas diarias</div>
+                <div class="flip-back-tool">Sistema de Inventario</div>
+                <div class="flip-hint-btn" aria-hidden="true" style="transform: rotate(180deg); background: var(--color-primary); color: #fff;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.5 22v-6h6M2.66 8.43a10 10 0 1 1 .57 8.38l-5.67 5.67"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonio 2 -->
+          <div class="testimonial-card reveal" tabindex="0" role="button" aria-label="Testimonio de Lucía R.">
+            <div class="flip-inner">
+              <div class="flip-front">
+                <div class="testimonial-quote-icon">&ldquo;</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"La caja nunca cuadraba, los pedidos en papel se perdían en cocina y sospechaba de pérdidas. Con el cierre ciego y las comandas al celular de PROTOTIPE, el dinero cuadra al centavo y duermo con total tranquilidad."</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-avatar" style="background: rgba(16, 185, 129, 0.08); color: #10b981; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; border-radius: 50%; width: 44px; height: 44px; margin-right: 0.75rem;">LR</div>
+                  <div class="testimonial-author-info">
+                    <strong>Lucía Rodríguez</strong>
+                    <span>Restaurante El Sabor &mdash; Medellín</span>
+                  </div>
+                </div>
+                <div class="flip-hint-btn" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                </div>
+                <div class="flip-hint-text">Toca para ver el sistema 🔄</div>
+              </div>
+              <div class="flip-back">
+                <div class="flip-back-emoji">🍴</div>
+                <div class="flip-back-title">Restaurante en Medellín</div>
+                <div class="flip-back-tag">Control de caja y pedidos en tiempo real</div>
+                <div class="flip-back-tool">Sistema de Pedidos</div>
+                <div class="flip-hint-btn" aria-hidden="true" style="transform: rotate(180deg); background: var(--color-primary); color: #fff;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.5 22v-6h6M2.66 8.43a10 10 0 1 1 .57 8.38l-5.67 5.67"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonio 3 -->
+          <div class="testimonial-card reveal" tabindex="0" role="button" aria-label="Testimonio de Andrés V.">
+            <div class="flip-inner">
+              <div class="flip-front">
+                <div class="testimonial-quote-icon">&ldquo;</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">"Tenía los créditos y repuestos en papeles sueltos que se mojaban y perdían en el taller. Ahora con la ficha histórica digital de vehículos de PROTOTIPE, cobro al instante y eliminé las discusiones con los clientes."</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-avatar" style="background: rgba(245, 158, 11, 0.08); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; border-radius: 50%; width: 44px; height: 44px; margin-right: 0.75rem;">AV</div>
+                  <div class="testimonial-author-info">
+                    <strong>Andrés Valencia</strong>
+                    <span>Taller Autotec &mdash; Cali</span>
+                  </div>
+                </div>
+                <div class="flip-hint-btn" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                </div>
+                <div class="flip-hint-text">Toca para ver el sistema 🔄</div>
+              </div>
+              <div class="flip-back">
+                <div class="flip-back-emoji">🛠️</div>
+                <div class="flip-back-title">Taller Mecánico en Cali</div>
+                <div class="flip-back-tag">Gestión de créditos y clientes</div>
+                <div class="flip-back-tool">Sistema de Cartera</div>
+                <div class="flip-hint-btn" aria-hidden="true" style="transform: rotate(180deg); background: var(--color-primary); color: #fff;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.5 22v-6h6M2.66 8.43a10 10 0 1 1 .57 8.38l-5.67 5.67"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- Dots carousel (solo mobile) -->
+        <div class="testimonials-dots" id="testimonials-dots">
+          <span class="t-dot active" data-index="0"></span>
+          <span class="t-dot" data-index="1"></span>
+          <span class="t-dot" data-index="2"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN PREGUNTAS FRECUENTES (FAQ) -->
+    <!-- SECCIÓN GARANTÍA DE SATISFACCIÓN (RISK REVERSAL) -->
+    <section class="warranty-section">
+      <div class="warranty-card reveal">
+        <div class="warranty-badge-container">
+          <span class="warranty-badge-icon">🛡️</span>
+        </div>
+        <h3 class="warranty-title">Garantía de Facilidad de Uso y Soporte por 15 Días</h3>
+        <p class="warranty-desc">
+          Queremos que tomes esta decisión con absoluta tranquilidad. Si durante los primeros 15 días sientes que el sistema es complejo o que tu equipo no logra adaptarse, <span class="warranty-highlight">hacemos todos los ajustes necesarios sin costo adicional o te devolvemos el 100% de tu dinero</span>. Sin preguntas, sin contratos de permanencia y sin riesgos.
+        </p>
+      </div>
+    </section>
+
+    <section id="faq" class="reveal">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Preguntas Frecuentes</h2>
+          <p>Resolvemos tus dudas sobre el diseño y la puesta en marcha de tu sistema a medida.</p>
+        </div>
+
+        <div class="faq-grid">
+          <div class="faq-item glass-card">
+            <details>
+              <summary>
+                <span>💡 ¿Necesito saber de tecnología para usar el sistema?</span>
+                <span class="faq-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </summary>
+              <div class="faq-content">
+                <p>No, en absoluto. Diseñamos nuestras herramientas pensando en la facilidad de uso del día a día. Si sabes enviar un mensaje de WhatsApp o revisar una foto, ya estás capacitado para usar el sistema de tu negocio. Además, te damos acompañamiento y capacitación directa a ti y a tu equipo.</p>
+              </div>
+            </details>
+          </div>
+
+          <div class="faq-item glass-card">
+            <details>
+              <summary>
+                <span>🔑 ¿La herramienta es mía o debo pagar mensualidades de por vida?</span>
+                <span class="faq-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </summary>
+              <div class="faq-content">
+                <p>Tú eres el propietario único y exclusivo de toda la información comercial y base de datos de tu negocio. Nosotros te entregamos una licencia de uso de nuestra plataforma y no tienes cobros sorpresas. Eres libre de descargar tus datos en Excel en el momento que desees.</p>
+              </div>
+            </details>
+          </div>
+
+          <div class="faq-item glass-card">
+            <details>
+              <summary>
+                <span>🚀 ¿Cómo funciona el proceso de creación personalizada?</span>
+                <span class="faq-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </summary>
+              <div class="faq-content">
+                <p>Construimos una herramienta pensada específicamente para ti. Te acompañamos durante todo el proceso, realizamos los ajustes necesarios y nos aseguramos de que todo quede adaptado a la forma en que realmente trabajas cada día.</p>
+              </div>
+            </details>
+          </div>
+
+          <div class="faq-item glass-card">
+            <details>
+              <summary>
+                <span>🛠️ ¿Qué pasa si tengo una falla o duda a mitad de la jornada?</span>
+                <span class="faq-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </summary>
+              <div class="faq-content">
+                <p>Te damos soporte directo por WhatsApp. Para dudas generales o configuraciones sencillas te responderemos en menos de 24 horas. Para casos críticos o urgentes que afecten directamente tus ventas o cobros, la atención es prioritaria.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. CÓMO FUNCIONA -->
+    <section id="como-funciona">
+      <div class="container">
+        <div class="section-header reveal">
+          <h2>Cómo trabajamos juntos</h2>
+          <p>Un proceso sencillo y acompañado en cada etapa del camino.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="glass-card step-card reveal">
+            <div class="step-num">01</div>
+            <h3>Reunión gratuita</h3>
+            <p>Charlamos sin prisa sobre los cuellos de botella de tu negocio y cómo manejas tus ventas y clientes actualmente.</p>
+          </div>
+
+          <div class="glass-card step-card reveal">
+            <div class="step-num">02</div>
+            <h3>Análisis del negocio</h3>
+            <p>Estudiamos el proceso físico real para mapear los campos, inventarios y cierres de caja exactos que necesitas.</p>
+          </div>
+
+          <div class="glass-card step-card reveal">
+            <div class="step-num">03</div>
+            <h3>Diseño de la solución</h3>
+            <p>Construimos y adaptamos la herramienta a tu marca con un diseño limpio, amigable y muy fácil de usar para todos.</p>
+          </div>
+
+          <div class="glass-card step-card reveal">
+            <div class="step-num">04</div>
+            <h3>Implementación y apoyo</h3>
+            <p>Cargamos tu inventario base, capacitamos a tu personal y te acompañamos de cerca durante la puesta en marcha.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. SOPORTE -->
+    <section id="soporte">
+      <div class="container">
+        <div class="support-grid">
+          <div class="support-text reveal">
+            <div class="soporte-online-badge" id="soporte-badge">
+              <span class="ping-dot"></span>
+              <span id="soporte-badge-text">En línea · Soporte activo vía WhatsApp</span>
+            </div>
+            <h3>No estarás solo.</h3>
+            <p>Construir la herramienta es sólo el primer paso. Nos encargamos de que funcione correctamente todos los días y de guiar a tu equipo en su adopción diaria.</p>
+            <ul class="support-features">
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Capacitación completa al equipo
+              </li>
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Soporte continuo vía WhatsApp
+              </li>
+              <li>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Actualizaciones y ajustes rápidos
+              </li>
+            </ul>
+          </div>
+
+          <div class="support-right-col">
+            <div class="support-box-info reveal">
+              <h4>Tiempos de Atención y Compromiso</h4>
+              
+              <div class="support-time-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <div>
+                  <h5>Consultas generales</h5>
+                  <p>Respuestas y aclaración de dudas en un plazo menor a 24 horas.</p>
+                </div>
+              </div>
+
+              <div class="support-time-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m22 2-7 20-4-9-9-4Z"/>
+                  <path d="M22 2 11 13"/>
+                </svg>
+                <div>
+                  <h5>Casos urgentes</h5>
+                  <p>Atención prioritaria inmediata para incidentes críticos que afecten la operación.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tarjeta Estado del Negocio Hoy -->
+            <div class="glass-card support-status-card reveal">
+              <h4>Tu negocio al finalizar el día</h4>
+              <ul class="progressive-checklist">
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span>Caja cuadrada al centavo</span>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span>Inventario al día y sin mermas</span>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span>Pedidos entregados a tiempo</span>
+                </li>
+                <li>
+                  <div class="check-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span>Clientes atendidos y conformes</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. CONFIANZA & CTA FINAL -->
+    <section id="cta">
+      <div class="container">
+        <div class="cta-container reveal">
+          <div class="trust-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            </svg>
+            <span>Cada negocio es diferente. Tu herramienta se adapta a ti.</span>
+          </div>
+          <h2>Descubre cómo podría funcionar una herramienta diseñada específicamente para tu negocio.</h2>
+          <p>Trabajamos contigo para construir una solución útil, organizada y fácil de usar, sin complicaciones de sistemas genéricos.</p>
+          <a href="https://api.whatsapp.com/send?phone=573167527660&text=Hola,%20quiero%20conocer%20c%C3%B3mo%20funcionar%C3%ADa%20una%20herramienta%20para%20mi%20negocio." 
+             class="btn btn-primary" 
+             target="_blank" 
+             rel="noopener noreferrer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+            </svg>
+            <span>Hablar por WhatsApp</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="logo-container">
+            <svg class="logo-svg" viewBox="0 0 24 24">
+              <path d="m12 2-10 5 10 5 10-5-10-5Z"/>
+              <path d="m2 17 10 5 10-5"/>
+              <path d="m2 12 10 5 10-5"/>
+            </svg>
+            <span class="logo-text">PROTOTIPE</span>
+          </a>
+          <p>Ayudamos a dueños de negocios a organizar y mejorar su trabajo diario a través de herramientas personalizadas simples y claras.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Navegación</h4>
+          <ul>
+            <li><a href="#problema">El Problema</a></li>
+            <li><a href="#solucion">La Solución</a></li>
+            <li><a href="#beneficios">Beneficios</a></li>
+            <li><a href="#como-funciona">Cómo Funciona</a></li>
+            <li><a href="#soporte">Soporte</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>Contacto</h4>
+          <ul>
+            <li><a href="https://api.whatsapp.com/send?phone=573167527660" target="_blank" rel="noopener noreferrer">Soporte WhatsApp</a></li>
+            <li><a href="mailto:contacto@prototipe.com">Soporte Correo</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>PROTOTIPE © 2026 — Herramientas para organizar negocios reales. Todos los derechos reservados.</p>
+        <div class="footer-bottom-links">
+          <a href="javascript:void(0)" id="open-terminos">Términos de Servicio</a>
+          <a href="javascript:void(0)" id="open-privacidad">Privacidad</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODALES LEGALES -->
+  <div class="modal-overlay" id="modal-terminos" aria-hidden="true" role="dialog" aria-labelledby="modal-terminos-title">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modal-terminos-title">Términos de Servicio</h3>
+        <button class="modal-close-btn" aria-label="Cerrar modal" data-close>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h4>1. Aceptación de los Términos</h4>
+        <p>Al acceder y utilizar las soluciones y la landing page de PROTOTIPE, usted acepta cumplir y estar sujeto a los siguientes términos y condiciones de prestación de servicios.</p>
+
+        <h4>2. Objeto del Servicio</h4>
+        <p>PROTOTIPE presta servicios especializados de diseño, desarrollo, implementación y mantenimiento de herramientas de software personalizadas (tales como sistemas de inventario, POS, créditos, comisiones y seguimiento de entregas) diseñadas exclusivamente a la medida de la jornada diaria de su negocio.</p>
+
+        <h4>3. Propiedad Intelectual y Licenciamiento</h4>
+        <p>PROTOTIPE conserva en todo momento la titularidad intelectual e industrial exclusiva sobre el código fuente, la arquitectura, el framework base y los componentes modulares reutilizables de la plataforma. Se le otorga al cliente una licencia de uso no exclusiva, intransferible y limitada para operar el software mientras mantenga su relación comercial vigente y sus pagos al día.</p>
+
+        <h4>4. Propiedad de la Información y Datos</h4>
+        <p>El cliente es el propietario único y exclusivo de toda la información, bases de datos comerciales, registros de inventario, ventas y datos personales de sus clientes finales que sean cargados u operados a través del software personalizado. PROTOTIPE no reclamará en ningún caso propiedad sobre esta información y actúa únicamente como su administrador tecnológico.</p>
+
+        <h4>5. Soporte Operativo y Mantenimiento</h4>
+        <p>Nos comprometemos a garantizar la operatividad de sus herramientas. El soporte técnico general para la resolución de dudas y fallas se ejecutará en un plazo menor a 24 horas. Para incidentes críticos que interrumpan directamente la facturación o la operación del negocio, la atención de soporte vía WhatsApp será prioritaria e inmediata.</p>
+
+        <h4>6. Pagos, Comisiones y Suspensión</h4>
+        <p>La provisión de las herramientas personalizadas está sujeta a los cobros pactados (cuotas de implementación inicial, suscripciones mensuales o comisiones por transacción, según corresponda). El incumplimiento en los periodos de pago facultará a PROTOTIPE a suspender temporalmente el acceso a la plataforma, previo aviso.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-close>Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-privacidad" aria-hidden="true" role="dialog" aria-labelledby="modal-privacidad-title">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modal-privacidad-title">Política de Privacidad</h3>
+        <button class="modal-close-btn" aria-label="Cerrar modal" data-close>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h4>1. Principio de Confidencialidad y Propiedad</h4>
+        <p>En PROTOTIPE respetamos la privacidad e importancia estratégica de la información de su negocio. Todos los datos registrados en su aplicación son de su propiedad exclusiva y se tratan bajo estrictas normas de confidencialidad.</p>
+
+        <h4>2. Información Tratada</h4>
+        <p>Nuestras soluciones administran únicamente la información operativa necesaria para prestar el servicio, incluyendo inventarios, balances de caja diarios, registros de compras, nombres de clientes y credenciales de acceso de empleados. PROTOTIPE no recopila información redundante ni realiza seguimiento de datos no relacionados con el software del negocio.</p>
+
+        <h4>3. Uso Limitado de los Datos</h4>
+        <p>Utilizaremos los datos únicamente para garantizar el correcto funcionamiento del software, procesar pedidos, coordinar entregas y realizar tareas de mantenimiento técnico. PROTOTIPE no vende, comercializa ni expone sus registros financieros o comerciales a terceros con fines publicitarios o lucrativos.</p>
+
+        <h4>4. Medidas de Seguridad y Aislamiento</h4>
+        <p>Implementamos infraestructura de bases de datos aisladas por cliente, control de acceso de usuarios mediante tokens y PINs de seguridad, y copias de seguridad periódicas automatizadas en la nube para mitigar riesgos de filtración, pérdida o acceso no autorizado a su información operativa.</p>
+
+        <h4>5. Acceso Técnico de Soporte</h4>
+        <p>El personal técnico de soporte de PROTOTIPE solo accederá temporalmente a los datos del cliente para resolver incidencias de software explícitamente reportadas o para ejecutar exportaciones de bases de datos solicitadas por el titular del servicio.</p>
+
+        <h4>6. Derechos y Portabilidad de los Datos</h4>
+        <p>Usted conserva en todo momento el derecho de acceder, rectificar o solicitar la descarga y exportación total de toda su información comercial y bases de datos en formatos estándares y estructurados (JSON o CSV) para su libre disposición o migración.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-close>Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CAPTURA DE LEADS WHATSAPP -->
+  <div class="modal-overlay" id="lead-modal" aria-hidden="true" role="dialog" aria-labelledby="lead-modal-title">
+    <form id="lead-form" class="modal-container lead-modal-container">
+      <div class="modal-header">
+        <h3 id="lead-modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Iniciar Conversación
+        </h3>
+        <button class="modal-close-btn" aria-label="Cerrar modal" id="close-lead-modal" data-close type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 0.85rem; font-size: 0.92rem; color: var(--color-text-muted); line-height: 1.5;">
+          Para brindarte una asesoría personalizada y adaptada a tu negocio, confírmanos tus datos básicos de contacto. ¡Estás a un paso de optimizar tu operación!</p>
+        
+        <!-- Badge de Regalo Dinámico de Nicho (CRO Reciprocidad) -->
+        <div id="lead-gift-badge" class="lead-gift-badge" style="display: none;">
+          🎁 Incluye de regalo: Plantilla Excel de Control de Stock
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="lead-name" style="display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem; color: var(--color-text-main);">
+            Nombre completo <span style="color: var(--color-danger);">*</span>
+          </label>
+          <input type="text" id="lead-name" required minlength="3" placeholder="Ej. Juan Pérez" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="lead-phone" style="display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem; color: var(--color-text-main);">
+            Número de Celular / WhatsApp <span style="color: var(--color-danger);">*</span>
+          </label>
+          <input type="tel" id="lead-phone" required minlength="7" pattern="[0-9+\s\-]{7,20}" placeholder="Ej. +57 300 123 4567" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.5rem;">
+          <label for="lead-email" style="display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 0.2rem; color: var(--color-text-main); display: flex; justify-content: space-between;">
+            <span>Correo electrónico <span style="font-weight: 400; color: var(--color-text-muted); font-size: 0.8rem;">(Opcional)</span></span>
+          </label>
+          <input type="email" id="lead-email" placeholder="Ej. juan@empresa.com" />
+          <p style="margin-top: 0.35rem; font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.3;">
+            💡 Si no usas o no tienes correo electrónico, puedes dejar este campo vacío y continuar.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer" style="gap: 12px; align-items: center; border-top: 1px solid var(--color-border);">
+        <button type="button" class="btn btn-secondary" data-close style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); padding: 0.75rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.92rem; transition: background-color 0.2s;">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn-secondary" id="bypass-lead-btn" style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted); padding: 0.75rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.92rem; transition: background-color 0.2s; margin-right: auto;">
+          Omitir e ir directo
+        </button>
+        <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+          Continuar a WhatsApp
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- MODAL DINÁMICO DE DETALLE DEL SISTEMA -->
+  <div class="modal-overlay" id="dashboard-modal" aria-hidden="true" role="dialog" aria-labelledby="dashboard-modal-title">
+    <div class="modal-container" style="max-width: 485px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="modal-header" style="padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--color-border);">
+        <h3 id="dashboard-modal-title" style="display: flex; align-items: center; gap: 8px; font-family: var(--font-titles); font-size: 1.2rem;">
+          <!-- Inyectado por JS -->
+        </h3>
+        <button class="modal-close-btn" aria-label="Cerrar modal" id="close-dashboard-modal" data-close type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="dashboard-modal-body" style="overflow-y: hidden; padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 0.8rem;">
+        <!-- Contenido interactivo dinámico inyectado por JS -->
+      </div>
+      <div class="modal-footer" style="gap: 12px; align-items: center; border-top: 1px solid var(--color-border); justify-content: flex-end; padding: 0.8rem 1.25rem;">
+        <span style="font-size: 0.8rem; color: var(--color-text-muted); margin-right: auto; text-align: left; max-width: 65%;">
+          Módulo administrativo a la medida.
+        </span>
+        <button type="button" class="btn btn-secondary" data-close style="background: transparent; border: 1px solid var(--color-border); color: var(--color-text-main); padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.88rem; transition: background-color 0.2s;">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: TEMA, MENÚ MÓVIL & REVEAL -->
+  <!-- JavaScript modularizado y cargado externamente al final del body -->
+
+  <!-- WHATSAPP FAB -->
+  <a href="https://api.whatsapp.com/send?phone=573167527660&text=Hola,%20quiero%20solicitar%20una%20asesor%C3%ADa%20gratuita." 
+     class="whatsapp-fab" 
+     id="whatsapp-fab"
+     target="_blank" 
+     rel="noopener noreferrer"
+     aria-label="Escribir por WhatsApp">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.559 4.117 1.532 5.845L.057 23.571a.75.75 0 0 0 .93.93l5.79-1.46A11.947 11.947 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.044-1.393l-.361-.214-3.741.981.998-3.648-.235-.374A9.818 9.818 0 1 1 12 21.818z"/>
+    </svg>
+  </a>
+
+  <!-- JAVASCRIPT EXTENDIDO: TODAS LAS MEJORAS PREMIUM -->
+  <!-- MODAL FLOTANTE DE CONTEXTO DE NICHO (CRO & PERSUASIÓN) -->
+  <div class="modal-overlay niche-modal" id="nicho-context-modal" aria-hidden="true" role="dialog" aria-labelledby="nicho-modal-title">
+    <div class="modal-container" style="max-width: 500px; border-radius: 20px; overflow: hidden; border: 1px solid var(--color-border); box-shadow: var(--card-shadow-hover);">
+      <button class="modal-close-btn" data-close aria-label="Cerrar modal">&times;</button>
+      
+      <div class="modal-body" style="padding: 2.5rem 2rem; text-align: center;">
+        <div class="niche-modal-icon-wrapper" id="nicho-modal-emoji" style="font-size: 3.5rem; margin-bottom: 1rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.08));">
+          🔩
+        </div>
+        <h3 class="modal-title" id="nicho-modal-title" style="font-family: var(--font-titles); font-size: 1.5rem; font-weight: 700; color: var(--color-text-main); margin-bottom: 0.75rem;">
+          Nicho Seleccionado: Ferretería
+        </h3>
+        <p class="niche-modal-recommendation" id="nicho-modal-recommendation" style="font-family: var(--font-body); font-size: 1rem; color: var(--color-text-muted); line-height: 1.6; margin-bottom: 2rem; padding: 0;">
+          Las ferreterías que digitalizan sus catálogos eliminan un 90% del tiempo de búsqueda en mostrador.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" class="btn btn-primary" id="nicho-modal-calc-btn" style="width: 100%; padding: 0.85rem; font-weight: 600; font-size: 0.95rem; border-radius: 10px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            Calcular Pérdidas en mi <span id="nicho-modal-area-name">Negocio</span> ⚡
+          </button>
+          <button type="button" class="btn btn-secondary" data-close style="width: 100%; padding: 0.85rem; font-weight: 500; font-size: 0.95rem; border-radius: 10px; background: transparent; border: 1px solid var(--color-border); color: var(--color-text-muted); cursor: pointer;">
+            Seguir navegando
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js?v=3.0" defer></script>
+
+</body>
+</html>

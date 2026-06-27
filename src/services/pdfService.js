@@ -8,86 +8,141 @@ import autoTable from 'jspdf-autotable'
 export function exportCommissionReceiptPDF(report) {
   const doc = new jsPDF()
   
-  // Colores del tema (Indigo/Slate de dev-dashboard)
-  const primaryColor = [99, 102, 241] // #6366f1
-  const darkColor = [7, 11, 19]      // #070b13
-  const lightBg = [243, 244, 246]
+  // Colores del tema (Indigo/Slate de dev-dashboard - Curated & Harmonious)
+  const primaryColor = [79, 70, 229] // Indigo-600 (#4f46e5)
+  const secondaryColor = [99, 102, 241] // Indigo-500 (#6366f1)
+  const darkColor = [15, 23, 42]      // Slate-900 (#0f172a)
+  const textMuted = [100, 116, 139]   // Slate-500 (#64748b)
+  const borderLight = [226, 232, 240] // Slate-200 (#e2e8f0)
+  const lightBg = [248, 250, 252]     // Slate-50 / Cool Gray
   
-  // Encabezado
+  // Margen de 20mm
+  const marginX = 20
+  
+  // Cabecera Elegante (Estilo Factura Apple/Stripe - Fondo blanco con acento superior de color)
+  // Línea decorativa superior
   doc.setFillColor(...primaryColor)
-  doc.rect(0, 0, 210, 45, 'F')
+  doc.rect(0, 0, 210, 4, 'F')
   
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(20)
-  doc.setFont('helvetica', 'bold')
-  doc.text('RECIBO DE COMISIÓN DE INSTANCIA', 15, 20)
-  
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Identificador de Factura: ${report.id}`, 15, 28)
-  doc.text(`Fecha de Emisión: ${new Date().toLocaleString('es-CO')}`, 15, 33)
-  doc.text('ESTADO DE PAGO:', 140, 20)
-  
-  // Badge de Estado de Pago
-  const isPaid = report.estadoPago === 'pagado'
-  if (isPaid) {
-    doc.setFillColor(16, 185, 129) // Emerald-500
-    doc.rect(140, 23, 55, 10, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.text('PAGADO / LIBERADO', 145, 29)
-  } else {
-    doc.setFillColor(245, 158, 11) // Amber-500
-    doc.rect(140, 23, 55, 10, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.text('COBRO PENDIENTE', 147, 29)
-  }
-
-  // Detalles de las partes
-  doc.setTextColor(31, 41, 55)
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text('INFORMACIÓN DE TRANSACCIÓN', 15, 60)
-  
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Desarrollador Core: Soporte Técnico Central / Ecosistema Owner`, 15, 68)
-  doc.text(`Cliente Asociado: ${report.clientId}`, 15, 74)
-  doc.text(`Periodo Contable: ${report.periodo}`, 15, 80)
-  
-  // Cajas de resumen financiero
-  doc.setFillColor(...lightBg)
-  doc.rect(15, 90, 85, 25, 'F')
-  doc.rect(110, 90, 85, 25, 'F')
-  
+  // Identidad de marca (Marca de agua superior izquierda)
+  doc.setTextColor(...textMuted)
   doc.setFontSize(8)
-  doc.setTextColor(107, 114, 128)
-  doc.text('VENTAS DECLARADAS DEL PERIODO', 20, 96)
-  doc.text('TOTAL COMISIÓN POR RECAUDAR', 115, 96)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PROTOTIPE ECOSISTEMA CENTRAL • TELEMETRÍA & GESTIÓN', marginX, 15)
   
-  doc.setFontSize(14)
+  // Título Principal
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('RECIBO DE COMISIÓN DE INSTANCIA', marginX, 24)
+  
+  // Subtítulo
+  doc.setTextColor(...textMuted)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Licenciamiento administrativo de software y uso de marca blanca', marginX, 29)
+  
+  // Estado de Pago (Posicionado a la derecha de forma limpia para evitar superposiciones)
+  const isPaid = (report.estadoPago || 'pendiente').toLowerCase() === 'pagado'
+  
+  // Dibujar contenedor de Estado de Pago (Badge con esquinas suavizadas o estilo flat sutil)
+  // Caja de fondo
+  if (isPaid) {
+    doc.setFillColor(209, 250, 229) // Emerald-100 (#d1fae5)
+    doc.roundedRect(140, 18, 50, 12, 1.5, 1.5, 'F')
+    doc.setTextColor(6, 95, 70) // Emerald-800 (#065f46)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.text('PAGADO / LIBERADO', 144, 25)
+  } else {
+    doc.setFillColor(254, 243, 199) // Amber-100 (#fef3c7)
+    doc.roundedRect(140, 18, 50, 12, 1.5, 1.5, 'F')
+    doc.setTextColor(146, 64, 14) // Amber-800 (#92400e)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.text('COBRO PENDIENTE', 146, 25)
+  }
+  
+  // Línea divisoria elegante
+  doc.setDrawColor(...borderLight)
+  doc.setLineWidth(0.5)
+  doc.line(marginX, 38, 190, 38)
+  
+  // Detalles de Transmisión e Identificador
+  doc.setTextColor(...textMuted)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Identificador de Factura: ${report.id}`, marginX, 44)
+  
+  const emisionDate = new Date().toLocaleString('es-CO')
+  doc.text(`Fecha de Emisión: ${emisionDate}`, marginX, 49)
+  
+  // Sección: INFORMACIÓN DE TRANSACCIÓN
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('INFORMACIÓN DE TRANSACCIÓN', marginX, 64)
+  
+  // Campos en formato grid de metadatos (limpio y minimalista)
+  doc.setFontSize(8.5)
+  doc.setTextColor(...textMuted)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Desarrollador Core:', marginX, 72)
+  doc.text('Cliente Asociado:', marginX, 78)
+  doc.text('Periodo Contable:', marginX, 84)
+  
   doc.setTextColor(...darkColor)
   doc.setFont('helvetica', 'bold')
-  doc.text(`$${report.totalVentas.toLocaleString('es-CO')}`, 20, 108)
+  doc.text('Soporte Técnico Central / Ecosistema Owner', marginX + 32, 72)
+  doc.text(report.clientId, marginX + 32, 78)
+  doc.text(report.periodo, marginX + 32, 84)
   
-  doc.setTextColor(...primaryColor)
-  doc.text(`$${report.comisionValor.toLocaleString('es-CO')}`, 115, 108)
+  // Tarjetas de Resumen Financiero (Rediseñadas con bordes finos, fondo y tipografía premium)
+  const cardWidth = 82
+  const cardHeight = 24
+  const cardY = 92
   
-  // Tabla de desglose de conceptos
-  doc.setTextColor(31, 41, 55)
-  doc.setFontSize(12)
+  // Tarjeta 1: Ventas
+  doc.setFillColor(...lightBg)
+  doc.roundedRect(marginX, cardY, cardWidth, cardHeight, 1.5, 1.5, 'F')
+  doc.setDrawColor(...borderLight)
+  doc.roundedRect(marginX, cardY, cardWidth, cardHeight, 1.5, 1.5, 'S')
+  
+  doc.setFontSize(7.5)
+  doc.setTextColor(...textMuted)
   doc.setFont('helvetica', 'bold')
-  doc.text('Desglose de Concepto', 15, 130)
+  doc.text('VENTAS DECLARADAS DEL PERIODO', marginX + 5, cardY + 7)
+  
+  doc.setFontSize(13)
+  doc.setTextColor(...darkColor)
+  doc.text(`$${report.totalVentas.toLocaleString('es-CO')}`, marginX + 5, cardY + 17)
+  
+  // Tarjeta 2: Comisión
+  doc.setFillColor(...lightBg)
+  doc.roundedRect(108, cardY, cardWidth, cardHeight, 1.5, 1.5, 'F')
+  doc.roundedRect(108, cardY, cardWidth, cardHeight, 1.5, 1.5, 'S')
+  
+  doc.setFontSize(7.5)
+  doc.setTextColor(...textMuted)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TOTAL COMISIÓN POR RECAUDAR', 113, cardY + 7)
+  
+  doc.setFontSize(13)
+  doc.setTextColor(...primaryColor)
+  doc.text(`$${report.comisionValor.toLocaleString('es-CO')}`, 113, cardY + 17)
+  
+  // Sección: Desglose de Concepto
+  doc.setTextColor(...darkColor)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Desglose de Concepto', marginX, 130)
   
   const headers = [['Concepto', 'Base Imponible', 'Tasa (%)', 'Subtotal']]
-  const data = [
+  const tableData = [
     [
       `Comisión de Servicio por Licenciamiento de Instancia - Cliente: ${report.clientId}`,
       `$${report.totalVentas.toLocaleString('es-CO')}`,
-      `${report.comisionPorcentaje}%`,
+      `${report.comisionPorcentaje || 1.5}%`,
       `$${report.comisionValor.toLocaleString('es-CO')}`
     ]
   ]
@@ -95,30 +150,50 @@ export function exportCommissionReceiptPDF(report) {
   autoTable(doc, {
     startY: 136,
     head: headers,
-    body: data,
-    theme: 'striped',
-    headStyles: { fillColor: primaryColor, halign: 'left' },
-    styles: { fontSize: 9, cellPadding: 4 },
+    body: tableData,
+    theme: 'plain', // minimalista y elegante sin fondo de rayas tosco
+    headStyles: { 
+      fillColor: primaryColor, 
+      textColor: [255, 255, 255], 
+      halign: 'left',
+      fontStyle: 'bold',
+      fontSize: 8.5
+    },
+    styles: { 
+      fontSize: 8.5, 
+      cellPadding: 5,
+      lineColor: borderLight,
+      lineWidth: 0.5,
+      textColor: darkColor
+    },
     columnStyles: {
+      0: { cellWidth: 90 },
       1: { halign: 'right' },
       2: { halign: 'center' },
-      3: { halign: 'right' }
+      3: { halign: 'right', fontStyle: 'bold' }
     }
   })
   
   // Footer / Firma Digital de Certificación
-  const finalY = (doc.lastAutoTable?.finalY ?? 180) + 20
-  doc.setDrawColor(209, 213, 219)
-  doc.line(15, finalY + 15, 90, finalY + 15)
+  const finalY = (doc.lastAutoTable?.finalY ?? 175) + 20
+  
+  doc.setDrawColor(...borderLight)
+  doc.setLineWidth(0.5)
+  doc.line(marginX, finalY + 12, marginX + 75, finalY + 12)
   
   doc.setFontSize(8)
-  doc.setTextColor(107, 114, 128)
-  doc.text('Firma Autorizada Desarrollador', 15, finalY + 20)
-  doc.text('Core Telemetry Service', 15, finalY + 24)
+  doc.setTextColor(...darkColor)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Soporte Técnico Desarrollador', marginX, finalY + 17)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...textMuted)
+  doc.text('Central Core Telemetry Services LLC', marginX, finalY + 21)
   
-  // Sello o texto decorativo
+  // Sello o texto decorativo al pie de la página
   doc.setFontSize(7)
-  doc.text('Este documento digital sirve como soporte administrativo oficial de la Consola Central de Control.', 15, 280)
+  doc.setTextColor(...textMuted)
+  doc.setFont('helvetica', 'italic')
+  doc.text('Este documento sirve como comprobante administrativo oficial de liquidación de comisiones de Prototype Ecosistema.', marginX, 282)
   
   doc.save(`Recibo_Comision_${report.clientId}_${report.periodo}.pdf`)
 }

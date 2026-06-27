@@ -52,6 +52,41 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
   const [diffData, setDiffData] = useState(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [expandedFile, setExpandedFile] = useState(null)
+  const [fileDiffs, setFileDiffs] = useState({})
+  const [loadingFileDiff, setLoadingFileDiff] = useState({})
+
+  const toggleExpandFile = async (filename, isBinary) => {
+    if (expandedFile === filename) {
+      setExpandedFile(null)
+      return
+    }
+
+    if (isBinary) {
+      setExpandedFile(filename)
+      return
+    }
+
+    setExpandedFile(filename)
+
+    if (fileDiffs[filename]) {
+      return
+    }
+
+    setLoadingFileDiff(prev => ({ ...prev, [filename]: true }))
+    try {
+      const res = await fetch(`${CLI_URL}/api/cores/${core.clave}/diff?file=${encodeURIComponent(filename)}`)
+      const data = await res.json()
+      if (data.success) {
+        setFileDiffs(prev => ({ ...prev, [filename]: data.diff }))
+      } else {
+        showToast?.(data.error || `No se pudo calcular el diff para ${filename}`, 'error')
+      }
+    } catch (err) {
+      showToast?.(`Error de red al calcular el diff del archivo: ${filename}`, 'error')
+    } finally {
+      setLoadingFileDiff(prev => ({ ...prev, [filename]: false }))
+    }
+  }
 
   // UX de doble confirmación
   const [confirmingDeleteKey, setConfirmingDeleteKey] = useState(null)
@@ -78,7 +113,11 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
   const syncCoreFromModal = async () => {
     setLoadingDiff(true)
     try {
-      const res = await fetch(`${CLI_URL}/api/cores/${core.clave}/sync`, { method: 'POST' })
+      const res = await fetch(`${CLI_URL}/api/cores/${core.clave}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prune: true })
+      })
       const data = await res.json()
       if (data.success) {
         showToast?.('Sincronización completada correctamente.', 'success')
@@ -915,6 +954,32 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
                                 </span>
                                 <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 font-semibold">
                                   Pendiente
+                                </span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lista de archivos huérfanos/obsoletos en la plantilla CLI */}
+                  {diffData.differences.some(d => d.status === 'orphan_in_template') && (
+                    <div className="space-y-2">
+                      <h5 className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                        🗑️ Archivos Obsoletos en el CLI (Serán eliminados al Sincronizar)
+                      </h5>
+                      <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl p-3">
+                        <ul className="space-y-1.5">
+                          {diffData.differences
+                            .filter(d => d.status === 'orphan_in_template')
+                            .map((diff, idx) => (
+                              <li key={idx} className="flex items-center justify-between text-[11px] font-mono text-slate-300 border-b border-[var(--color-border)]/30 pb-1.5 last:border-0 last:pb-0">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                                  {diff.file}
+                                </span>
+                                <span className="text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20 font-semibold">
+                                  Obsoleto
                                 </span>
                               </li>
                             ))}
