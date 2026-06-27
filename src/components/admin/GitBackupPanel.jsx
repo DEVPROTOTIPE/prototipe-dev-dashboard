@@ -214,7 +214,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
     setLogs([])
     setStreamState('idle')
     setCommitMessage('')
-    setDoAutoMerge(false)
+    setDoAutoMerge(true)
     fetchStatus(target)
     fetchCommits(target)
   }
