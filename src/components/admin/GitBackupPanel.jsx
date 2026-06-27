@@ -130,7 +130,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
   const [loadingStatus, setLoadingStatus] = useState(false)
   const [commitMessage, setCommitMessage] = useState('')
   const [doPush, setDoPush] = useState(true)
-  const [doAutoMerge, setDoAutoMerge] = useState(false)
+  const [doAutoMerge, setDoAutoMerge] = useState(true)
   const [logs, setLogs] = useState([])
   const [streamState, setStreamState] = useState('idle') // idle | running | done | error
   const eventSourceRef = useRef(null)
