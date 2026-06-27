@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   BookOpen, Search, Copy, RefreshCw, Terminal, Folder,
   FileText, Play, Code2, ChevronRight, Package, Sparkles,
-  X, AlertTriangle, Check, Layers, Zap, Hash, List, Eye, Maximize2, Minimize2
+  X, AlertTriangle, Check, Layers, Zap, Hash, List, Eye, Maximize2, Minimize2,
+  Shield, ChevronLeft, History, ArrowRight, CheckCircle2, XCircle, Loader2, FolderOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useCopyToClipboard from '../../hooks/useCopyToClipboard';
@@ -305,12 +306,18 @@ export default function ComponentLibraryView({ showToast }) {
 
   // Estados para inyección en clientes locales
   const [showInjectPanel, setShowInjectPanel] = useState(false);
+  const [injectStep, setInjectStep] = useState(1); // 1: configurar, 2: diagnosticar, 3: instalar
   const [injectTargetClient, setInjectTargetClient] = useState('');
   const [injectRelativePath, setInjectRelativePath] = useState('');
   const [injecting, setInjecting] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
   const [clients, setClients] = useState([]);
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnoseResult, setDiagnoseResult] = useState(null);
+  const [preflightResult, setPreflightResult] = useState(null);
+  const [preflighting, setPreflighting] = useState(false);
+  const [injectLog, setInjectLog] = useState([]); // pasos SSE en vivo
+  const [injectDone, setInjectDone] = useState(false);
   const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
 
   const searchInputRef = useRef(null);
@@ -498,6 +505,14 @@ export default function ComponentLibraryView({ showToast }) {
     };
     fetchComponentFile();
     setActiveTab('docs');
+    // Resetear el wizard al cambiar de componente
+    setShowInjectPanel(false);
+    setInjectStep(1);
+    setDiagnoseResult(null);
+    setPreflightResult(null);
+    setInjectLog([]);
+    setInjectDone(false);
+    setOverwrite(false);
   }, [selectedComponent]);
 
   // Obtener todas las etiquetas únicas presentes en el catálogo
@@ -1030,131 +1045,363 @@ export default function ComponentLibraryView({ showToast }) {
                   </div>
                 </div>
 
-                {/* Panel de inyección en cliente */}
+                {/* ═══════════════════════════════════════════════════════════
+                    MODAL WIZARD: Instalar en Cliente (3 pasos)
+                ═══════════════════════════════════════════════════════════ */}
+                <AnimatePresence>
                 {showInjectPanel && (
-                  <div className="m-5 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <Zap size={14} />
-                      <h4 className="text-xs font-bold">Auto-Inyección en Proyecto Cliente</h4>
-                    </div>
-                    <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
-                      Esta herramienta extraerá el código React del componente/módulo e lo inyectará directamente en la carpeta física del cliente local que elijas.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1 flex-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Proyecto Destino (Cliente)</label>
-                        <select
-                          className="bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors"
-                          value={injectTargetClient}
-                                                  onChange={e => { setInjectTargetClient(e.target.value); handleDiagnose(e.target.value); }}
-                        >
-                          <option value="">-- Seleccionar Cliente --</option>
-                          {clients.map(c => (
-                            <option key={c.path} value={c.name}>{c.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-1 flex-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ruta Relativa en el Proyecto</label>
-                        <input
-                          type="text"
-                          className="bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors"
-                          value={injectRelativePath}
-                          onChange={e => setInjectRelativePath(e.target.value)}
-                          placeholder="Ej: src/components/ui/MiComponente.jsx"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Diagnóstico de dependencias */}
-                    {diagnosing && (
-                      <div className="p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)]/50 rounded-xl flex items-center justify-center gap-2 text-[var(--color-text-muted)]">
-                        <RefreshCw size={12} className="animate-spin text-emerald-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Analizando dependencias en el cliente...</span>
-                      </div>
-                    )}
-
-                    {!diagnosing && diagnoseResult && (
-                      <div className="space-y-2">
-                        {/* Dependencias NPM */}
-                        <div className="p-3 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)]/50 rounded-xl space-y-1.5">
-                          <h5 className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
-                            <span>📦 Dependencias NPM (package.json)</span>
-                          </h5>
-                          {Object.keys(diagnoseResult.npmMissing).length === 0 ? (
-                            <div className="text-[10px] text-emerald-400 flex items-center gap-1">
-                              <span>✓</span> Todas las librerías requeridas ya están instaladas.
-                            </div>
-                          ) : (
-                            <div className="space-y-1">
-                              <p className="text-[9px] text-[var(--color-text-muted)]">Los siguientes paquetes se instalarán automáticamente en la carpeta del cliente:</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.entries(diagnoseResult.npmMissing).map(([name, ver]) => (
-                                  <span key={name} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded text-[9px] font-mono">
-                                    {name}@{ver}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.6)' }}
+                    onClick={e => { if (e.target === e.currentTarget && !injecting) { setShowInjectPanel(false); setInjectStep(1); } }}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                      transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+                      className="w-full max-w-lg bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl shadow-2xl overflow-hidden"
+                    >
+                      {/* Header del modal */}
+                      <div className="px-6 pt-5 pb-4 bg-emerald-500/5 border-b border-emerald-500/15 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
+                            <Shield size={16} className="text-emerald-400" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black text-[var(--color-text)]">Instalar en Cliente</h3>
+                            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate max-w-[280px]">{selectedComponent.name}</p>
+                          </div>
                         </div>
+                        <button onClick={() => { if (!injecting) { setShowInjectPanel(false); setInjectStep(1); } }}
+                          className="p-1.5 rounded-xl hover:bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer">
+                          <X size={14} />
+                        </button>
+                      </div>
 
-                        {/* Dependencias Internas */}
-                        {diagnoseResult.internalDependencies && diagnoseResult.internalDependencies.length > 0 && (
-                          <div className="p-3 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)]/50 rounded-xl space-y-1.5">
-                            <h5 className="text-[10px] font-bold text-slate-300">
-                              🧩 Subcomponentes y Hooks Requeridos
-                            </h5>
-                            <div className="space-y-1.5">
-                              {diagnoseResult.internalDependencies.map(dep => (
-                                <div key={dep.name} className="flex items-center justify-between text-[10px]">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[9px] uppercase font-bold text-slate-500 font-mono">[{dep.type}]</span>
-                                    <span className="text-[var(--color-text)] font-semibold">{dep.name}</span>
-                                  </div>
-                                  {dep.exists ? (
-                                    <span className="text-emerald-400 flex items-center gap-1 text-[9px]">
-                                      <span>✓</span> Ya presente
-                                    </span>
-                                  ) : (
-                                    <span className="text-amber-400 font-medium flex items-center gap-1 text-[9px]">
-                                      <span>⚠️</span> Se inyectará automáticamente
-                                    </span>
-                                  )}
+                      {/* Indicador de pasos */}
+                      <div className="px-6 py-3 flex items-center gap-2 border-b border-[var(--color-border)]/40">
+                        {[{ n: 1, label: 'Configurar' }, { n: 2, label: 'Verificar' }, { n: 3, label: 'Instalar' }].map(({ n, label }, idx) => (
+                          <React.Fragment key={n}>
+                            <div className={`flex items-center gap-1.5 ${
+                              injectStep === n ? 'text-emerald-400' :
+                              injectStep > n ? 'text-emerald-600' : 'text-[var(--color-text-muted)]'
+                            }`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border transition-all ${
+                                injectStep === n ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' :
+                                injectStep > n ? 'bg-emerald-500/30 border-emerald-600 text-emerald-400' :
+                                'bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-text-muted)]'
+                              }`}>
+                                {injectStep > n ? <Check size={9} /> : n}
+                              </div>
+                              <span className="text-[9px] font-bold uppercase tracking-wider hidden sm:block">{label}</span>
+                            </div>
+                            {idx < 2 && <div className={`flex-1 h-px transition-colors ${ injectStep > n ? 'bg-emerald-600' : 'bg-[var(--color-border)]' }`} />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+
+                      {/* ─── PASO 1: Configurar ─── */}
+                      {injectStep === 1 && (
+                        <div className="p-6 space-y-4">
+                          <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+                            Selecciona el proyecto cliente y confirma la ruta destino donde se creará el archivo.
+                          </p>
+                          {/* Selector de cliente */}
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <FolderOpen size={10} className="text-emerald-400" />
+                              Proyecto Destino (Cliente)
+                            </label>
+                            <select
+                              className="w-full bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2.5 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors cursor-pointer"
+                              value={injectTargetClient}
+                              onChange={e => { setInjectTargetClient(e.target.value); setPreflightResult(null); }}
+                            >
+                              <option value="">-- Seleccionar Cliente --</option>
+                              {clients.map(c => (
+                                <option key={c.path} value={c.name}>{c.name}{c.hasChanges ? ' ●' : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Ruta destino */}
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ruta Relativa en el Proyecto</label>
+                            <input
+                              type="text"
+                              className="w-full bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2.5 text-xs font-mono text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors"
+                              value={injectRelativePath}
+                              onChange={e => { setInjectRelativePath(e.target.value); setPreflightResult(null); }}
+                              placeholder="Ej: src/components/ui/MiComponente.jsx"
+                            />
+                            {injectRelativePath && (
+                              <p className="text-[9px] text-[var(--color-text-muted)]">El archivo se creará en: <code className="text-indigo-400">{injectTargetClient || '...'}/{injectRelativePath}</code></p>
+                            )}
+                          </div>
+                          {/* Resultado preflight */}
+                          {preflightResult && (
+                            <div className={`p-3 rounded-xl border space-y-2 ${ preflightResult.canInject ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20' }`}>
+                              {preflightResult.blockers?.map((b, i) => (
+                                <div key={i} className="flex items-start gap-1.5 text-[10px] text-red-400">
+                                  <XCircle size={11} className="shrink-0 mt-0.5" /><span>{b}</span>
                                 </div>
                               ))}
+                              {preflightResult.warnings?.map((w, i) => (
+                                <div key={i} className="flex items-start gap-1.5 text-[10px] text-amber-400">
+                                  <AlertTriangle size={11} className="shrink-0 mt-0.5" /><span>{w}</span>
+                                </div>
+                              ))}
+                              {preflightResult.canInject && preflightResult.blockers?.length === 0 && preflightResult.warnings?.length === 0 && (
+                                <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+                                  <CheckCircle2 size={11} /><span>Todo listo. El componente es inyectable.</span>
+                                </div>
+                              )}
+                              {preflightResult.destinationExists && (
+                                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                  <input type="checkbox" checked={overwrite} onChange={e => setOverwrite(e.target.checked)}
+                                    className="accent-emerald-500 w-3.5 h-3.5" />
+                                  <span className="text-[10px] text-amber-300 font-semibold">Sobrescribir archivo existente</span>
+                                </label>
+                              )}
                             </div>
+                          )}
+                          {/* Botones paso 1 */}
+                          <div className="flex justify-between items-center pt-1">
+                            <button onClick={() => { setShowInjectPanel(false); setInjectStep(1); }}
+                              className="text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer">
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!injectTargetClient || !injectRelativePath) return;
+                                setPreflighting(true);
+                                setPreflightResult(null);
+                                try {
+                                  const res = await fetch(`${CLI_URL}/api/library/inject/preflight`, {
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ componentLink: selectedComponent.link, targetRelativePath: injectRelativePath, clientId: injectTargetClient })
+                                  });
+                                  const data = await res.json();
+                                  if (data.error) throw new Error(data.error);
+                                  setPreflightResult(data);
+                                  if (data.canInject) {
+                                    // Si puede inyectar, avanzar automáticamente al diagnóstico
+                                    setDiagnosing(true);
+                                    setDiagnoseResult(null);
+                                    setInjectStep(2);
+                                    const dr = await fetch(`${CLI_URL}/api/library/inject/diagnose`, {
+                                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ clientId: injectTargetClient, componentLink: selectedComponent.link })
+                                    });
+                                    const dd = await dr.json();
+                                    setDiagnoseResult(dd.success ? dd : null);
+                                    setDiagnosing(false);
+                                  }
+                                } catch (err) {
+                                  setPreflightResult({ canInject: false, blockers: [err.message], warnings: [] });
+                                } finally {
+                                  setPreflighting(false);
+                                }
+                              }}
+                              disabled={!injectTargetClient || !injectRelativePath || preflighting}
+                              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs px-4 py-1.5 rounded-xl transition-all font-semibold cursor-pointer"
+                            >
+                              {preflighting ? <Loader2 size={11} className="animate-spin" /> : <ArrowRight size={11} />}
+                              {preflighting ? 'Verificando...' : 'Verificar y Continuar'}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    {/* Alerta de dependencias */}
-                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/15 rounded-xl flex items-start gap-2">
-                      <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
-                      <p className="text-[9px] text-amber-300/80 leading-relaxed">
-                        <strong>Nota Importante:</strong> El código se inyectará recursivamente en cascada. Tras completarse, verifica las rutas de imports y estilos en el cliente para asegurar que el resolvedor de Vite los compile correctamente.
-                      </p>
-                    </div>
+                      {/* ─── PASO 2: Diagnóstico ─── */}
+                      {injectStep === 2 && (
+                        <div className="p-6 space-y-4">
+                          <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+                            Revisión de dependencias antes de instalar.
+                          </p>
+                          {diagnosing ? (
+                            <div className="flex items-center justify-center gap-2 py-8 text-[var(--color-text-muted)]">
+                              <Loader2 size={16} className="animate-spin text-emerald-400" />
+                              <span className="text-[11px] font-bold">Analizando dependencias...</span>
+                            </div>
+                          ) : diagnoseResult ? (
+                            <div className="space-y-3">
+                              {/* NPM */}
+                              <div className="p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)]/50 rounded-xl space-y-2">
+                                <h5 className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5"><Package size={10} /> Dependencias NPM</h5>
+                                {Object.keys(diagnoseResult.npmMissing || {}).length === 0 ? (
+                                  <p className="text-[10px] text-emerald-400 flex items-center gap-1"><Check size={10} /> Todas las librerías ya están instaladas.</p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {Object.entries(diagnoseResult.npmMissing).map(([n, v]) => (
+                                      <span key={n} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded text-[9px] font-mono">{n}@{v}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Internas */}
+                              {diagnoseResult.internalDependencies?.length > 0 && (
+                                <div className="p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)]/50 rounded-xl space-y-1.5">
+                                  <h5 className="text-[10px] font-bold text-slate-300">🧩 Dependencias Internas</h5>
+                                  {diagnoseResult.internalDependencies.map(dep => (
+                                    <div key={dep.name} className="flex items-center justify-between text-[10px]">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] uppercase font-bold text-slate-500 font-mono">[{dep.type}]</span>
+                                        <span className="text-[var(--color-text)] font-semibold">{dep.name}</span>
+                                      </div>
+                                      {dep.exists
+                                        ? <span className="text-emerald-400 text-[9px] flex items-center gap-1"><Check size={9} /> Ya presente</span>
+                                        : <span className="text-amber-400 text-[9px] flex items-center gap-1"><AlertTriangle size={9} /> Se inyectará</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Overwrite check si existe */}
+                              {preflightResult?.destinationExists && (
+                                <label className="flex items-center gap-2 cursor-pointer p-2.5 bg-amber-500/8 border border-amber-500/15 rounded-xl">
+                                  <input type="checkbox" checked={overwrite} onChange={e => setOverwrite(e.target.checked)}
+                                    className="accent-emerald-500 w-3.5 h-3.5" />
+                                  <span className="text-[10px] text-amber-300 font-semibold">Sobrescribir archivo existente en el cliente</span>
+                                </label>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-[var(--color-text-muted)] text-center py-4">No se pudo obtener el diagnóstico.</p>
+                          )}
+                          <div className="flex justify-between items-center pt-1">
+                            <button onClick={() => setInjectStep(1)}
+                              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer">
+                              <ChevronLeft size={11} /> Volver
+                            </button>
+                            <button
+                              onClick={() => { setInjectStep(3); setInjectLog([]); setInjectDone(false); }}
+                              disabled={diagnosing}
+                              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs px-4 py-1.5 rounded-xl transition-all font-semibold cursor-pointer"
+                            >
+                              <Zap size={11} /> Confirmar e Instalar
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button
-                        onClick={() => { setShowInjectPanel(false); setDiagnoseResult(null); }}
-                        className="text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={handleInject}
-                        disabled={injecting || diagnosing || !injectTargetClient || !injectRelativePath}
-                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 text-white text-xs px-4 py-1.5 rounded-xl transition-all font-semibold cursor-pointer"
-                      >
-                        {injecting ? <RefreshCw size={11} className="animate-spin" /> : <Zap size={11} />}
-                        {injecting ? 'Instalando e Inyectando...' : 'Confirmar e Instalar Todo'}
-                      </button>
-                    </div>
-                  </div>
+                      {/* ─── PASO 3: Instalación con progreso SSE ─── */}
+                      {injectStep === 3 && (
+                        <div className="p-6 space-y-4">
+                          {/* Auto-lanzar SSE al montar el paso 3 */}
+                          {!injecting && !injectDone && injectLog.length === 0 && (() => {
+                            // Efecto inline: usamos un dummy que dispara el fetch SSE
+                            setTimeout(async () => {
+                              setInjecting(true);
+                              setInjectLog([{ phase: 'start', message: `Iniciando instalación en ${injectTargetClient}...`, status: 'done' }]);
+                              try {
+                                const res = await fetch(`${CLI_URL}/api/library/inject/stream`, {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ clientId: injectTargetClient, componentLink: selectedComponent.link, targetRelativePath: injectRelativePath, overwrite })
+                                });
+                                const reader = res.body.getReader();
+                                const decoder = new TextDecoder();
+                                let buf = '';
+                                while (true) {
+                                  const { done, value } = await reader.read();
+                                  if (done) break;
+                                  buf += decoder.decode(value, { stream: true });
+                                  const lines = buf.split('\n');
+                                  buf = lines.pop();
+                                  for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                      try {
+                                        const evt = JSON.parse(line.slice(6));
+                                        setInjectLog(prev => [...prev, evt]);
+                                        if (evt.event === 'complete' || evt.event === 'error') setInjectDone(true);
+                                      } catch {}
+                                    }
+                                  }
+                                }
+                              } catch (err) {
+                                setInjectLog(prev => [...prev, { event: 'error', message: err.message, status: 'error' }]);
+                                setInjectDone(true);
+                              } finally {
+                                setInjecting(false);
+                              }
+                            }, 50);
+                            return null;
+                          })()}
+
+                          {/* Log de progreso */}
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-thin pr-1">
+                            {injectLog.map((log, i) => {
+                              const isErr = log.event === 'error' || log.status === 'error';
+                              const isDone = log.status === 'done' || log.event === 'complete';
+                              const isProgress = log.status === 'installing' || log.status === 'writing' || log.status === 'injecting';
+                              return (
+                                <div key={i} className={`flex items-start gap-2 text-[10px] p-2 rounded-lg ${
+                                  isErr ? 'bg-red-500/8 text-red-400' :
+                                  isDone ? 'bg-emerald-500/8 text-emerald-400' :
+                                  'bg-[var(--color-surface-2)]/40 text-[var(--color-text-muted)]'
+                                }`}>
+                                  <div className="mt-0.5 shrink-0">
+                                    {isErr ? <XCircle size={11} /> :
+                                     isDone ? <CheckCircle2 size={11} /> :
+                                     isProgress ? <Loader2 size={11} className="animate-spin" /> :
+                                     <div className="w-2.5 h-2.5 rounded-full border border-current opacity-50" />}
+                                  </div>
+                                  <span className="leading-relaxed">{log.message}</span>
+                                </div>
+                              );
+                            })}
+                            {injecting && !injectDone && (
+                              <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-muted)] p-2">
+                                <Loader2 size={11} className="animate-spin text-emerald-400" />
+                                <span>Procesando...</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Resultado final */}
+                          {injectDone && (() => {
+                            const finalEvt = [...injectLog].reverse().find(l => l.event === 'complete' || l.event === 'error');
+                            const isSuccess = finalEvt?.event === 'complete';
+                            return (
+                              <div className={`p-3 rounded-xl border ${ isSuccess ? 'bg-emerald-500/8 border-emerald-500/20' : 'bg-red-500/8 border-red-500/20' }`}>
+                                <p className={`text-[11px] font-bold ${ isSuccess ? 'text-emerald-400' : 'text-red-400' }`}>
+                                  {isSuccess ? '✅ Instalación completada exitosamente.' : '❌ ' + (finalEvt?.message || 'Error en la instalación.')}
+                                </p>
+                                {isSuccess && finalEvt?.results && (
+                                  <ul className="mt-2 space-y-0.5">
+                                    {finalEvt.results.map((r, i) => (
+                                      <li key={i} className="text-[9px] font-mono text-emerald-300/70">
+                                        [{r.type}] {r.name} → {r.path || r.version || r.status}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          <div className="flex justify-between items-center pt-1">
+                            {!injecting && !injectDone && (
+                              <button onClick={() => setInjectStep(2)}
+                                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer">
+                                <ChevronLeft size={11} /> Volver
+                              </button>
+                            )}
+                            {injectDone && (
+                              <button onClick={() => { setShowInjectPanel(false); setInjectStep(1); }}
+                                className="ml-auto flex items-center gap-1.5 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-xs px-4 py-1.5 rounded-xl transition-all font-semibold cursor-pointer">
+                                <X size={11} /> Cerrar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
 
                 {/* Contenido de la pestaña activa */}
                 <div className="flex-1 overflow-y-auto max-h-[70vh] scrollbar-thin">
