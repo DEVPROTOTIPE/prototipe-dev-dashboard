@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BookOpen, Search, Copy, RefreshCw, Terminal, Folder,
   FileText, Play, Code2, ChevronRight, Package, Sparkles,
-  X, AlertTriangle, Check, Layers, Zap, Hash, List, Eye
+  X, AlertTriangle, Check, Layers, Zap, Hash, List, Eye, Maximize2, Minimize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useCopyToClipboard from '../../hooks/useCopyToClipboard';
@@ -13,6 +13,7 @@ const CLI_URL = 'http://localhost:3001';
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const DETAIL_TABS = [
   { id: 'docs', label: 'Documentación', icon: FileText },
+  { id: 'code', label: 'Código Fuente', icon: Code2 },
   { id: 'sandbox', label: 'Sandbox', icon: Play },
 ];
 
@@ -245,6 +246,39 @@ function extractAllCodeBlocks(md) {
   return blocks.length > 0 ? blocks.join('\n\n// ──────────────────────────────\n\n') : null;
 }
 
+// ─── Extractor de código React JSX tolerante de la ficha técnica ─────────────
+function extractReactCode(md) {
+  if (!md) return null;
+  // Regex tolerante a la sección y número: busca cualquier encabezado con "Código" y extrae el primer bloque ```jsx o ```js
+  // Si no se encuentra un ``` de cierre, se detiene ante el siguiente encabezado de nivel 2, regla horizontal o fin de archivo.
+  const match = md.match(/## \d+\..*?C[óo]digo[\s\S]*?```(?:javascript|jsx|js|tsx|ts)\n?([\s\S]*?)(?:```|(?=\n## \d+\.)|(?=\n---)|$)/i);
+  return match ? match[1].trim() : null;
+}
+
+// ─── Genera la ruta de destino por defecto para la auto-inyección ────────────
+function getDefaultRelativePath(comp) {
+  if (!comp) return '';
+  const cleanName = comp.technicalName || comp.name.replace(/[^a-zA-Z0-9]/g, '');
+  const mdLower = comp.link.toLowerCase();
+  
+  if (mdLower.includes('/logica_y_hooks/') || mdLower.includes('hook') || comp.name.toLowerCase().startsWith('use')) {
+    return `src/hooks/${cleanName.startsWith('use') ? cleanName : 'use' + cleanName}.js`;
+  }
+  if (mdLower.includes('/servicios_y_firebase/') || mdLower.includes('service')) {
+    return `src/services/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}Service.js`;
+  }
+  if (mdLower.includes('/utilidades/') || mdLower.includes('util')) {
+    return `src/utils/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}.js`;
+  }
+  if (mdLower.includes('/paginas/') || mdLower.includes('page')) {
+    return `src/pages/${cleanName}Page.jsx`;
+  }
+  if (comp.resourceType === 'module') {
+    return `src/components/common/${cleanName}.jsx`;
+  }
+  return `src/components/ui/${cleanName}.jsx`;
+}
+
 export default function ComponentLibraryView({ showToast }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +292,9 @@ export default function ComponentLibraryView({ showToast }) {
   const [resourceFilter, setResourceFilter] = useState('all'); // 'all' | 'component' | 'module'
   const [expandedCat, setExpandedCat] = useState(null);
 
+  // Estado para filtrado por etiquetas
+  const [selectedTag, setSelectedTag] = useState(null);
+
   // Estados para extracción de componentes
   const [showExtractForm, setShowExtractForm] = useState(false);
   const [extSourcePath, setExtSourcePath] = useState('');
@@ -265,6 +302,67 @@ export default function ComponentLibraryView({ showToast }) {
   const [extCategory, setExtCategory] = useState('');
   const [extDescription, setExtDescription] = useState('');
   const [extracting, setExtracting] = useState(false);
+
+  // Estados para inyección en clientes locales
+  const [showInjectPanel, setShowInjectPanel] = useState(false);
+  const [injectTargetClient, setInjectTargetClient] = useState('');
+  const [injectRelativePath, setInjectRelativePath] = useState('');
+  const [injecting, setInjecting] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagnoseResult, setDiagnoseResult] = useState(null);
+  const [isWorkspaceExpanded, setIsWorkspaceExpanded] = useState(false);
+
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === 'INPUT' ||
+          document.activeElement.tagName === 'TEXTAREA' ||
+          document.activeElement.tagName === 'SELECT' ||
+          document.activeElement.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === '/') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const handleDiagnose = async (clientName) => {
+    if (!clientName || !selectedComponent?.link) {
+      setDiagnoseResult(null);
+      return;
+    }
+    setDiagnosing(true);
+    setDiagnoseResult(null);
+    try {
+      const res = await fetch(`${CLI_URL}/api/library/inject/diagnose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: clientName,
+          componentLink: selectedComponent.link
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDiagnoseResult(data);
+      } else {
+        throw new Error(data.error || 'Fallo al realizar diagnóstico de dependencias');
+      }
+    } catch (err) {
+      showToast?.(err.message, 'error');
+    } finally {
+      setDiagnosing(false);
+    }
+  };
 
   const handleExtract = async () => {
     if (!extSourcePath || !extTargetName || !extCategory) return;
@@ -298,9 +396,40 @@ export default function ComponentLibraryView({ showToast }) {
     }
   };
 
+  const handleInject = async () => {
+    if (!injectTargetClient || !injectRelativePath || !selectedComponent?.link) return;
+    setInjecting(true);
+    try {
+      const res = await fetch(`${CLI_URL}/api/library/inject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: injectTargetClient,
+          componentLink: selectedComponent.link,
+          targetRelativePath: injectRelativePath
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast?.(`¡Inyección completada con éxito en el cliente ${injectTargetClient}!`, 'success');
+        setShowInjectPanel(false);
+        setDiagnoseResult(null);
+        setInjectTargetClient('');
+        setInjectRelativePath('');
+      } else {
+        throw new Error(data.error || 'Fallo al inyectar');
+      }
+    } catch (err) {
+      showToast?.(err.message, 'error');
+    } finally {
+      setInjecting(false);
+    }
+  };
+
   const toggleCategory = useCallback((name) => {
     setExpandedCat(prev => prev === name ? null : name);
   }, []);
+
   const fetchLibrary = async () => {
     try {
       setLoading(true);
@@ -310,6 +439,7 @@ export default function ComponentLibraryView({ showToast }) {
       const data = await res.json();
       if (data.success) {
         setCategories(data.categories || []);
+        setExpandedCat(null); // Siempre arrancar con todas las categorías contraídas
         const firstCat = data.categories.find(c => c.components?.length > 0);
         if (firstCat) setSelectedComponent(firstCat.components[0]);
       } else {
@@ -322,7 +452,28 @@ export default function ComponentLibraryView({ showToast }) {
     }
   };
 
-  useEffect(() => { fetchLibrary(); }, []);
+  const fetchClients = async () => {
+    try {
+      const res = await fetch(`${CLI_URL}/api/git/targets`);
+      const data = await res.json();
+      if (data.success && data.targets?.instances) {
+        setClients(data.targets.instances);
+      }
+    } catch (err) {
+      console.warn('[Fetch Clients] No se pudo cargar el listado de clientes locales.', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLibrary();
+    fetchClients();
+  }, []);
+
+  // Contraer categorías al cambiar filtros de tipo, sandbox o tag
+  // (searchTerm no se incluye: la condición || !!searchTerm en el render ya expande automáticamente)
+  useEffect(() => {
+    setExpandedCat(null);
+  }, [resourceFilter, sandboxFilter, selectedTag]);
 
   // ── Carga del Markdown ──
   useEffect(() => {
@@ -349,12 +500,24 @@ export default function ComponentLibraryView({ showToast }) {
     setActiveTab('docs');
   }, [selectedComponent]);
 
+  // Obtener todas las etiquetas únicas presentes en el catálogo
+  const allTags = useMemo(() => {
+    const tagsSet = new Set();
+    categories.forEach(cat => {
+      cat.components?.forEach(comp => {
+        comp.tags?.forEach(tag => tagsSet.add(tag));
+      });
+    });
+    return Array.from(tagsSet).sort();
+  }, [categories]);
+
   // ── Filtrado con contador ──
   const filteredCategories = categories
     .map(cat => ({
       ...cat,
       components: cat.components.filter(comp => {
-        const matchesSearch = `${comp.name} ${comp.technicalName} ${comp.description} ${comp.category}`
+        const tagsText = (comp.tags || []).join(' ');
+        const matchesSearch = `${comp.name} ${comp.technicalName} ${comp.description} ${comp.category} ${tagsText}`
           .toLowerCase().includes(searchTerm.toLowerCase());
         
         const hasSandbox = getSandboxKey(comp.name, comp.technicalName) !== null;
@@ -364,7 +527,9 @@ export default function ComponentLibraryView({ showToast }) {
           ? true
           : (resourceFilter === 'module' ? comp.resourceType === 'module' : comp.resourceType !== 'module');
 
-        return matchesSearch && matchesSandbox && matchesType;
+        const matchesTag = !selectedTag || (comp.tags && comp.tags.includes(selectedTag));
+
+        return matchesSearch && matchesSandbox && matchesType && matchesTag;
       }),
     }))
     .filter(cat => cat.components.length > 0);
@@ -498,13 +663,14 @@ export default function ComponentLibraryView({ showToast }) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          {/* ── Sidebar ──────────────────────────────────────────────────── */}
-          <div className="lg:col-span-4 xl:col-span-3 space-y-3">
+          {/* ── Columna 1: Panel Lateral (Búsqueda, Filtros y Árbol) (Ancho: 4 / ~33%) ── */}
+          <div className={`${isWorkspaceExpanded ? 'hidden' : 'lg:col-span-4 xl:col-span-4'} space-y-3 lg:sticky lg:top-5`}>
 
             {/* Buscador mejorado */}
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] px-3.5 py-2.5 rounded-xl shadow-sm focus-within:border-indigo-500/50 transition-all flex items-center gap-2">
               <Search size={13} className="text-slate-500 shrink-0" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Buscar componente..."
                 value={searchTerm}
@@ -516,92 +682,124 @@ export default function ComponentLibraryView({ showToast }) {
                 }}
                 className="bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none text-xs w-full text-[var(--color-text)] placeholder-[var(--color-text-muted)]"
               />
-              {searchTerm && (
+              {searchTerm ? (
                 <button onClick={() => setSearchTerm('')} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer">
                   <X size={11} />
                 </button>
+              ) : (
+                <span className="px-1.5 py-0.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[var(--color-text-muted)] rounded text-[8px] font-mono shrink-0 select-none">
+                  /
+                </span>
               )}
             </div>
 
             {/* Filtros de Tipo de Recurso (Componentes vs Módulos) */}
-            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)]">
+            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)] gap-1">
               <button
                 onClick={() => setResourceFilter('all')}
                 title="Todos los Recursos"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   resourceFilter === 'all'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <Layers size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Todos</span>
+                <Layers size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Todos</span>
               </button>
               <button
                 onClick={() => setResourceFilter('component')}
                 title="Solo Componentes"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   resourceFilter === 'component'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <Code2 size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Componentes</span>
+                <Code2 size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Comp</span>
               </button>
               <button
                 onClick={() => setResourceFilter('module')}
                 title="Solo Módulos Completos"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   resourceFilter === 'module'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <Package size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Módulos</span>
+                <Package size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Módulos</span>
               </button>
             </div>
 
             {/* Filtros de Sandbox interactivos */}
-            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)]">
+            <div className="flex bg-[var(--color-surface-2)]/60 p-1 rounded-xl border border-[var(--color-border)] gap-1">
               <button
                 onClick={() => setSandboxFilter('all')}
                 title="Todos los Filtros"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   sandboxFilter === 'all'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <List size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Todos</span>
+                <List size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Todos</span>
               </button>
               <button
                 onClick={() => setSandboxFilter('sandbox')}
                 title="Filtrar por Interactivos en Sandbox"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   sandboxFilter === 'sandbox'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <Eye size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Sandbox</span>
+                <Eye size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Sandbox</span>
               </button>
               <button
                 onClick={() => setSandboxFilter('docs')}
                 title="Filtrar por Solo Documentación"
-                className={`flex-grow py-2 px-1 flex flex-col items-center justify-center gap-1 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
+                className={`flex-grow py-1.5 px-2 flex items-center justify-center gap-1.5 rounded-lg transition-all duration-200 cursor-pointer active:scale-95 ${
                   sandboxFilter === 'docs'
-                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md scale-[1.02]'
+                    ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-md'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-indigo-500/10'
                 }`}
               >
-                <FileText size={13} />
-                <span className="text-[8px] font-black uppercase tracking-wider leading-none">Solo Docs</span>
+                <FileText size={11} className="shrink-0" />
+                <span className="text-[9px] font-bold uppercase tracking-wider">Docs</span>
               </button>
             </div>
+
+            {/* Tag Cloud */}
+            {allTags.length > 0 && (
+              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-2.5 rounded-xl space-y-2 flex flex-col min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1.5 shrink-0 select-none">
+                  <Hash size={10} className="text-indigo-400" />
+                  Filtrar por Etiquetas
+                </p>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin w-full shrink-0">
+                  {allTags.map(tag => {
+                    const isSelected = selectedTag === tag;
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => setSelectedTag(prev => prev === tag ? null : tag)}
+                        className={`px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all cursor-pointer shrink-0 ${
+                          isSelected
+                            ? 'bg-indigo-500/25 border-indigo-500/50 text-indigo-400'
+                            : 'bg-[var(--color-surface-2)]/40 border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-indigo-500/20'
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Contador de resultados */}
             {searchTerm && (
@@ -614,9 +812,9 @@ export default function ComponentLibraryView({ showToast }) {
               </div>
             )}
 
-            {/* Árbol */}
+            {/* Árbol en Cards */}
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
-              <div className="p-3 space-y-4 max-h-[75vh] overflow-y-auto scrollbar-thin">
+              <div className="p-3 space-y-3.5 max-h-[60vh] overflow-y-auto scrollbar-thin">
                 {filteredCategories.length === 0 ? (
                   <div className="py-8 text-center space-y-2">
                     <Search size={20} className="mx-auto text-[var(--color-text-muted)] opacity-30" />
@@ -628,7 +826,7 @@ export default function ComponentLibraryView({ showToast }) {
                   filteredCategories.map(cat => {
                     const isExpanded = expandedCat === cat.name || !!searchTerm;
                     return (
-                      <div key={cat.name} className="space-y-1">
+                      <div key={cat.name} className="space-y-1.5">
                         {/* Selector Desplegable Premium de Categoría */}
                         <button
                           onClick={() => toggleCategory(cat.name)}
@@ -662,52 +860,63 @@ export default function ComponentLibraryView({ showToast }) {
                                 opacity: 0,
                                 transition: { height: { duration: 0.18 }, opacity: { duration: 0.1 } }
                               }}
-                              className="overflow-hidden pl-3 space-y-0.5 border-l border-dashed border-indigo-500/15 ml-3.5"
+                              className="overflow-hidden pl-3 space-y-2 border-l border-dashed border-indigo-500/15 ml-3.5"
                             >
                               {cat.components.map(comp => {
                                 const isSelected = selectedComponent?.link === comp.link;
                                 const hasSandbox = getSandboxKey(comp.name, comp.technicalName) !== null;
+                                const ResourceIcon = comp.resourceType === 'module' ? Package : Code2;
                                 return (
                                   <button
                                     key={comp.link}
                                     onClick={() => setSelectedComponent(comp)}
-                                    className={`w-full text-left p-2 rounded-xl text-xs transition-all cursor-pointer flex flex-col gap-0.5 ${
+                                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-2 shadow-sm ${
                                       isSelected
-                                        ? 'bg-indigo-600/15 border border-indigo-500/40 text-[var(--color-text)] font-semibold'
-                                        : 'border border-transparent hover:bg-[var(--color-surface-2)]/60 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                                        ? 'bg-indigo-600/10 dark:bg-indigo-500/10 border-indigo-500/50 text-[var(--color-text)] font-semibold scale-[1.01]'
+                                        : 'bg-[var(--color-surface-2)]/30 backdrop-blur-sm border-[var(--color-border)]/65 hover:bg-[var(--color-surface-2)]/60 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-indigo-500/25 hover:scale-[1.01]'
                                     }`}
                                   >
-                                    <div className="flex flex-col gap-0.5 w-full min-w-0">
-                                      <div className="flex items-center gap-1.5 w-full min-w-0">
-                                        {hasSandbox && <Eye size={11} className="text-indigo-400 shrink-0" title="Simulable en Sandbox" />}
-                                        <span className="truncate flex-1 text-xs font-semibold text-[var(--color-text)] min-w-0">
+                                    <div className="flex items-start justify-between gap-2 w-full min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <ResourceIcon size={12} className={isSelected ? 'text-indigo-400 shrink-0' : 'text-slate-500 shrink-0'} />
+                                        <span className="truncate text-xs font-bold text-[var(--color-text)] min-w-0">
                                           {searchTerm
                                             ? <HighlightText text={comp.name} term={searchTerm} />
                                             : comp.name
                                           }
                                         </span>
                                       </div>
-                                      <div className="flex items-center gap-2 w-full min-w-0 text-[9px] text-[var(--color-text-muted)]">
-                                        {comp.resourceType === 'module' ? (
-                                          <span className="text-[7px] font-black uppercase bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 px-1 py-0.5 rounded leading-none shrink-0">
-                                            Módulo
-                                          </span>
-                                        ) : (
-                                          <span className="text-[7px] font-black uppercase bg-slate-500/10 border border-slate-800 text-slate-400 px-1 py-0.5 rounded leading-none shrink-0">
-                                            Comp
-                                          </span>
-                                        )}
-                                        {comp.technicalName && (
-                                          <span className="text-[7.5px] font-mono opacity-65 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1 py-0.5 rounded shrink-0 leading-none">
-                                            {comp.technicalName}
-                                          </span>
-                                        )}
-                                        {comp.description && (
-                                          <span className="truncate flex-1 text-left opacity-75">
-                                            {comp.description}
-                                          </span>
-                                        )}
-                                      </div>
+                                      {hasSandbox && (
+                                        <span className="px-1 py-0.5 bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 rounded text-[7px] font-black shrink-0 leading-none" title="Sandbox Disponible">
+                                          LIVE
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {comp.description && (
+                                      <p className="text-[10px] text-[var(--color-text-muted)] leading-normal line-clamp-2 w-full">
+                                        {comp.description}
+                                      </p>
+                                    )}
+
+                                    <div className="flex items-center justify-between gap-2 w-full min-w-0 mt-0.5">
+                                      {comp.technicalName ? (
+                                        <span className="text-[8px] font-mono opacity-85 bg-[var(--color-surface-2)] border border-[var(--color-border)] px-1.5 py-0.5 rounded leading-none shrink-0">
+                                          {comp.technicalName}
+                                        </span>
+                                      ) : (
+                                        <span />
+                                      )}
+                                      
+                                      {comp.tags && comp.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 justify-end shrink-0">
+                                          {comp.tags.slice(0, 2).map(tag => (
+                                            <span key={tag} className="px-1 py-0.5 text-[7px] font-black uppercase text-indigo-400/85 bg-indigo-500/10 border border-indigo-500/15 rounded leading-none">
+                                              #{tag}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   </button>
                                 );
@@ -722,9 +931,9 @@ export default function ComponentLibraryView({ showToast }) {
               </div>
             </div>
           </div>
-
-          {/* ── Panel Derecho ─────────────────────────────────────────────── */}
-          <div className="lg:col-span-8 xl:col-span-9 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden flex flex-col min-h-[600px]">
+          
+          {/* ── Columna 2: Panel de Detalle Workspace (Ancho: 8 / ~67%) ───────── */}
+          <div className={`${isWorkspaceExpanded ? 'lg:col-span-12 xl:col-span-12' : 'lg:col-span-8 xl:col-span-8'} bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden flex flex-col min-h-[600px] lg:sticky lg:top-5`}>
 
             {!selectedComponent ? (
               <div className="flex flex-col items-center justify-center h-full py-24 text-center space-y-4 text-[var(--color-text-muted)]">
@@ -756,45 +965,196 @@ export default function ComponentLibraryView({ showToast }) {
                     </div>
 
                     {/* Acciones del header */}
-                    {!loadingContent && allCode && (
+                    {!loadingContent && (
                       <div className="flex items-center gap-2 shrink-0">
-                        <CopyButton
-                          text={allCode}
-                          label="Copiar todo el código"
-                          size="lg"
-                          className="text-[10px]"
-                        />
+                        <button
+                          onClick={() => {
+                            setShowInjectPanel(p => !p);
+                            if (selectedComponent) {
+                              setInjectRelativePath(getDefaultRelativePath(selectedComponent));
+                            }
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <Zap size={11} />
+                          Instalar en Cliente
+                        </button>
+                        {allCode && (
+                          <CopyButton
+                            text={allCode}
+                            label="Copiar todo el código"
+                            size="lg"
+                            className="text-[10px]"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
 
                   {/* Pestañas */}
-                  <div className="flex px-5 mt-3 gap-1">
-                    {DETAIL_TABS.map(tab => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-bold rounded-t-xl border-b-2 transition-all cursor-pointer ${
-                            isActive
-                              ? 'text-indigo-400 border-indigo-500 bg-indigo-500/5'
-                              : 'text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/40'
-                          }`}
-                        >
-                          <Icon size={11} />
-                          {tab.label}
-                          {tab.id === 'sandbox' && (
-                            <span className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-[8px] font-black">
-                              LIVE
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="flex px-5 mt-3 justify-between items-center border-b border-[var(--color-border)]/30">
+                    <div className="flex gap-1 -mb-[1px]">
+                      {DETAIL_TABS.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-bold rounded-t-xl border-b-2 transition-all cursor-pointer ${
+                              isActive
+                                ? 'text-indigo-400 border-indigo-500 bg-indigo-500/5'
+                                : 'text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/40'
+                            }`}
+                          >
+                            <Icon size={11} />
+                            {tab.label}
+                            {tab.id === 'sandbox' && (
+                              <span className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full text-[8px] font-black">
+                                LIVE
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setIsWorkspaceExpanded(p => !p)}
+                      title={isWorkspaceExpanded ? "Contraer área de trabajo" : "Ampliar área de trabajo"}
+                      className="mb-1 px-2.5 py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] hover:bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-indigo-400 hover:border-indigo-500/35 transition-all cursor-pointer flex items-center gap-1.5 text-[9px] font-bold shadow-sm"
+                    >
+                      {isWorkspaceExpanded ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+                      <span>{isWorkspaceExpanded ? "Contraer" : "Ampliar"}</span>
+                    </button>
                   </div>
                 </div>
+
+                {/* Panel de inyección en cliente */}
+                {showInjectPanel && (
+                  <div className="m-5 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Zap size={14} />
+                      <h4 className="text-xs font-bold">Auto-Inyección en Proyecto Cliente</h4>
+                    </div>
+                    <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+                      Esta herramienta extraerá el código React del componente/módulo e lo inyectará directamente en la carpeta física del cliente local que elijas.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Proyecto Destino (Cliente)</label>
+                        <select
+                          className="bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors"
+                          value={injectTargetClient}
+                                                  onChange={e => { setInjectTargetClient(e.target.value); handleDiagnose(e.target.value); }}
+                        >
+                          <option value="">-- Seleccionar Cliente --</option>
+                          {clients.map(c => (
+                            <option key={c.path} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ruta Relativa en el Proyecto</label>
+                        <input
+                          type="text"
+                          className="bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] rounded-xl px-3.5 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 transition-colors"
+                          value={injectRelativePath}
+                          onChange={e => setInjectRelativePath(e.target.value)}
+                          placeholder="Ej: src/components/ui/MiComponente.jsx"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Diagnóstico de dependencias */}
+                    {diagnosing && (
+                      <div className="p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)]/50 rounded-xl flex items-center justify-center gap-2 text-[var(--color-text-muted)]">
+                        <RefreshCw size={12} className="animate-spin text-emerald-400" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Analizando dependencias en el cliente...</span>
+                      </div>
+                    )}
+
+                    {!diagnosing && diagnoseResult && (
+                      <div className="space-y-2">
+                        {/* Dependencias NPM */}
+                        <div className="p-3 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)]/50 rounded-xl space-y-1.5">
+                          <h5 className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                            <span>📦 Dependencias NPM (package.json)</span>
+                          </h5>
+                          {Object.keys(diagnoseResult.npmMissing).length === 0 ? (
+                            <div className="text-[10px] text-emerald-400 flex items-center gap-1">
+                              <span>✓</span> Todas las librerías requeridas ya están instaladas.
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <p className="text-[9px] text-[var(--color-text-muted)]">Los siguientes paquetes se instalarán automáticamente en la carpeta del cliente:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {Object.entries(diagnoseResult.npmMissing).map(([name, ver]) => (
+                                  <span key={name} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded text-[9px] font-mono">
+                                    {name}@{ver}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Dependencias Internas */}
+                        {diagnoseResult.internalDependencies && diagnoseResult.internalDependencies.length > 0 && (
+                          <div className="p-3 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)]/50 rounded-xl space-y-1.5">
+                            <h5 className="text-[10px] font-bold text-slate-300">
+                              🧩 Subcomponentes y Hooks Requeridos
+                            </h5>
+                            <div className="space-y-1.5">
+                              {diagnoseResult.internalDependencies.map(dep => (
+                                <div key={dep.name} className="flex items-center justify-between text-[10px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] uppercase font-bold text-slate-500 font-mono">[{dep.type}]</span>
+                                    <span className="text-[var(--color-text)] font-semibold">{dep.name}</span>
+                                  </div>
+                                  {dep.exists ? (
+                                    <span className="text-emerald-400 flex items-center gap-1 text-[9px]">
+                                      <span>✓</span> Ya presente
+                                    </span>
+                                  ) : (
+                                    <span className="text-amber-400 font-medium flex items-center gap-1 text-[9px]">
+                                      <span>⚠️</span> Se inyectará automáticamente
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Alerta de dependencias */}
+                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/15 rounded-xl flex items-start gap-2">
+                      <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                      <p className="text-[9px] text-amber-300/80 leading-relaxed">
+                        <strong>Nota Importante:</strong> El código se inyectará recursivamente en cascada. Tras completarse, verifica las rutas de imports y estilos en el cliente para asegurar que el resolvedor de Vite los compile correctamente.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => { setShowInjectPanel(false); setDiagnoseResult(null); }}
+                        className="text-xs text-slate-500 hover:text-slate-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleInject}
+                        disabled={injecting || diagnosing || !injectTargetClient || !injectRelativePath}
+                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 text-white text-xs px-4 py-1.5 rounded-xl transition-all font-semibold cursor-pointer"
+                      >
+                        {injecting ? <RefreshCw size={11} className="animate-spin" /> : <Zap size={11} />}
+                        {injecting ? 'Instalando e Inyectando...' : 'Confirmar e Instalar Todo'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Contenido de la pestaña activa */}
                 <div className="flex-1 overflow-y-auto max-h-[70vh] scrollbar-thin">
@@ -811,6 +1171,37 @@ export default function ComponentLibraryView({ showToast }) {
                         <div className="py-16 text-center text-[var(--color-text-muted)] text-xs space-y-2">
                           <FileText size={24} className="mx-auto opacity-30" />
                           <p>No hay documentación disponible para este componente.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : activeTab === 'code' ? (
+                    <div className="p-5">
+                      {componentContent ? (
+                        (() => {
+                          const reactCode = extractReactCode(componentContent);
+                          return reactCode ? (
+                            <div className="relative bg-slate-950 border border-slate-800/80 rounded-xl overflow-hidden my-1 group">
+                              <div className="flex items-center justify-between px-4 py-2 bg-slate-900/60 border-b border-slate-800/60">
+                                <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">
+                                  React JSX
+                                </span>
+                                <CopyButton text={reactCode} label="Copiar Código React" size="sm" />
+                              </div>
+                              <div className="p-4 overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <pre className="font-mono text-[10px] leading-relaxed text-slate-300 whitespace-pre">{reactCode}</pre>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-16 text-center text-[var(--color-text-muted)] text-xs space-y-2">
+                              <AlertTriangle size={24} className="mx-auto text-amber-500 opacity-60" />
+                              <p>No se pudo aislar un bloque de código React JSX en la documentación de este componente.</p>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="py-16 text-center text-[var(--color-text-muted)] text-xs space-y-2">
+                          <Code2 size={24} className="mx-auto opacity-30" />
+                          <p>No hay código disponible para este componente.</p>
                         </div>
                       )}
                     </div>
