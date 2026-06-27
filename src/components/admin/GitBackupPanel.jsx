@@ -640,7 +640,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
           ) : (
             <>
               {/* Info del Target seleccionado */}
-              <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl flex items-center justify-between gap-4 flex-wrap">
+              <div className="relative z-40 p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
                     <GitBranch size={16} className="text-violet-400" />
