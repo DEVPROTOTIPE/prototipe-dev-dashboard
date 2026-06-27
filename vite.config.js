@@ -9,6 +9,9 @@ export default defineConfig({
     tailwindcss()
   ],
   server: {
-    port: 5174 // Use a different port to avoid conflict with client app (5173)
+    port: 5174, // Use a different port to avoid conflict with client app (5173)
+    watch: {
+      ignored: ['**/.git-backup-temp**']
+    }
   }
 })
