@@ -81,33 +81,38 @@ const BranchSelector = ({ path, currentBranch, onBranchChanged, showToast, showC
       return
     }
     
-    const confirmFn = showConfirm || ((msg, cb) => { if (window.confirm(msg)) cb() })
+    let confirmed = false
+    if (showConfirm) {
+      confirmed = await showConfirm({
+        title: '¿Confirmar cambio de rama?',
+        message: `¿Deseas cambiar a la rama "${targetBranch}"? Se actualizarán los archivos locales en tu disco.`
+      })
+    } else {
+      confirmed = window.confirm(`¿Confirmas que deseas cambiar a la rama "${targetBranch}"? Se actualizarán los archivos locales en tu disco.`)
+    }
     
-    confirmFn(
-      `¿Confirmas que deseas cambiar a la rama "${targetBranch}"? Se actualizarán los archivos locales en tu disco.`,
-      async () => {
-        setIsOpen(false)
-        setSwitching(true)
-        try {
-          const res = await fetch(`${CLI_BASE}/api/git/checkout`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path, branch: targetBranch })
-          })
-          const data = await res.json()
-          if (data.success) {
-            showToast?.(`Cambiado con éxito a la rama "${targetBranch}"`, { type: 'success' })
-            onBranchChanged?.(targetBranch)
-          } else {
-            showToast?.(data.error || 'Error al cambiar de rama', { type: 'error' })
-          }
-        } catch (_) {
-          showToast?.('Error de comunicación con el servidor', { type: 'error' })
-        } finally {
-          setSwitching(false)
-        }
+    if (!confirmed) return
+    
+    setIsOpen(false)
+    setSwitching(true)
+    try {
+      const res = await fetch(`${CLI_BASE}/api/git/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, branch: targetBranch })
+      })
+      const data = await res.json()
+      if (data.success) {
+        showToast?.(`Cambiado con éxito a la rama "${targetBranch}"`, { type: 'success' })
+        onBranchChanged?.(targetBranch)
+      } else {
+        showToast?.(data.error || 'Error al cambiar de rama', { type: 'error' })
       }
-    )
+    } catch (_) {
+      showToast?.('Error de comunicación con el servidor', { type: 'error' })
+    } finally {
+      setSwitching(false)
+    }
   }
 
   if (!currentBranch) return null
