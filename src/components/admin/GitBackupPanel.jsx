@@ -32,6 +32,146 @@ const BranchBadge = ({ branch }) => {
   )
 }
 
+const BranchSelector = ({ path, currentBranch, onBranchChanged, showToast, showConfirm }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [branches, setBranches] = useState([])
+  const [loadingList, setLoadingList] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const loadBranches = async () => {
+    if (loadingList) return
+    setLoadingList(true)
+    try {
+      const res = await fetch(`${CLI_BASE}/api/git/branches?path=${encodeURIComponent(path)}`)
+      const data = await res.json()
+      if (data.success) {
+        setBranches(data.branches)
+      } else {
+        showToast?.(data.error || 'No se pudieron cargar las ramas', { type: 'error' })
+      }
+    } catch (_) {
+      showToast?.('Error al conectar con la CLI', { type: 'error' })
+    } finally {
+      setLoadingList(false)
+    }
+  }
+
+  const handleToggle = () => {
+    if (!isOpen) {
+      loadBranches()
+    }
+    setIsOpen(!isOpen)
+  }
+
+  const handleCheckout = async (targetBranch) => {
+    if (targetBranch === currentBranch) {
+      setIsOpen(false)
+      return
+    }
+    
+    const confirmFn = showConfirm || ((msg, cb) => { if (window.confirm(msg)) cb() })
+    
+    confirmFn(
+      `¿Confirmas que deseas cambiar a la rama "${targetBranch}"? Se actualizarán los archivos locales en tu disco.`,
+      async () => {
+        setIsOpen(false)
+        setSwitching(true)
+        try {
+          const res = await fetch(`${CLI_BASE}/api/git/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, branch: targetBranch })
+          })
+          const data = await res.json()
+          if (data.success) {
+            showToast?.(`Cambiado con éxito a la rama "${targetBranch}"`, { type: 'success' })
+            onBranchChanged?.(targetBranch)
+          } else {
+            showToast?.(data.error || 'Error al cambiar de rama', { type: 'error' })
+          }
+        } catch (_) {
+          showToast?.('Error de comunicación con el servidor', { type: 'error' })
+        } finally {
+          setSwitching(false)
+        }
+      }
+    )
+  }
+
+  if (!currentBranch) return null
+  const isMain = currentBranch === 'main' || currentBranch === 'master'
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        disabled={switching}
+        onClick={handleToggle}
+        className={`inline-flex items-center gap-1.5 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border transition-all duration-200 cursor-pointer ${
+          isMain
+            ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20'
+            : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border-indigo-500/20'
+        }`}
+        title="Cambiar rama Git"
+      >
+        {switching ? (
+          <RefreshCw size={8} className="animate-spin text-indigo-400" />
+        ) : (
+          <GitBranch size={8} className={isMain ? 'text-emerald-400' : 'text-indigo-400'} />
+        )}
+        <span>{currentBranch}</span>
+        <span className="text-[6px] opacity-70">▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-xl z-50 overflow-hidden">
+          <div className="p-1 max-h-48 overflow-y-auto">
+            <p className="text-[7px] font-black uppercase tracking-wider text-[var(--color-text-muted)] px-2 py-1">Ramas locales</p>
+            {loadingList ? (
+              <div className="flex items-center justify-center gap-2 py-2 text-[9px] text-[var(--color-text-muted)]">
+                <RefreshCw size={8} className="animate-spin" />
+                <span>Cargando...</span>
+              </div>
+            ) : branches.length === 0 ? (
+              <div className="py-2 px-2 text-[9px] text-[var(--color-text-muted)]">
+                Sin ramas
+              </div>
+            ) : (
+              branches.map(b => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => handleCheckout(b)}
+                  className={`w-full text-left px-2 py-1 text-[9px] rounded-lg font-mono flex items-center justify-between cursor-pointer transition-colors ${
+                    b === currentBranch
+                      ? 'bg-indigo-500/15 text-indigo-400 font-bold'
+                      : 'text-[var(--color-text)] hover:bg-[var(--color-surface-2)]'
+                  }`}
+                >
+                  <span className="truncate">{b}</span>
+                  {b === currentBranch && <span className="w-1 h-1 rounded-full bg-indigo-400" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ChangeBadge = ({ hasChanges, count }) => {
   if (!hasChanges) return (
     <span className="text-[9px] text-emerald-400/70 font-semibold">✓ Limpio</span>
@@ -520,7 +660,20 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
                     loading={loadingStatus}
                     onRefresh={() => fetchStatus(selected, true)}
                   />
-                  <BranchBadge branch={gitStatus?.branch || selected.branch} />
+                  <BranchSelector
+                    path={selected.path}
+                    currentBranch={gitStatus?.branch || selected.branch}
+                    showToast={showToast}
+                    showConfirm={showConfirm}
+                    onBranchChanged={(newBranch) => {
+                      setGitStatus(prev => prev ? { ...prev, branch: newBranch } : { branch: newBranch })
+                      const updatedSelected = { ...selected, branch: newBranch }
+                      setSelected(updatedSelected)
+                      fetchStatus(updatedSelected)
+                      fetchCommits(updatedSelected)
+                      fetchTargets()
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={() => { fetchStatus(selected); fetchCommits(selected); }}
