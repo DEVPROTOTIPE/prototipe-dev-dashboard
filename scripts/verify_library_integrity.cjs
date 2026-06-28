@@ -201,6 +201,61 @@ try {
     console.log('[Éxito] Todos los archivos físicos de documentación tienen manifiestos JSON válidos.');
   }
 
+  // 6. Sincronización Automática Bidireccional de Skills de IA (Estandarizada a guión medio)
+  console.log('\n[Info] Sincronizando habilidades del agente IA (.agents/skills <-> Resguardo)...');
+  try {
+    const agentsSkillsDir = path.join(rootDir, '.agents', 'skills');
+    const backupSkillsDir = path.join(docsRoot, '04_Estandares_y_Skills', 'Copia_Seguridad_Reglas_y_Skills', 'Skills');
+
+    if (fs.existsSync(agentsSkillsDir) && fs.existsSync(backupSkillsDir)) {
+      // 6a. Sincronizar de .agents/skills hacia el Resguardo de Documentación
+      const activeSkills = fs.readdirSync(agentsSkillsDir);
+      activeSkills.forEach(skillName => {
+        const activeSkillFile = path.join(agentsSkillsDir, skillName, 'SKILL.md');
+        if (fs.existsSync(activeSkillFile)) {
+          const backupSkillFolder = path.join(backupSkillsDir, skillName);
+          const backupSkillFile = path.join(backupSkillFolder, 'SKILL.md');
+
+          const activeContent = fs.readFileSync(activeSkillFile, 'utf8');
+          let backupContent = '';
+          if (fs.existsSync(backupSkillFile)) {
+            backupContent = fs.readFileSync(backupSkillFile, 'utf8');
+          }
+
+          if (activeContent !== backupContent) {
+            fs.mkdirSync(backupSkillFolder, { recursive: true });
+            fs.writeFileSync(backupSkillFile, activeContent, 'utf8');
+            console.log(`🔒 Resguardo actualizado para: ${skillName}`);
+          }
+        }
+      });
+
+      // 6b. Restauración: Sincronizar de Resguardo de Documentación hacia .agents/skills
+      const backupSkills = fs.readdirSync(backupSkillsDir);
+      backupSkills.forEach(backupName => {
+        const backupSkillFile = path.join(backupSkillsDir, backupName, 'SKILL.md');
+        if (fs.existsSync(backupSkillFile)) {
+          const activeSkillFolder = path.join(agentsSkillsDir, backupName);
+          const activeSkillFile = path.join(activeSkillFolder, 'SKILL.md');
+
+          const backupContent = fs.readFileSync(backupSkillFile, 'utf8');
+          let activeContent = '';
+          if (fs.existsSync(activeSkillFile)) {
+            activeContent = fs.readFileSync(activeSkillFile, 'utf8');
+          }
+
+          if (backupContent !== activeContent) {
+            fs.mkdirSync(activeSkillFolder, { recursive: true });
+            fs.writeFileSync(activeSkillFile, backupContent, 'utf8');
+            console.log(`🆕 Operativa de IA restaurada o creada para: ${backupName}`);
+          }
+        }
+      });
+    }
+  } catch (syncErr) {
+    console.error(`⚠️ Advertencia de sincronización de reglas: ${syncErr.message}`);
+  }
+
   // Comportamiento de salida final
   if (hasErrors) {
     console.error('\n==================================================');

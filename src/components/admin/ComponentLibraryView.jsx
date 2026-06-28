@@ -428,6 +428,14 @@ export default function ComponentLibraryView({ showToast }) {
   // CORE-127: Estado de auditoría
   const [auditTrail, setAuditTrail] = useState([]);          // entradas del historial paginadas
   const [cssDoctorLoading, setCssDoctorLoading] = useState(false);
+
+  // Asistentes de Comandos de IA Híbridos
+  const [iaCreateName, setIaCreateName] = useState('');
+  const [iaCreateCategory, setIaCreateCategory] = useState('Formularios_y_UI');
+  const [iaCreatePrompt, setIaCreatePrompt] = useState('');
+  const [iaExtractPrompt, setIaExtractPrompt] = useState('');
+  const [isIaCreateExpanded, setIsIaCreateExpanded] = useState(false);
+  const [isIaExtractExpanded, setIsIaExtractExpanded] = useState(false);
   const [cssDoctorSuccess, setCssDoctorSuccess] = useState(false);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
@@ -1103,6 +1111,89 @@ export default function ComponentLibraryView({ showToast }) {
                 </div>
               </div>
             )}
+
+            {/* Asistente de Creación con IA (Comando Híbrido) */}
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden shadow-sm transition-all duration-300">
+              <button 
+                onClick={() => setIsIaCreateExpanded(!isIaCreateExpanded)}
+                className="w-full px-4 py-3 bg-[var(--color-surface-2)]/40 hover:bg-[var(--color-surface-2)] flex items-center justify-between border-b border-[var(--color-border)] cursor-pointer text-left"
+              >
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text)] flex items-center gap-1.5 select-none">
+                  <Sparkles size={12} className="text-indigo-400" />
+                  Creador con IA (Comando)
+                </span>
+                <span className="text-[10px] text-indigo-400 font-bold hover:underline">
+                  {isIaCreateExpanded ? 'Contraer' : 'Expandir'}
+                </span>
+              </button>
+
+              {isIaCreateExpanded && (
+                <div className="p-3.5 space-y-3.5 tab-content-enter">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)]">Nombre del Componente</label>
+                    <input 
+                      type="text"
+                      value={iaCreateName}
+                      onChange={e => setIaCreateName(e.target.value.replace(/\s+/g, ''))}
+                      placeholder="Ej: BotonPremium"
+                      className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)]">Categoría de Destino</label>
+                    <select
+                      value={iaCreateCategory}
+                      onChange={e => setIaCreateCategory(e.target.value)}
+                      className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    >
+                      <option value="Formularios_y_UI">Formularios y UI</option>
+                      <option value="Logica_y_Hooks">Lógica y Hooks</option>
+                      <option value="Modulos_Completos">Módulos Completos</option>
+                      <option value="Servicios_y_Firebase">Servicios y Firebase</option>
+                      <option value="Utilidades">Utilidades</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--color-text-muted)]">Requerimientos / Prompt</label>
+                    <textarea
+                      rows={3}
+                      value={iaCreatePrompt}
+                      onChange={e => setIaCreatePrompt(e.target.value)}
+                      placeholder="Ej: Un selector de fecha con efecto de brillo HSL y animaciones suaves con Framer Motion."
+                      className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-indigo-500 resize-none"
+                    />
+                  </div>
+
+                  {/* Comando Generado */}
+                  {iaCreateName && iaCreatePrompt && (
+                    <div className="space-y-1.5 pt-2 border-t border-[var(--color-border)]">
+                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Comando de Automatización</span>
+                      <div className="flex items-center justify-between gap-2 bg-slate-950 px-2.5 py-2 border border-slate-800 rounded-lg">
+                        <code className="font-mono text-[10px] text-slate-300 overflow-x-auto whitespace-nowrap scrollbar-none select-all">
+                          {`@crear-componente "${iaCreateCategory}" "${iaCreateName}" "${iaCreatePrompt.replace(/"/g, '\\"')}"`}
+                        </code>
+                        <button
+                          onClick={() => {
+                            const cmd = `@crear-componente "${iaCreateCategory}" "${iaCreateName}" "${iaCreatePrompt.replace(/"/g, '\\"')}"`;
+                            navigator.clipboard.writeText(cmd);
+                            showToast('Comando copiado. Pégalo en tu chat con Antigravity ✓', { type: 'success' });
+                          }}
+                          className="p-1 bg-slate-900 hover:bg-slate-850 rounded border border-slate-800 text-slate-400 hover:text-indigo-400 cursor-pointer flex items-center justify-center shrink-0"
+                          title="Copiar comando al portapapeles"
+                        >
+                          <Copy size={11} />
+                        </button>
+                      </div>
+                      <span className="text-[9px] text-[var(--color-text-muted)] italic block leading-relaxed">
+                        Copia este comando y pégalo en el chat. La IA generará el componente y su sandbox automáticamente.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Contador de resultados */}
             {searchTerm && (
@@ -2034,6 +2125,73 @@ export default function ComponentLibraryView({ showToast }) {
                               <Copy size={11} />
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Asistente de Extracción con IA (Comando Híbrido) */}
+                      {selectedComponent && (
+                        <div className="mb-4 p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl overflow-hidden shadow-sm transition-all duration-300">
+                          <button 
+                            onClick={() => setIsIaExtractExpanded(!isIaExtractExpanded)}
+                            className="w-full flex items-center justify-between cursor-pointer text-left focus:outline-none"
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text)] flex items-center gap-1.5 select-none">
+                              <Sparkles size={12} className="text-indigo-400" />
+                              Asistente de Extracción (Comando IA)
+                            </span>
+                            <span className="text-[10px] text-indigo-400 font-bold hover:underline">
+                              {isIaExtractExpanded ? 'Contraer' : 'Expandir'}
+                            </span>
+                          </button>
+
+                          {isIaExtractExpanded && (
+                            <div className="mt-3.5 space-y-3.5 tab-content-enter">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)]">Archivo de Destino</label>
+                                <input 
+                                  type="text"
+                                  disabled
+                                  value={selectedComponent.link.split('/').pop() || ''}
+                                  className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] opacity-60 rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text-muted)] cursor-not-allowed focus:outline-none"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)]">Indicaciones de Adaptación (Opcional)</label>
+                                <textarea
+                                  rows={2}
+                                  value={iaExtractPrompt}
+                                  onChange={e => setIaExtractPrompt(e.target.value)}
+                                  placeholder="Ej: Limpiar estilos ad-hoc y adaptar paleta a variables de colores HSL. Agregar framer motion."
+                                  className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-indigo-500 resize-none"
+                                />
+                              </div>
+
+                              {/* Comando de Extracción Generado */}
+                              <div className="space-y-1.5 pt-2 border-t border-[var(--color-border)]">
+                                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Comando de Extracción</span>
+                                <div className="flex items-center justify-between gap-2 bg-slate-950 px-2.5 py-2 border border-slate-800 rounded-lg">
+                                  <code className="font-mono text-[10px] text-slate-300 overflow-x-auto whitespace-nowrap scrollbar-none select-all">
+                                    {`@extraer-componente "${selectedComponent.link}"${iaExtractPrompt ? ` "${iaExtractPrompt.replace(/"/g, '\\"')}"` : ''}`}
+                                  </code>
+                                  <button
+                                    onClick={() => {
+                                      const cmd = `@extraer-componente "${selectedComponent.link}"${iaExtractPrompt ? ` "${iaExtractPrompt.replace(/"/g, '\\"')}"` : ''}`;
+                                      navigator.clipboard.writeText(cmd);
+                                      showToast('Comando de extracción copiado. Pégalo en tu chat con Antigravity ✓', { type: 'success' });
+                                    }}
+                                    className="p-1 bg-slate-900 hover:bg-slate-850 rounded border border-slate-800 text-slate-400 hover:text-indigo-400 cursor-pointer flex items-center justify-center shrink-0"
+                                    title="Copiar comando de extracción"
+                                  >
+                                    <Copy size={11} />
+                                  </button>
+                                </div>
+                                <span className="text-[9px] text-[var(--color-text-muted)] italic block leading-relaxed">
+                                  Pega este comando en nuestro chat de Antigravity para extraer, portar y catalogar automáticamente el componente.
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 

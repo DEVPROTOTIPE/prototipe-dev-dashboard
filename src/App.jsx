@@ -61,6 +61,7 @@ import {
   Globe
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
+import SkillsRoadmapPanel from './components/admin/SkillsRoadmapPanel'
 import html2canvas from 'html2canvas'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
@@ -6374,6 +6375,7 @@ export default function App() {
     { id: 'billing', label: 'Facturación', icon: CreditCard, shortLabel: 'Cobros' },
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
+    { id: 'skills', label: 'Salud y Roadmap', icon: Activity, shortLabel: 'Roadmap' },
     { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo', badgeKey: 'activeFailures' },
     { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
@@ -8288,6 +8290,11 @@ export default function App() {
           {/* ===== TAB: LIBRARY ===== */}
           {activeTab === 'library' && (
             <ComponentLibraryView showToast={showToast} />
+          )}
+
+          {/* ===== TAB: SALUD Y ROADMAP ===== */}
+          {activeTab === 'skills' && (
+            <SkillsRoadmapPanel showToast={showToast} />
           )}
 
           {activeTab === 'onboarding' && (
