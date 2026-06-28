@@ -1,67 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAlertConfirm } from '../common/AlertConfirmContext';
 import {
-  Sliders, ToggleLeft, ToggleRight, Package, ShoppingBag, Receipt, Search, Info
+  Sliders, ToggleLeft, ToggleRight, Package, ShoppingBag, Receipt, Search, Info, Plus, Loader2
 } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 
-// ─── Importaciones Dinámicas (Playgrounds Modularizados) ────────────────────
-const AuthGuardUserProfileSandbox = React.lazy(() => import('./sandboxes/AuthGuardUserProfileSandbox'));
-const GlobalSkeletonLoaderSandbox = React.lazy(() => import('./sandboxes/GlobalSkeletonLoaderSandbox'));
-const BreadcrumbHeaderSandbox = React.lazy(() => import('./sandboxes/BreadcrumbHeaderSandbox'));
-const ErrorBoundaryFallbackSandbox = React.lazy(() => import('./sandboxes/ErrorBoundaryFallbackSandbox'));
-const DarkModeToggleSandbox = React.lazy(() => import('./sandboxes/DarkModeToggleSandbox'));
-const GuidedToastSandbox = React.lazy(() => import('./sandboxes/GuidedToastSandbox'));
-const BotonPremiumSandbox = React.lazy(() => import('./sandboxes/BotonPremiumSandbox'));
-const ModalConfirmacionSandbox = React.lazy(() => import('./sandboxes/ModalConfirmacionSandbox'));
-const SelectorAtributosSandbox = React.lazy(() => import('./sandboxes/SelectorAtributosSandbox'));
-const GestorCategoriasSandbox = React.lazy(() => import('./sandboxes/GestorCategoriasSandbox'));
-const InputPremiumSandbox = React.lazy(() => import('./sandboxes/InputPremiumSandbox'));
-const ContadorCantidadSandbox = React.lazy(() => import('./sandboxes/ContadorCantidadSandbox'));
-const StepperPedidosSandbox = React.lazy(() => import('./sandboxes/StepperPedidosSandbox'));
-const PaginacionSandbox = React.lazy(() => import('./sandboxes/PaginacionSandbox'));
-const TarjetaProductoSandbox = React.lazy(() => import('./sandboxes/TarjetaProductoSandbox'));
-const TarjetaPedidoAdminSandbox = React.lazy(() => import('./sandboxes/TarjetaPedidoAdminSandbox'));
-const CarruselAnunciosSandbox = React.lazy(() => import('./sandboxes/CarruselAnunciosSandbox'));
-const SwipeableBottomSheetSandbox = React.lazy(() => import('./sandboxes/SwipeableBottomSheetSandbox'));
-const OtpInputFieldSandbox = React.lazy(() => import('./sandboxes/OtpInputFieldSandbox'));
-const CommandPaletteKBarSandbox = React.lazy(() => import('./sandboxes/CommandPaletteKBarSandbox'));
-const InteractiveCouponBadgeSandbox = React.lazy(() => import('./sandboxes/InteractiveCouponBadgeSandbox'));
-const InteractiveTutorialTourSandbox = React.lazy(() => import('./sandboxes/InteractiveTutorialTourSandbox'));
-const UseDebounceValueSandbox = React.lazy(() => import('./sandboxes/UseDebounceValueSandbox'));
-const StockHeatmapSandbox = React.lazy(() => import('./sandboxes/StockHeatmapSandbox'));
-const BentoGridSandbox = React.lazy(() => import('./sandboxes/BentoGridSandbox'));
-const UseLocalStorageStateSandbox = React.lazy(() => import('./sandboxes/UseLocalStorageStateSandbox'));
-const FacturacionComisionalSandbox = React.lazy(() => import('./sandboxes/FacturacionComisionalSandbox'));
-const TelemetriaCentralizadaSandbox = React.lazy(() => import('./sandboxes/TelemetriaCentralizadaSandbox'));
-const CalendarioPremiumSandbox = React.lazy(() => import('./sandboxes/CalendarioPremiumSandbox'));
-const InfiniteLogoMarqueeSandbox = React.lazy(() => import('./sandboxes/InfiniteLogoMarqueeSandbox'));
-const MagneticButtonSandbox = React.lazy(() => import('./sandboxes/MagneticButtonSandbox'));
-const SwipeableCardStackSandbox = React.lazy(() => import('./sandboxes/SwipeableCardStackSandbox'));
-const InteractiveAmbientGlowSandbox = React.lazy(() => import('./sandboxes/InteractiveAmbientGlowSandbox'));
-const SelectorBoletasRifasSandbox = React.lazy(() => import('./sandboxes/SelectorBoletasRifasSandbox'));
-const RadialInteractiveMenuSandbox = React.lazy(() => import('./sandboxes/RadialInteractiveMenuSandbox'));
-const HolographicTiltCardSandbox = React.lazy(() => import('./sandboxes/HolographicTiltCardSandbox'));
-const EmptyStateSandbox = React.lazy(() => import('./sandboxes/EmptyStateSandbox'));
-const RuletaSuerteSandbox = React.lazy(() => import('./sandboxes/RuletaSuerteSandbox'));
-const ReservasAgendaSandbox = React.lazy(() => import('./sandboxes/ReservasAgendaSandbox'));
-const SistemaNotificacionesSandbox = React.lazy(() => import('./sandboxes/SistemaNotificacionesSandbox'));
-const CajaDiariaPOSSandbox = React.lazy(() => import('./sandboxes/CajaDiariaPOSSandbox'));
-const CurrencyInputSandbox = React.lazy(() => import('./sandboxes/CurrencyInputSandbox'));
-const ModalTemplateSandbox = React.lazy(() => import('./sandboxes/ModalTemplateSandbox'));
-const DatePickerSandbox = React.lazy(() => import('./sandboxes/DatePickerSandbox'));
-const ConnectivityToastSandbox = React.lazy(() => import('./sandboxes/ConnectivityToastSandbox'));
-const QuantitySelectorSandbox = React.lazy(() => import('./sandboxes/QuantitySelectorSandbox'));
-const CustomCursorSandbox = React.lazy(() => import('./sandboxes/CustomCursorSandbox'));
-const PantallaCocinaKDSSandbox = React.lazy(() => import('./sandboxes/PantallaCocinaKDSSandbox'));
-const ReservasAgendaCitasSandbox = React.lazy(() => import('./sandboxes/ReservasAgendaCitasSandbox'));
-const POSExpressScannerSandbox = React.lazy(() => import('./sandboxes/POSExpressScannerSandbox'));
-const OmnicanalidadWhatsAppSandbox = React.lazy(() => import('./sandboxes/OmnicanalidadWhatsAppSandbox'));
-const FormularioProductoIASandbox = React.lazy(() => import('./sandboxes/FormularioProductoIASandbox'));
-const LoginPageSandbox = React.lazy(() => import('./sandboxes/LoginPageSandbox'));
-const OrderTrackingSandbox = React.lazy(() => import('./sandboxes/OrderTrackingSandbox'));
-const CatalogFiltersSandbox = React.lazy(() => import('./sandboxes/CatalogFiltersSandbox'));
-const PWAInstallBannerSandbox = React.lazy(() => import('./sandboxes/PWAInstallBannerSandbox'));
+const sandboxModules = import.meta.glob('./sandboxes/*.jsx');
+
+function snakeToPascal(str) {
+  if (!str) return '';
+  return str
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+}
 
 const LoaderSpinner = () => (
   <div className="flex flex-col items-center justify-center p-12 space-y-3">
@@ -69,300 +21,6 @@ const LoaderSpinner = () => (
     <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Cargando playground...</p>
   </div>
 );
-
-// ─── Map de Playgrounds Asíncronos ──────────────────────────────────────────
-const SANDBOXES = {
-  'auth_guard_userprofile': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <AuthGuardUserProfileSandbox />
-    </React.Suspense>
-  ),
-  'global_skeleton_loader': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <GlobalSkeletonLoaderSandbox />
-    </React.Suspense>
-  ),
-  'breadcrumb_header': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <BreadcrumbHeaderSandbox />
-    </React.Suspense>
-  ),
-  'error_boundary_fallback': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ErrorBoundaryFallbackSandbox />
-    </React.Suspense>
-  ),
-  'dark_mode_toggle': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <DarkModeToggleSandbox />
-    </React.Suspense>
-  ),
-  'guided_toast': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <GuidedToastSandbox />
-    </React.Suspense>
-  ),
-  'boton_premium': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <BotonPremiumSandbox />
-    </React.Suspense>
-  ),
-  'modal_confirmacion': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ModalConfirmacionSandbox />
-    </React.Suspense>
-  ),
-  'selector_atributos': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <SelectorAtributosSandbox />
-    </React.Suspense>
-  ),
-  'caja_diaria_pos': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CajaDiariaPOSSandbox />
-    </React.Suspense>
-  ),
-  'gestor_categorias': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <GestorCategoriasSandbox />
-    </React.Suspense>
-  ),
-  'input_premium': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <InputPremiumSandbox />
-    </React.Suspense>
-  ),
-  'contador_cantidad': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ContadorCantidadSandbox />
-    </React.Suspense>
-  ),
-  'stepper_pedidos': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <StepperPedidosSandbox />
-    </React.Suspense>
-  ),
-  'paginacion': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <PaginacionSandbox />
-    </React.Suspense>
-  ),
-  'tarjeta_producto': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <TarjetaProductoSandbox />
-    </React.Suspense>
-  ),
-  'tarjeta_pedido_admin': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <TarjetaPedidoAdminSandbox />
-    </React.Suspense>
-  ),
-  'carrusel_anuncios': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CarruselAnunciosSandbox />
-    </React.Suspense>
-  ),
-  'swipeable_bottom_sheet': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <SwipeableBottomSheetSandbox />
-    </React.Suspense>
-  ),
-  'otp_input_field': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <OtpInputFieldSandbox />
-    </React.Suspense>
-  ),
-  'command_palette_kbar': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CommandPaletteKBarSandbox />
-    </React.Suspense>
-  ),
-  'interactive_coupon_badge': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <InteractiveCouponBadgeSandbox />
-    </React.Suspense>
-  ),
-  'interactive_tutorial_tour': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <InteractiveTutorialTourSandbox />
-    </React.Suspense>
-  ),
-  'use_debounce_value': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <UseDebounceValueSandbox />
-    </React.Suspense>
-  ),
-  'stock_heatmap': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <StockHeatmapSandbox />
-    </React.Suspense>
-  ),
-  'bento_grid': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <BentoGridSandbox />
-    </React.Suspense>
-  ),
-  'use_local_storage_state': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <UseLocalStorageStateSandbox />
-    </React.Suspense>
-  ),
-  'facturacion_comisional': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <FacturacionComisionalSandbox />
-    </React.Suspense>
-  ),
-  'telemetria_centralizada': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <TelemetriaCentralizadaSandbox />
-    </React.Suspense>
-  ),
-  'calendario_premium': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CalendarioPremiumSandbox />
-    </React.Suspense>
-  ),
-  'infinite_logo_marquee': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <InfiniteLogoMarqueeSandbox />
-    </React.Suspense>
-  ),
-  'magnetic_button': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <MagneticButtonSandbox />
-    </React.Suspense>
-  ),
-  'swipeable_card_stack': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <SwipeableCardStackSandbox />
-    </React.Suspense>
-  ),
-  'interactive_ambient_glow': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <InteractiveAmbientGlowSandbox />
-    </React.Suspense>
-  ),
-  'selector_boletas_rifas': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <SelectorBoletasRifasSandbox />
-    </React.Suspense>
-  ),
-  'radial_interactive_menu': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <RadialInteractiveMenuSandbox />
-    </React.Suspense>
-  ),
-  'holographic_tilt_card': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <HolographicTiltCardSandbox />
-    </React.Suspense>
-  ),
-  'empty_state': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <EmptyStateSandbox />
-    </React.Suspense>
-  ),
-  'ruleta_suerte': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <RuletaSuerteSandbox />
-    </React.Suspense>
-  ),
-  'reservas_agenda': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ReservasAgendaSandbox />
-    </React.Suspense>
-  ),
-  'sistema_notificaciones': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <SistemaNotificacionesSandbox />
-    </React.Suspense>
-  ),
-  'currency_input': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CurrencyInputSandbox />
-    </React.Suspense>
-  ),
-  'modal_template': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ModalTemplateSandbox />
-    </React.Suspense>
-  ),
-  'date_picker': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <DatePickerSandbox />
-    </React.Suspense>
-  ),
-  'connectivity_toast': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ConnectivityToastSandbox />
-    </React.Suspense>
-  ),
-  'quantity_selector': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <QuantitySelectorSandbox />
-    </React.Suspense>
-  ),
-  'custom_cursor': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CustomCursorSandbox />
-    </React.Suspense>
-  ),
-  'pantalla_cocina_kds': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <PantallaCocinaKDSSandbox />
-    </React.Suspense>
-  ),
-  'reservas_agenda_citas': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <ReservasAgendaCitasSandbox />
-    </React.Suspense>
-  ),
-  'pos_express_scanner': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <POSExpressScannerSandbox />
-    </React.Suspense>
-  ),
-  'ordenes_trabajo_equipos': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <OrdenesTrabajoEquiposSandbox />
-    </React.Suspense>
-  ),
-  'creditos_y_saldos': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CreditosSaldosSandbox />
-    </React.Suspense>
-  ),
-  'omnicanalidad_whatsapp': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <OmnicanalidadWhatsAppSandbox />
-    </React.Suspense>
-  ),
-  'formulario_producto_ia': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <FormularioProductoIASandbox />
-    </React.Suspense>
-  ),
-  'login_page': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <LoginPageSandbox />
-    </React.Suspense>
-  ),
-  'order_tracking': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <OrderTrackingSandbox />
-    </React.Suspense>
-  ),
-  'catalog_filters': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <CatalogFiltersSandbox />
-    </React.Suspense>
-  ),
-  'pwa_install_banner': () => (
-    <React.Suspense fallback={<LoaderSpinner />}>
-      <PWAInstallBannerSandbox />
-    </React.Suspense>
-  ),
-};
 
 // ─── Control Panel ────────────────────────────────────────────────────────────
 function ControlPanel({ controls }) {
@@ -898,18 +556,112 @@ class SandboxErrorBoundary extends React.Component {
   }
 }
 
-export default function ComponentSandbox({ componentName = '', technicalName = '' }) {
+export default function ComponentSandbox({ componentName = '', technicalName = '', componentLink = '' }) {
   const normalizedName = componentName.toLowerCase().trim();
-  console.log('[ComponentSandbox] Received componentName:', componentName, 'technicalName:', technicalName);
-  
-  const sandboxKey = getSandboxKey(componentName, technicalName);
-  
-  console.log('[ComponentSandbox] Resolved sandboxKey:', sandboxKey);
+  const [scaffolding, setScaffolding] = useState(false);
+  const [scaffoldDone, setScaffoldDone] = useState(false);
 
-  const SandboxComponent = sandboxKey ? SANDBOXES[sandboxKey] : null;
+  const [Comp, setComp] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const sandboxKey = getSandboxKey(componentName, technicalName);
+  const candidates = useMemo(() => {
+    const list = [];
+    if (technicalName) {
+      list.push(`${technicalName}Sandbox.jsx`);
+    }
+    if (sandboxKey) {
+      list.push(`${snakeToPascal(sandboxKey)}Sandbox.jsx`);
+    }
+    return list;
+  }, [technicalName, sandboxKey]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSandbox = async () => {
+      setLoading(true);
+      setError(null);
+      setComp(null);
+
+      let resolvedPath = null;
+      let importer = null;
+
+      for (const candidate of candidates) {
+        const matchingPath = Object.keys(sandboxModules).find(path => 
+          path.toLowerCase().endsWith(`/${candidate.toLowerCase()}`)
+        );
+        if (matchingPath) {
+          resolvedPath = matchingPath;
+          importer = sandboxModules[matchingPath];
+          break;
+        }
+      }
+
+      if (!importer) {
+        if (active) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const mod = await importer();
+        if (active) {
+          setComp(() => mod.default);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadSandbox();
+    return () => { active = false; };
+  }, [candidates, scaffoldDone]);
+
+  const handleCreateSandbox = async () => {
+    if (!technicalName || !componentLink) return;
+    setScaffolding(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/library/sandbox/scaffold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          componentLink,
+          technicalName
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setScaffoldDone(true);
+      } else {
+        alert(data.error || 'No se pudo crear el sandbox.');
+      }
+    } catch (err) {
+      alert(`Error al contactar con el servidor CLI: ${err.message}`);
+    } finally {
+      setScaffolding(false);
+    }
+  };
+
   const meta = COMPONENT_META[normalizedName] || null;
 
-  if (!SandboxComponent) {
+  if (loading) return <LoaderSpinner />;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[360px] p-6 space-y-4">
+        <div className="text-center text-red-400 text-xs font-bold">Error en Sandbox</div>
+        <p className="text-[10px] text-slate-400 text-center max-w-sm">{error}</p>
+      </div>
+    );
+  }
+
+  if (!Comp) {
     const colorMap = {
       amber: { badge: 'bg-amber-500/10 border-amber-500/25 text-amber-400', icon: '⚙️', pill: 'bg-amber-500/15 text-amber-400' },
       violet: { badge: 'bg-violet-500/10 border-violet-500/25 text-violet-400', icon: '🪝', pill: 'bg-violet-500/15 text-violet-400' },
@@ -940,9 +692,20 @@ export default function ComponentSandbox({ componentName = '', technicalName = '
           <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
             {meta
               ? meta.note
-              : 'Este componente aún no tiene un playground interactivo asignado. Consulta la pestaña Documentación para ver el código completo y los casos de uso.'}
+              : 'Este componente aún no tiene un playground interactivo asignado. ¿Deseas autogenerar un playground en blanco para probarlo?'}
           </p>
         </div>
+
+        {!meta && technicalName && (
+          <button
+            onClick={handleCreateSandbox}
+            disabled={scaffolding}
+            className="flex items-center gap-1.5 bg-indigo-650 hover:bg-indigo-550 disabled:opacity-40 text-white text-xs px-4 py-2 rounded-xl transition-all font-semibold cursor-pointer shadow-lg shadow-indigo-650/15"
+          >
+            {scaffolding ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+            {scaffolding ? 'Generando Playground...' : 'Crear Playground Sandbox'}
+          </button>
+        )}
 
         <div className={`w-full max-w-sm p-3.5 rounded-2xl border text-center ${c.badge}`}>
           <p className="text-[10px] font-bold leading-relaxed">
@@ -956,12 +719,15 @@ export default function ComponentSandbox({ componentName = '', technicalName = '
 
         <div className="w-full max-w-sm">
           <p className="text-[9px] font-black uppercase tracking-widest text-[var(--color-text-muted)] text-center mb-2">Playgrounds disponibles</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {Object.keys(SANDBOXES).map(k => (
-              <div key={k} className="px-2.5 py-1.5 bg-indigo-600/8 border border-indigo-500/15 rounded-xl text-[9px] text-indigo-400/70 font-mono text-center">
-                {k.replace(/_/g, ' ')}
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+            {Object.keys(sandboxModules).map(k => {
+              const name = k.split('/').pop().replace('Sandbox.jsx', '');
+              return (
+                <div key={k} className="px-2.5 py-1.5 bg-indigo-600/8 border border-indigo-500/15 rounded-xl text-[9px] text-indigo-400/70 font-mono text-center">
+                  {name.replace(/([A-Z])/g, ' $1').trim()}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -970,8 +736,8 @@ export default function ComponentSandbox({ componentName = '', technicalName = '
 
   return (
     <div className="h-full">
-      <SandboxErrorBoundary key={sandboxKey}>
-        <SandboxComponent />
+      <SandboxErrorBoundary key={`${technicalName}-${scaffoldDone}`}>
+        <Comp />
       </SandboxErrorBoundary>
     </div>
   );

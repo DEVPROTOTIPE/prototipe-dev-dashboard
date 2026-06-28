@@ -157,6 +157,50 @@ try {
     console.log('[Éxito] Todos los componentes físicos tienen su playground o metadato en ComponentSandbox.jsx.');
   }
 
+  // 5. Validar existencia y formato de metadatos (Manifest JSON) en documentación md
+  let invalidManifestsCount = 0;
+  allPhysicalFiles.forEach(file => {
+    const content = fs.readFileSync(file, 'utf8');
+    const manifestMatch = content.match(/<!--\s*(\{[\s\S]*?\})\s*-->/);
+    if (!manifestMatch) {
+      console.error(`  - [Fallo Manifest] No se encontró el bloque de metadatos (<!-- { ... } -->) en: ${path.basename(file)}`);
+      invalidManifestsCount++;
+    } else {
+      try {
+        const manifest = JSON.parse(manifestMatch[1]);
+        if (!manifest.technicalName || !manifest.targetPath) {
+          console.error(`  - [Fallo Manifest] Campos obligatorios "technicalName" y/o "targetPath" faltantes en: ${path.basename(file)}`);
+          invalidManifestsCount++;
+        }
+        
+        // Validar enlaces de dependencias internas si están presentes
+        if (manifest.dependencies && Array.isArray(manifest.dependencies.internal)) {
+          manifest.dependencies.internal.forEach(dep => {
+            if (dep.link) {
+              const decoded = decodeURIComponent(dep.link);
+              const rel = decoded.replace(/file:\/\/\/D:\/PROTOTIPE\//i, '').replace(/\//g, path.sep);
+              const depPath = path.join(rootDir, rel);
+              if (!fs.existsSync(depPath)) {
+                console.error(`  - [Fallo Manifest] Enlace roto de dependencia interna "${dep.name}" en ${path.basename(file)}: ${dep.link}`);
+                invalidManifestsCount++;
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error(`  - [Fallo Manifest] Sintaxis JSON inválida en el manifest de: ${path.basename(file)} (${err.message})`);
+        invalidManifestsCount++;
+      }
+    }
+  });
+
+  if (invalidManifestsCount > 0) {
+    console.error(`\n[FALLO] Se detectaron ${invalidManifestsCount} archivos de documentación con manifiesto de metadatos inválido o ausente.`);
+    hasErrors = true;
+  } else {
+    console.log('[Éxito] Todos los archivos físicos de documentación tienen manifiestos JSON válidos.');
+  }
+
   // Comportamiento de salida final
   if (hasErrors) {
     console.error('\n==================================================');
