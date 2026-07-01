@@ -1752,6 +1752,7 @@ export default function App() {
   const [mockNewSaleTitle, setMockNewSaleTitle] = useState('')
   const [mockNewSaleValue, setMockNewSaleValue] = useState('')
   const [mockTheme, setMockTheme] = useState('dark')
+  const [mockDeviceMode, setMockDeviceMode] = useState('mobile')
 
 
   // Pre-load all Google Fonts for previews when onboarding is active
@@ -5986,16 +5987,354 @@ export default function App() {
             {/* MOCKUP PREVIEW PANEL (Right) */}
             <div className="lg:col-span-5 relative h-full">
               <div className="flex flex-col items-center justify-center bg-[var(--color-surface)]/50 p-5 rounded-3xl border border-[var(--color-border)] shadow-sm sticky top-24">
-              <div className="text-center mb-3">
-                <span className="text-[9px] uppercase font-bold text-indigo-400 tracking-wider flex items-center justify-center gap-1">
-                  <Smartphone size={10} />
-                  Vista Previa Interactiva
-                </span>
-                <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Interactúa con el mockup: registra ventas, cambia de pestaña y edita ajustes.</p>
-              </div>
+              <div className="flex flex-col items-center gap-3 w-full mb-3 select-none">
+                  <div className="text-center">
+                    <span className="text-[9px] uppercase font-bold text-indigo-400 tracking-wider flex items-center justify-center gap-1">
+                      <span>✨</span> Vista Previa Interactiva
+                    </span>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Interactúa con el mockup: registra ventas, cambia de pestaña y edita ajustes.</p>
+                  </div>
+                  
+                  {/* Selector de Dispositivo (Móvil vs Laptop PC) */}
+                  <div className="flex bg-[var(--color-bg)] border border-[var(--color-border)] p-0.5 rounded-lg shadow-sm w-full max-w-[180px] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setMockDeviceMode('mobile')}
+                      className={`flex-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                        mockDeviceMode === 'mobile' 
+                          ? 'bg-indigo-600 text-white shadow-md' 
+                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                      }`}
+                    >
+                      📱 Móvil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMockDeviceMode('desktop')}
+                      className={`flex-1 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                        mockDeviceMode === 'desktop' 
+                          ? 'bg-indigo-600 text-white shadow-md' 
+                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                      }`}
+                    >
+                      💻 PC / Web
+                    </button>
+                  </div>
+                </div>
 
               {/* Smartphone mockup */}
-              <div 
+              {mockDeviceMode === 'desktop' ? (
+                /* Browser Laptop Mockup */
+                <div 
+                  className="w-full max-w-[340px] sm:max-w-[360px] md:max-w-[420px] h-[340px] rounded-2xl relative shadow-2xl transition-all duration-300 ease-in-out border border-slate-700/50 flex flex-col overflow-hidden"
+                  style={{ 
+                    backgroundColor: mockTheme === 'dark' ? bgColor : '#ffffff', 
+                    color: mockTheme === 'dark' ? textColor : '#0f172a',
+                    fontFamily: `'${googleFont}', sans-serif`,
+                    boxShadow: `0 20px 40px -10px ${primaryColor}20, 0 0 2px 2px ${primaryColor}40`
+                  }}
+                >
+                  {/* Browser header */}
+                  <div className="h-6 bg-slate-900 border-b border-slate-800 px-3 flex items-center gap-2 select-none shrink-0 z-30">
+                    <div className="flex gap-1.5 shrink-0">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    </div>
+                    <div className="flex-1 max-w-[240px] mx-auto bg-slate-950/60 border border-slate-800 rounded px-2.5 py-0.5 text-[7px] text-slate-400 font-mono text-center truncate">
+                      https://app-ventas.local/dashboard
+                    </div>
+                  </div>
+
+                  <div className="flex-1 flex overflow-hidden relative">
+                    {/* Left Sidebar Nav */}
+                    <div className="w-24 bg-slate-500/[0.04] border-r border-slate-500/10 p-1.5 flex flex-col gap-3 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <div 
+                          className="w-3.5 h-3.5 rounded flex items-center justify-center text-[7.5px] font-bold text-white shadow-sm shrink-0"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {newClientName ? newClientName.substring(0, 1).toUpperCase() : 'V'}
+                        </div>
+                        <span className="text-[7.5px] font-bold truncate max-w-[60px]">
+                          {newClientName.trim() || 'App Ventas'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { id: 'inicio', label: 'Inicio', icon: '🏠' },
+                          { id: 'catalogo', label: 'Servicios', labelProd: 'Catálogo', icon: '📦' },
+                          { id: 'ventas', label: 'Ventas', icon: '📊' },
+                          { id: 'ajustes', label: 'Ajustes', icon: '⚙️' }
+                        ].map((item) => {
+                          const isSelected = mockActiveTab === item.id;
+                          const labelStr = (item.id === 'catalogo' && !['technical_services', 'refrigeration_ac', 'contractors', 'machinery_rental', 'laundry', 'furniture_repair', 'wellness_podology'].includes(niche)) ? item.labelProd : item.label;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setMockActiveTab(item.id)}
+                              className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-left text-[7px] font-bold cursor-pointer transition-colors bg-transparent border-0"
+                              style={{ 
+                                color: isSelected ? primaryColor : 'inherit', 
+                                backgroundColor: isSelected ? `${primaryColor}10` : 'transparent',
+                                opacity: isSelected ? 1 : 0.65
+                              }}
+                            >
+                              <span>{item.icon}</span>
+                              <span className="truncate">{labelStr}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Right Content Frame */}
+                    <div className="flex-1 flex flex-col overflow-hidden p-2.5">
+                      <div className="flex-1 overflow-y-auto space-y-2.5 scrollbar-none pr-0.5">
+                        {mockActiveTab === 'inicio' && (
+                          <div className="space-y-2.5">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div 
+                                className="p-2.5 rounded-xl relative overflow-hidden transition-all duration-300 shadow-sm border flex flex-col justify-center"
+                                style={{ 
+                                  backgroundColor: `${secondaryColor}10`,
+                                  borderColor: `${primaryColor}20`
+                                }}
+                              >
+                                <span className="text-[7px] opacity-75 uppercase font-bold tracking-wider block">Balance de Hoy</span>
+                                <span className="text-sm font-black block mt-0.5 tracking-tight">
+                                  ${mockOrders.reduce((sum, item) => sum + item.val, 0).toLocaleString('es-CO')}
+                                </span>
+                                <p className="text-[6px] opacity-70 mt-0.5">${mockOrders.length} ventas procesadas</p>
+                              </div>
+
+                              <div className="flex flex-col justify-center">
+                                {mockIsNewSaleOpen ? (
+                                  <div className="p-2 rounded-xl bg-slate-500/10 border border-slate-500/20 space-y-1 animate-scale-up">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[7px] font-bold uppercase tracking-wider">Nueva Venta</span>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => setMockIsNewSaleOpen(false)}
+                                        className="text-[7px] text-red-500 hover:text-red-400 font-bold cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                    <input 
+                                      type="text" 
+                                      placeholder="Ej: Mantenimiento PC"
+                                      value={mockNewSaleTitle}
+                                      onChange={(e) => setMockNewSaleTitle(e.target.value)}
+                                      className="w-full bg-slate-500/5 border border-slate-500/25 rounded px-1.5 py-0.5 text-[8px] outline-none"
+                                      style={{ color: 'inherit' }}
+                                    />
+                                    <input 
+                                      type="number" 
+                                      placeholder="Ej: 85000"
+                                      value={mockNewSaleValue}
+                                      onChange={(e) => setMockNewSaleValue(e.target.value)}
+                                      className="w-full bg-slate-500/5 border border-slate-500/25 rounded px-1.5 py-0.5 text-[8px] outline-none"
+                                      style={{ color: 'inherit' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!mockNewSaleTitle || !mockNewSaleValue) return;
+                                        setMockOrders([
+                                          {
+                                            id: Date.now(),
+                                            title: mockNewSaleTitle,
+                                            time: 'Hace un momento',
+                                            val: Number(mockNewSaleValue)
+                                          },
+                                          ...mockOrders
+                                        ]);
+                                        setMockNewSaleTitle('');
+                                        setMockNewSaleValue('');
+                                        setMockIsNewSaleOpen(false);
+                                      }}
+                                      className="w-full py-1 rounded text-[8px] font-bold text-white cursor-pointer"
+                                      style={{ backgroundColor: primaryColor }}
+                                    >
+                                      Agregar Venta
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    type="button"
+                                    onClick={() => setMockIsNewSaleOpen(true)}
+                                    className="w-full py-2 rounded-lg text-[8px] font-bold text-white shadow-sm flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                                    style={{ backgroundColor: primaryColor }}
+                                  >
+                                    <span>⚡ Registrar Nueva Venta</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[7px] opacity-75 uppercase font-bold tracking-wider block">Últimas Ventas (Recientes)</span>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {mockOrders.length === 0 ? (
+                                  <p className="col-span-3 text-[7px] opacity-50 italic text-center py-2">No hay ventas registradas.</p>
+                                ) : (
+                                  mockOrders.slice(0, 3).map((item) => (
+                                    <div 
+                                      key={item.id} 
+                                      className="p-1.5 rounded-lg bg-slate-500/5 border border-slate-500/10 flex flex-col justify-between text-[7.5px] hover:bg-slate-500/10 transition-colors h-11"
+                                    >
+                                      <p className="font-bold truncate" title={item.title}>{item.title}</p>
+                                      <span className="font-mono font-bold mt-1" style={{ color: primaryColor }}>
+                                        ${item.val.toLocaleString('es-CO')}
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {mockActiveTab === 'ventas' && (
+                          <div className="space-y-2">
+                            <div className="p-2 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-1">
+                              <span className="text-[7px] opacity-70 uppercase font-bold tracking-wider block">Estadísticas</span>
+                              <div className="h-10 flex items-end gap-1 justify-center">
+                                {mockOrders.slice(0, 8).map((item, idx) => {
+                                  const maxVal = Math.max(...mockOrders.map(o => o.val)) || 1;
+                                  const heightPercent = Math.max(15, Math.min(100, (item.val / maxVal) * 100));
+                                  return (
+                                    <div key={item.id} className="flex-1 flex flex-col items-center gap-0.5">
+                                      <div 
+                                        className="w-2.5 rounded-t-2xs"
+                                        style={{ 
+                                          height: `${heightPercent * 0.25}px`,
+                                          backgroundColor: idx % 2 === 0 ? primaryColor : secondaryColor,
+                                          opacity: 0.85
+                                        }}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 max-h-[110px] overflow-y-auto pr-0.5 scrollbar-none">
+                              {mockOrders.map((item) => (
+                                <div 
+                                  key={item.id} 
+                                  className="p-1.5 rounded bg-slate-500/5 border border-slate-500/10 flex items-center justify-between text-[7px]"
+                                >
+                                  <span className="font-bold truncate max-w-[80px]">{item.title}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-bold" style={{ color: primaryColor }}>
+                                      ${item.val.toLocaleString('es-CO')}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setMockOrders(mockOrders.filter(o => o.id !== item.id))}
+                                      className="text-red-500 hover:text-red-700 bg-transparent border-0 cursor-pointer font-bold"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {mockActiveTab === 'catalogo' && (
+                          <div className="space-y-1.5">
+                            <span className="text-[7px] opacity-70 uppercase font-bold tracking-wider block">
+                              {['technical_services', 'refrigeration_ac', 'contractors', 'machinery_rental', 'laundry', 'furniture_repair', 'wellness_podology'].includes(niche) ? 'Servicios Disponibles' : 'Catálogo de Productos'}
+                            </span>
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[170px] overflow-y-auto pr-0.5 scrollbar-none">
+                              {(MOCK_CATALOG[niche] || MOCK_CATALOG.retail_clothing).map((item) => (
+                                <div 
+                                  key={item.id} 
+                                  className="p-1.5 rounded-lg bg-slate-500/5 border border-slate-500/10 flex flex-col justify-between gap-1"
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs">{item.emoji}</span>
+                                    <p className="font-bold text-[7.5px] leading-tight truncate flex-1">{item.name}</p>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[7.5px] font-mono font-bold" style={{ color: primaryColor }}>
+                                      ${item.price.toLocaleString('es-CO')}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMockOrders([
+                                          {
+                                            id: Date.now(),
+                                            title: item.name,
+                                            time: 'Hace un momento',
+                                            val: item.price
+                                          },
+                                          ...mockOrders
+                                        ]);
+                                        showToast(`Añadido: ${item.name}`, { type: 'success' });
+                                      }}
+                                      className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[6.5px] font-bold cursor-pointer hover:bg-indigo-500 transition-colors"
+                                      style={{ backgroundColor: primaryColor }}
+                                    >
+                                      + Add
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {mockActiveTab === 'ajustes' && (
+                          <div className="space-y-2 text-[7px]">
+                            <span className="text-[7px] opacity-70 uppercase font-bold tracking-wider block">Ajustes Rápidos</span>
+                            <div className="p-2 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span>Modo del Mockup</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setMockTheme(mockTheme === 'dark' ? 'light' : 'dark')}
+                                  className="px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-slate-500/25 font-bold uppercase cursor-pointer"
+                                >
+                                  {mockTheme === 'dark' ? '🌙 Oscuro' : '☀️ Claro'}
+                                </button>
+                              </div>
+                              <div className="flex items-center justify-between border-t border-slate-500/10 pt-1.5">
+                                <span>Soporte PWA</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEnablePwa(!enablePwa)}
+                                  className={`w-6 h-3 rounded-full p-0.5 cursor-pointer transition-colors ${enablePwa ? 'bg-emerald-500' : 'bg-slate-500/35'}`}
+                                >
+                                  <div className={`w-2 h-2 rounded-full bg-white transition-transform ${enablePwa ? 'translate-x-3' : 'translate-x-0'}`} />
+                                </button>
+                              </div>
+                              <div className="flex items-center justify-between border-t border-slate-500/10 pt-1.5">
+                                <span>Notificaciones Push</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEnablePush(!enablePush)}
+                                  className={`w-6 h-3 rounded-full p-0.5 cursor-pointer transition-colors ${enablePush ? 'bg-emerald-500' : 'bg-slate-500/35'}`}
+                                >
+                                  <div className={`w-2 h-2 rounded-full bg-white transition-transform ${enablePush ? 'translate-x-3' : 'translate-x-0'}`} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div 
                 className="w-[240px] h-[480px] rounded-[30px] p-2 relative shadow-2xl transition-all duration-300 ease-in-out border border-slate-700/50 flex flex-col"
                 style={{ 
                   backgroundColor: mockTheme === 'dark' ? bgColor : '#ffffff', 
@@ -6380,6 +6719,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Estudio de Accesibilidad WCAG 2.1 - Reubicado */}
               {wizardTab === 'branding' && (
