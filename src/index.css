@@ -509,9 +509,9 @@ select option {
    ════════════════════════════════════════════════════════════════ */
 
 /* Tarjetas principales: rounded-2xl con borde */
-div[class*="rounded-2xl"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]),
+div[class*="rounded-2xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]),
 /* Tarjetas grandes: rounded-3xl con borde */
-div[class*="rounded-3xl"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]) {
+div[class*="rounded-3xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]) {
   border-radius: 1.25rem !important;
   box-shadow: var(--card-shadow);
   background-color: var(--color-surface-glass) !important;
@@ -525,8 +525,8 @@ div[class*="rounded-3xl"][class*="border"]:not([class*="absolute"]):not([class*=
 }
 
 /* Hover elevado — solo tarjetas que no sean contenedores de scroll o paneles fijos */
-div[class*="rounded-2xl"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover,
-div[class*="rounded-3xl"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover {
+div[class*="rounded-2xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover,
+div[class*="rounded-3xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover {
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);
 }

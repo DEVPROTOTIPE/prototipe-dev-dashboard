@@ -5985,7 +5985,7 @@ export default function App() {
             </div>
 
             {/* MOCKUP PREVIEW PANEL (Right) */}
-            <div className="lg:col-span-5 relative h-full">
+            <div className="lg:col-span-5 relative h-full mockup-preview-panel">
               <div className="flex flex-col items-center justify-center bg-[var(--color-surface)]/50 p-5 rounded-3xl border border-[var(--color-border)] shadow-sm sticky top-24">
               <div className="flex flex-col items-center gap-3 w-full mb-3 select-none">
                   <div className="text-center">
