@@ -1528,6 +1528,10 @@ export default function App() {
   const [crmTab, setCrmTab] = useState('config') // 'config' | 'drift'
   const [driftData, setDriftData] = useState(null)
   const [driftLoading, setDriftLoading] = useState(false)
+  const [buildAuditing, setBuildAuditing] = useState(false)
+  const [buildAuditResult, setBuildAuditResult] = useState(null)
+  const [settingUpCors, setSettingUpCors] = useState(false)
+  const [corsAuditResult, setCorsAuditResult] = useState(null)
   const [activeDiffFile, setActiveDiffFile] = useState(null)
   const [syncingFile, setSyncingFile] = useState({})
   const [editComisionPorcentaje, setEditComisionPorcentaje] = useState(1.5)
@@ -3132,7 +3136,7 @@ export default function App() {
         showToast(data.message, { type: 'success' });
         addLog(`[Git Discard] ${data.message}`, 'success');
         if (driftData && selectedCrmClientId === clientId) {
-          handleLoadDrift(clientId);
+          loadDriftData(clientId);
         }
       } else {
         throw new Error(data.error || 'Error de Git');
@@ -3362,6 +3366,7 @@ export default function App() {
   const loadDriftData = async (clientId) => {
     setDriftLoading(true)
     setDriftData(null)
+    setBuildAuditResult(null)
     try {
       const res = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}`)
       const data = await res.json()
@@ -3374,6 +3379,74 @@ export default function App() {
       showToast(`Error al cargar desviación del Core: ${err.message}`, { type: 'error' })
     } finally {
       setDriftLoading(false)
+    }
+  }
+
+  const handleRunBuildAudit = async (clientId) => {
+    setBuildAuditing(true)
+    setBuildAuditResult(null)
+    addLog(`[Build Audit] Iniciando auditoría de compilación Vite en ${clientId}...`, 'info')
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}&buildAudit=true`)
+      const data = await res.json()
+      if (data.success) {
+        setBuildAuditResult({
+          status: data.buildAuditStatus,
+          output: data.buildAuditOutput
+        })
+        if (data.buildAuditStatus === 'success') {
+          showToast('Auditoría de compilación exitosa. El bundle compila correctamente.', { type: 'success' })
+          addLog(`[Build Audit] Compilación exitosa en ${clientId}.`, 'success')
+        } else {
+          showToast('La compilación del proyecto falló. Revisa los logs de error.', { type: 'error' })
+          addLog(`[Build Audit] Error de compilación en ${clientId}: ${data.buildAuditOutput}`, 'error')
+        }
+        setDriftData(data)
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      showToast(`Fallo al ejecutar auditoría de compilación: ${err.message}`, { type: 'error' })
+      addLog(`[Build Audit Error] ${err.message}`, 'error')
+    } finally {
+      setBuildAuditing(false)
+    }
+  }
+
+  const handleSetupCors = async (clientId) => {
+    setSettingUpCors(true)
+    setCorsAuditResult(null)
+    addLog(`[CORS Setup] Iniciando configuración de CORS en Firebase Storage para ${clientId}...`, 'info')
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/firebase/cors-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCorsAuditResult({
+          status: 'success',
+          output: data.output || 'Políticas CORS aplicadas con éxito.'
+        })
+        showToast(data.message, { type: 'success' })
+        addLog(`[CORS Setup] ${data.message}`, 'success')
+      } else {
+        setCorsAuditResult({
+          status: 'error',
+          output: data.error || 'Fallo al configurar CORS.'
+        })
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      setCorsAuditResult({
+        status: 'error',
+        output: err.message
+      })
+      showToast(`Error al configurar CORS: ${err.message}`, { type: 'error' })
+      addLog(`[CORS Setup Error] ${err.message}`, 'error')
+    } finally {
+      setSettingUpCors(false)
     }
   }
 
@@ -8771,7 +8844,7 @@ export default function App() {
                                   setSelectedCrmClientId(client.name);
                                   setActiveMetricModal('clientes');
                                   setCrmTab('drift');
-                                  handleLoadDrift(client.name);
+                                  loadDriftData(client.name);
                                 }}
                                   className="px-2 py-1 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-lg text-[8px] font-bold border border-[var(--color-border)] transition-colors cursor-pointer">
                                   Detalles
@@ -10692,21 +10765,36 @@ export default function App() {
                     </div>
                   ) : driftData ? (
                     <div className="space-y-4">
-                      {/* Resumen de paridad */}
-                      <div className="flex items-center justify-between bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl p-4">
-                        <div>
-                          <p className="text-xs font-black text-[var(--color-text)]">Índice de Paridad de Código</p>
-                          <p className="text-[10px] text-[var(--color-text-muted)]">Core de Referencia: <span className="font-mono font-bold text-indigo-400">{driftData.coreId}</span></p>
+                      {/* Resumen de paridad y consistencia */}
+                      <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-[var(--color-text)]">Índice de Paridad de Código</p>
+                            <p className="text-[10px] text-[var(--color-text-muted)]">Core de Referencia: <span className="font-mono font-bold text-indigo-400">{driftData.coreId}</span></p>
+                          </div>
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
+                            driftData.parityPercent >= 90 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {driftData.parityPercent}% Sincronizado
+                          </span>
                         </div>
-                        <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                          driftData.parityPercent >= 90 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        }`}>
-                          {driftData.parityPercent}% Sincronizado
-                        </span>
+
+                        {driftData.consistencyScore !== undefined && (
+                          <div className="pt-2 border-t border-[var(--color-border)]/50 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-[var(--color-text-muted)]">Puntaje de Consistencia del Core:</span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                              driftData.consistencyScore >= 80 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                              driftData.consistencyScore >= 50 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                              'bg-red-500/10 text-red-400 border-red-500/20'
+                            }`}>
+                              {driftData.consistencyScore}/100
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Acciones Rápidas del Cliente */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -10742,7 +10830,110 @@ export default function App() {
                           <Activity size={11} />
                           Deploy Host
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRunBuildAudit(selectedCrmClientId)}
+                          disabled={buildAuditing}
+                          className="py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/25 text-amber-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-40"
+                          title="Ejecutar compilación Vite de prueba"
+                        >
+                          {buildAuditing ? <RefreshCw size={11} className="animate-spin" /> : <Activity size={11} />}
+                          Auditar Build
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetupCors(selectedCrmClientId)}
+                          disabled={settingUpCors}
+                          className="py-2 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-40"
+                          title="Configurar políticas CORS de Firebase Storage"
+                        >
+                          {settingUpCors ? <RefreshCw size={11} className="animate-spin" /> : <Lock size={11} />}
+                          CORS Storage
+                        </button>
                       </div>
+
+                      {/* Log de Compilación (si se auditó) */}
+                      {buildAuditResult && (
+                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resultado de Compilación Vite</p>
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
+                              buildAuditResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            }`}>
+                              {buildAuditResult.status === 'success' ? 'COMPILADO' : 'ERRÓNEO'}
+                            </span>
+                          </div>
+                          <pre className="text-[9px] font-mono text-slate-300 overflow-x-auto max-h-36 bg-slate-950 p-3 rounded-lg border border-slate-800/60 whitespace-pre-wrap">
+                            {buildAuditResult.output}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Log de Configuración CORS */}
+                      {corsAuditResult && (
+                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resultado de Configuración CORS</p>
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
+                              corsAuditResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            }`}>
+                              {corsAuditResult.status === 'success' ? 'CONFIGURADO' : 'ERRÓNEO'}
+                            </span>
+                          </div>
+                          <pre className="text-[9px] font-mono text-slate-300 overflow-x-auto max-h-36 bg-slate-950 p-3 rounded-lg border border-slate-800/60 whitespace-pre-wrap">
+                            {corsAuditResult.output}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Desviación de Dependencias (NPM Drift) */}
+                      {driftData.dependencyDetails && (
+                        <div className="p-3 bg-[var(--color-surface-2)]/20 border border-[var(--color-border)]/60 rounded-xl space-y-2.5">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Desviación de Dependencias (NPM Drift)</p>
+                          
+                          {driftData.dependencyDetails.missingDeps?.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-bold text-amber-400">⚠️ Faltan en el Cliente (Requeridas por el Core):</p>
+                              <div className="flex flex-wrap gap-1">
+                                {driftData.dependencyDetails.missingDeps.map(dep => (
+                                  <span key={dep} className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-mono rounded border border-amber-500/20">{dep}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {driftData.dependencyDetails.mismatchDeps?.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-bold text-amber-400">✏️ Versiones Desalineadas:</p>
+                              <div className="grid grid-cols-1 gap-1">
+                                {driftData.dependencyDetails.mismatchDeps.map(dep => (
+                                  <div key={dep.name} className="flex items-center justify-between text-[9px] font-mono px-2 py-1 bg-slate-950/40 rounded border border-slate-850">
+                                    <span className="text-[var(--color-text-muted)]">{dep.name}</span>
+                                    <span className="text-amber-400">{dep.clientVersion} <span className="text-slate-500 font-sans">vs</span> {dep.coreVersion} (Core)</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {driftData.dependencyDetails.addedDeps?.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-bold text-indigo-400">📦 Agregadas por el Cliente:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {driftData.dependencyDetails.addedDeps.map(dep => (
+                                  <span key={dep} className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 text-[9px] font-mono rounded border border-indigo-500/20">{dep}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {!driftData.dependenciesOutOfSync && (
+                            <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                              <CheckCircle size={11} /> Dependencias 100% alineadas con el Core.
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {/* Lista de desviaciones */}
                       <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
