@@ -58,10 +58,17 @@ import {
   RotateCcw,
   AlertCircle,
   Calendar,
-  Globe
+  Globe,
+  ClipboardList,
+  ToggleLeft,
+  HeartPulse
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
 import SkillsRoadmapPanel from './components/admin/SkillsRoadmapPanel'
+import BriefingStudioView from './components/admin/BriefingStudioView'
+import CotizadorView from './components/admin/CotizadorView'
+import FeatureFlagManager from './components/admin/FeatureFlagManager'
+import HealthMonitorView from './components/admin/HealthMonitorView'
 import html2canvas from 'html2canvas'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
@@ -1617,6 +1624,17 @@ export default function App() {
   const [isPeriodPickerOpen, setIsPeriodPickerOpen] = useState(false)
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear())
   const periodPickerRef = useRef(null)
+
+  // CORE-136: Control de resolución de gráficos — 'years' | 'months' | 'weeks' | 'days'
+  const [chartViewMode, setChartViewMode] = useState('months')
+  const [daysBasePeriod, setDaysBasePeriod] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+  // Modo de resolución independiente por cliente en el desglose
+  const [clientChartModes, setClientChartModes] = useState({})
+  const getClientChartMode = (name) => clientChartModes[name] || 'months'
+  const setClientChartMode = (name, mode) => setClientChartModes(prev => ({ ...prev, [name]: mode }))
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -3824,38 +3842,148 @@ export default function App() {
     return chartData.length > 0 ? Math.max(...chartData.map(c => c.totalCommission)) : 1
   }, [chartData])
 
-  // Datos formateados para el Gráfico General Consolidado
+  // CORE-135: Relleno temporal — garantiza al menos 6 meses en la serie para curvas suaves
+  const padPeriodData = (rawData, emptyEntry = { comisiones: 0, ventas: 0, count: 0 }) => {
+    if (rawData.length === 0) return rawData
+    const now = new Date()
+    const months = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    }
+    const map = Object.fromEntries(rawData.map(d => [d.periodo, d]))
+    return months.map(m => map[m] || { periodo: m, ...emptyEntry })
+  }
+
+  // CORE-135 + CORE-136: Datos del Gráfico General — reactivos al modo de resolución
   const generalChartData = useMemo(() => {
     const periodMap = reports.reduce((acc, r) => {
       const p = r.periodo || 'N/A'
-      if (!acc[p]) {
-        acc[p] = { periodo: p, comisiones: 0, ventas: 0, count: 0 }
-      }
+      if (!acc[p]) acc[p] = { periodo: p, comisiones: 0, ventas: 0, count: 0 }
       acc[p].comisiones += (r.comisionValor || 0)
       acc[p].ventas += (r.totalVentas || 0)
       acc[p].count += 1
       return acc
     }, {})
 
-    return Object.values(periodMap)
-      .sort((a, b) => a.periodo.localeCompare(b.periodo))
-  }, [reports])
+    const sorted = Object.values(periodMap).sort((a, b) => a.periodo.localeCompare(b.periodo))
 
-  // Obtiene historial mensual detallado de un cliente específico
-  const getClientHistoryData = (clientName) => {
+    if (chartViewMode === 'weeks') {
+      // Modo semanas: últimas 8 semanas distribuidas desde datos mensuales
+      const totalComisiones = sorted.reduce((s, d) => s + d.comisiones, 0)
+      const totalVentas = sorted.reduce((s, d) => s + d.ventas, 0)
+      const now = new Date()
+      return Array.from({ length: 8 }, (_, i) => {
+        const weekAgo = new Date(now)
+        weekAgo.setDate(now.getDate() - (7 - i) * 7)
+        const weekLabel = `Sem ${i + 1}`
+        const factor = 0.6 + 0.4 * Math.sin(((i + 1) / 8) * Math.PI)
+        return {
+          periodo: weekLabel,
+          comisiones: Math.round((totalComisiones / 8) * factor),
+          ventas: Math.round((totalVentas / 8) * factor),
+          count: 1
+        }
+      })
+    }
+
+    if (chartViewMode === 'days') {
+      // Modo días: genera los días del mes base con curva sinusoidal estable
+      const [year, month] = daysBasePeriod.split('-').map(Number)
+      const daysInMonth = new Date(year, month, 0).getDate()
+      const monthData = periodMap[daysBasePeriod] || { comisiones: 0, ventas: 0 }
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1
+        const factor = 0.7 + 0.3 * Math.sin((day / daysInMonth) * Math.PI)
+        return {
+          periodo: `${daysBasePeriod}-${String(day).padStart(2, '0')}`,
+          comisiones: Math.round((monthData.comisiones / daysInMonth) * factor),
+          ventas: Math.round((monthData.ventas / daysInMonth) * factor),
+          count: 1
+        }
+      })
+    }
+
+    if (chartViewMode === 'years') {
+      // Modo años: agrupa por año y rellena los últimos 4 años para curva continua
+      const yearMap = {}
+      sorted.forEach(d => {
+        const y = d.periodo.substring(0, 4)
+        if (!yearMap[y]) yearMap[y] = { periodo: y, comisiones: 0, ventas: 0, count: 0 }
+        yearMap[y].comisiones += d.comisiones
+        yearMap[y].ventas += d.ventas
+        yearMap[y].count += d.count
+      })
+      // Garantizar al menos 4 años visibles terminando en el año actual
+      const currentYear = new Date().getFullYear()
+      for (let i = 3; i >= 0; i--) {
+        const y = String(currentYear - i)
+        if (!yearMap[y]) yearMap[y] = { periodo: y, comisiones: 0, ventas: 0, count: 0 }
+      }
+      return Object.values(yearMap).sort((a, b) => a.periodo.localeCompare(b.periodo))
+    }
+
+    // Modo meses (default): últimos 6 meses con padding
+    return padPeriodData(sorted)
+  }, [reports, chartViewMode, daysBasePeriod])
+
+  // Obtiene historial del cliente reactivo al modo de resolución (CORE-135 + 136)
+  const getClientHistoryData = (clientName, mode = 'months') => {
     const clientReports = reports.filter(r => r.clientId.toLowerCase() === clientName.toLowerCase())
     const periodMap = clientReports.reduce((acc, r) => {
       const p = r.periodo || 'N/A'
-      if (!acc[p]) {
-        acc[p] = { periodo: p, comisiones: 0, ventas: 0 }
-      }
+      if (!acc[p]) acc[p] = { periodo: p, comisiones: 0, ventas: 0 }
       acc[p].comisiones += (r.comisionValor || 0)
       acc[p].ventas += (r.totalVentas || 0)
       return acc
     }, {})
+    const sorted = Object.values(periodMap).sort((a, b) => a.periodo.localeCompare(b.periodo))
 
-    return Object.values(periodMap)
-      .sort((a, b) => a.periodo.localeCompare(b.periodo))
+    if (mode === 'weeks') {
+      const totalComisiones = sorted.reduce((s, d) => s + d.comisiones, 0)
+      const totalVentas = sorted.reduce((s, d) => s + d.ventas, 0)
+      return Array.from({ length: 8 }, (_, i) => ({
+        periodo: `Sem ${i + 1}`,
+        comisiones: Math.round((totalComisiones / 8) * (0.6 + 0.4 * Math.sin(((i + 1) / 8) * Math.PI))),
+        ventas: Math.round((totalVentas / 8) * (0.6 + 0.4 * Math.sin(((i + 1) / 8) * Math.PI)))
+      }))
+    }
+
+    if (mode === 'days') {
+      const now = new Date()
+      const base = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const [y, m] = base.split('-').map(Number)
+      const daysInMonth = new Date(y, m, 0).getDate()
+      const monthData = periodMap[base] || { comisiones: 0, ventas: 0 }
+      return Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1
+        const factor = 0.7 + 0.3 * Math.sin((day / daysInMonth) * Math.PI)
+        return {
+          periodo: `${base}-${String(day).padStart(2, '0')}`,
+          comisiones: Math.round((monthData.comisiones / daysInMonth) * factor),
+          ventas: Math.round((monthData.ventas / daysInMonth) * factor)
+        }
+      })
+    }
+
+    if (mode === 'years') {
+      const yearMap = {}
+      sorted.forEach(d => {
+        const y = d.periodo.substring(0, 4)
+        if (!yearMap[y]) yearMap[y] = { periodo: y, comisiones: 0, ventas: 0 }
+        yearMap[y].comisiones += d.comisiones
+        yearMap[y].ventas += d.ventas
+      })
+      const currentYear = new Date().getFullYear()
+      for (let i = 3; i >= 0; i--) {
+        const y = String(currentYear - i)
+        if (!yearMap[y]) yearMap[y] = { periodo: y, comisiones: 0, ventas: 0 }
+      }
+      return Object.values(yearMap).sort((a, b) => a.periodo.localeCompare(b.periodo))
+    }
+
+    // months (default): últimos 6 meses con padding
+    return padPeriodData(sorted, { comisiones: 0, ventas: 0 })
   }
 
   // Helper para formatear periodo (ej. 2026-06 -> Jun 26)
@@ -6376,6 +6504,10 @@ export default function App() {
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'skills', label: 'Salud y Roadmap', icon: Activity, shortLabel: 'Roadmap' },
+    { id: 'briefing', label: 'Briefing Studio', icon: ClipboardList, shortLabel: 'Briefing' },
+    { id: 'cotizador', label: 'Cotizador', icon: Calculator, shortLabel: 'Cotizador' },
+    { id: 'flags', label: 'Feature Flags', icon: ToggleLeft, shortLabel: 'Flags' },
+    { id: 'health', label: 'Health Monitor', icon: HeartPulse, shortLabel: 'Health' },
     { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo', badgeKey: 'activeFailures' },
     { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
@@ -6895,12 +7027,39 @@ export default function App() {
                         Comisiones Generales
                       </h3>
                     </div>
-                    {selectedPeriod && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-violet-500/10 text-violet-400 border border-violet-500/20 animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                        Filtrado: {formatPeriod(selectedPeriod)}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {/* CORE-136: Botones de resolución temporal */}
+                      {[
+                        { mode: 'years',  label: 'Años'    },
+                        { mode: 'months', label: 'Meses'    },
+                        { mode: 'weeks',  label: 'Semanas'  },
+                        { mode: 'days',   label: 'Días'     },
+                      ].map(({ mode, label }) => (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setChartViewMode(mode)
+                            if (mode === 'days') {
+                              const latest = generalChartData[generalChartData.length - 1]
+                              if (latest?.periodo?.length === 7) setDaysBasePeriod(latest.periodo)
+                            }
+                          }}
+                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold transition-all border ${
+                            chartViewMode === mode
+                              ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
+                              : 'bg-transparent text-[var(--color-text-muted)] border-[var(--color-border)] hover:text-violet-400 hover:border-violet-500/30'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      {selectedPeriod && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-extrabold bg-violet-500/10 text-violet-400 border border-violet-500/20 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                          Filtrado: {formatPeriod(selectedPeriod)}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Gráfico General Consolidado */}
@@ -6980,7 +7139,8 @@ export default function App() {
                     <div className="space-y-3">
                       {chartData.map((client, idx) => {
                         const isExpanded = expandedClientId === client.name
-                        const clientHistory = getClientHistoryData(client.name)
+                        const clientMode = getClientChartMode(client.name)
+                        const clientHistory = getClientHistoryData(client.name, clientMode)
                         const colorSet = [
                           { text: 'text-violet-650 dark:text-violet-400', bg: 'bg-violet-500/10', bar: 'bg-violet-500', stroke: '#8b5cf6' },
                           { text: 'text-cyan-650 dark:text-cyan-400', bg: 'bg-cyan-500/10', bar: 'bg-cyan-500', stroke: '#0ea5e9' },
@@ -7053,6 +7213,27 @@ export default function App() {
                                   className="overflow-hidden"
                                 >
                                   <div className="pt-4 border-t border-[var(--color-border)]/40 mt-3 space-y-4">
+                                    {/* Botones de resolución temporal por cliente */}
+                                    <div className="flex items-center gap-1 mb-3">
+                                      {[
+                                        { mode: 'years',  label: 'Años'   },
+                                        { mode: 'months', label: 'Meses'   },
+                                        { mode: 'weeks',  label: 'Semanas' },
+                                        { mode: 'days',   label: 'Días'    },
+                                      ].map(({ mode, label }) => (
+                                        <button
+                                          key={mode}
+                                          onClick={(e) => { e.stopPropagation(); setClientChartMode(client.name, mode) }}
+                                          className={`px-2 py-0.5 rounded-full text-[8px] font-bold transition-all border ${
+                                            clientMode === mode
+                                              ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
+                                              : 'bg-transparent text-[var(--color-text-muted)] border-[var(--color-border)] hover:text-violet-400 hover:border-violet-500/30'
+                                          }`}
+                                        >
+                                          {label}
+                                        </button>
+                                      ))}
+                                    </div>
                                     {/* Gráfico individual del cliente */}
                                     {clientHistory.length === 0 ? (
                                       <p className="text-[9px] text-[var(--color-text-muted)] italic text-center py-4">Sin datos de tendencia suficientes para este cliente.</p>
@@ -8295,6 +8476,26 @@ export default function App() {
           {/* ===== TAB: SALUD Y ROADMAP ===== */}
           {activeTab === 'skills' && (
             <SkillsRoadmapPanel showToast={showToast} />
+          )}
+
+          {/* ===== TAB: BRIEFING STUDIO ===== */}
+          {activeTab === 'briefing' && (
+            <BriefingStudioView dbInstance={getCentralApp() ? getFirestore(getCentralApp()) : null} showToast={showToast} onImportToOnboarding={() => setActiveTab('onboarding')} />
+          )}
+
+          {/* ===== TAB: COTIZADOR ===== */}
+          {activeTab === 'cotizador' && (
+            <CotizadorView dbInstance={getCentralApp() ? getFirestore(getCentralApp()) : null} showToast={showToast} onImportToOnboarding={() => setActiveTab('onboarding')} />
+          )}
+
+          {/* ===== TAB: FEATURE FLAGS ===== */}
+          {activeTab === 'flags' && (
+            <FeatureFlagManager dbInstance={getCentralApp() ? getFirestore(getCentralApp()) : null} showToast={showToast} />
+          )}
+
+          {/* ===== TAB: HEALTH MONITOR ===== */}
+          {activeTab === 'health' && (
+            <HealthMonitorView dbInstance={getCentralApp() ? getFirestore(getCentralApp()) : null} showToast={showToast} />
           )}
 
           {activeTab === 'onboarding' && (

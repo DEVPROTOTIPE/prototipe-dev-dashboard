@@ -1705,7 +1705,7 @@ export default function ComponentLibraryView({ showToast }) {
                               {/* Árbol de Dependencias en Cascada */}
                               <div className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)]/50 rounded-2xl p-4 space-y-3">
                                 <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
-                                  <Sliders size={11} /> Árbol de Dependencias y Componentes
+                                  <Layers size={11} /> Árbol de Dependencias y Componentes
                                 </h5>
                                 
                                 <div className="pl-2 space-y-2.5 text-[10px]">

@@ -585,3 +585,95 @@ export function exportClientDetailPDF(clientName, clientConfig, clientReports, c
 
   doc.save(`Reporte_Detalle_${clientName}.pdf`);
 }
+
+/**
+ * Genera y descarga un PDF con la propuesta comercial del Cotizador — CORE-133
+ * @param {Object} params
+ * @param {string} params.clienteName
+ * @param {string} params.resumen
+ * @param {number} params.setupVal
+ * @param {number} params.mensualidadVal
+ * @param {number} params.comisionVal
+ * @param {string[]} params.modulos
+ */
+export function exportProposalPDF({ clienteName, resumen, setupVal, mensualidadVal, comisionVal, modulos }) {
+  const doc = new jsPDF();
+  const primaryColor = [79, 70, 229];   // Indigo-600
+  const darkColor    = [15, 23, 42];    // Slate-900
+  const textMuted    = [100, 116, 139]; // Slate-500
+  const borderLight  = [226, 232, 240]; // Slate-200
+  const lightBg      = [248, 250, 252]; // Slate-50
+  const marginX = 20;
+  const pageW   = doc.internal.pageSize.getWidth();
+
+  // Encabezado
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, pageW, 38, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PROTOTIPE', marginX, 16);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Propuesta Comercial — Ecosistema App Ventas', marginX, 25);
+  doc.text(`Generada: ${new Date().toLocaleDateString('es-CO')}`, marginX, 32);
+
+  // Prospecto
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Prospecto: ${clienteName || 'Sin nombre'}`, marginX, 52);
+
+  // Resumen ejecutivo
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...textMuted);
+  const resumenLines = doc.splitTextToSize(resumen || 'Sin descripción.', pageW - marginX * 2);
+  doc.text(resumenLines, marginX, 62);
+
+  let y = 62 + resumenLines.length * 5 + 8;
+
+  // Tabla de inversión
+  autoTable(doc, {
+    startY: y,
+    head: [['Concepto', 'Valor']],
+    body: [
+      ['Setup / Implementación (único)',  `$${(setupVal      || 0).toLocaleString('es-CO')}`],
+      ['Mensualidad SaaS',               `$${(mensualidadVal|| 0).toLocaleString('es-CO')} / mes`],
+      ['Comisión sobre ventas brutas',    `${comisionVal || 0}%`],
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: darkColor },
+    alternateRowStyles: { fillColor: lightBg },
+    tableLineColor: borderLight,
+    margin: { left: marginX, right: marginX },
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+
+  // Módulos evaluados
+  if (modulos && modulos.length) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...darkColor);
+    doc.text('Módulos de Complejidad Evaluados:', marginX, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...textMuted);
+    modulos.forEach(m => {
+      doc.text(`• ${m}`, marginX + 3, y);
+      y += 5;
+    });
+  }
+
+  // Footer
+  doc.setDrawColor(...borderLight);
+  doc.line(marginX, 282, pageW - marginX, 282);
+  doc.setFontSize(7);
+  doc.setTextColor(...textMuted);
+  doc.text('PROTOTIPE — Documento confidencial generado automáticamente por el Cotizador.', marginX, 287);
+
+  doc.save(`Propuesta_${clienteName || 'Prospecto'}.pdf`);
+}

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   GitBranch, RefreshCw, Terminal, ShieldAlert, CheckCircle,
   AlertTriangle, ChevronRight, Layers, FolderOpen, Play, StopCircle,
-  Trash2, Zap, GitCommit, Upload, Server, X, Info, GitMerge, CloudOff, Cloud
+  Trash2, Zap, GitCommit, Upload, Server, X, Info, GitMerge, CloudOff, Cloud, Search
 } from 'lucide-react'
 import { db } from '../../firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
@@ -141,6 +141,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
   const [commits, setCommits] = useState([])
   const [loadingCommits, setLoadingCommits] = useState(false)
   const [discarding, setDiscarding] = useState(false)
+  const [gitSearch, setGitSearch] = useState('')
 
   // Auto-scroll terminal
   useEffect(() => {
@@ -435,63 +436,82 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
               <AlertTriangle size={14} />
               CLI Bridge no disponible. Inicia el servidor en puerto 3001.
             </div>
-          ) : (
-            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1 scrollbar-thin">
-              {/* Maestro */}
-              {targets.master && (
-                <TargetItem
-                  target={targets.master}
-                  isSelected={selected?.path === targets.master.path}
-                  onClick={handleSelectTarget}
-                  categoryLabel="Maestro"
-                />
-              )}
-              {/* Dashboard */}
-              {targets.dashboard && (
-                <TargetItem
-                  target={targets.dashboard}
-                  isSelected={selected?.path === targets.dashboard.path}
-                  onClick={handleSelectTarget}
-                  categoryLabel="Consola"
-                />
-              )}
-              {/* Cores */}
-              {targets.cores?.filter(t => t.hasGit).map(t => (
-                <TargetItem
-                  key={t.path}
-                  target={t}
-                  isSelected={selected?.path === t.path}
-                  onClick={handleSelectTarget}
-                  categoryLabel="Core"
-                />
-              ))}
-              {/* Sin git (cores) */}
-              {targets.cores?.filter(t => !t.hasGit).map(t => (
-                <TargetItem
-                  key={t.path}
-                  target={t}
-                  isSelected={false}
-                  onClick={() => showToast?.(`"${t.name}" no tiene repositorio Git`, { type: 'error' })}
-                  categoryLabel="Core"
-                />
-              ))}
-              {/* Instancias */}
-              {targets.instances?.filter(t => t.hasGit).map(t => (
-                <TargetItem
-                  key={t.path}
-                  target={t}
-                  isSelected={selected?.path === t.path}
-                  onClick={handleSelectTarget}
-                  categoryLabel="Cliente"
-                />
-              ))}
-              {targets.instances?.length === 0 && targets.cores?.length === 0 && !targets.master && !targets.dashboard && (
-                <p className="text-xs text-[var(--color-text-muted)] text-center py-6">
-                  No se encontraron repositorios en el ecosistema.
-                </p>
-              )}
-            </div>
-          )}
+          ) : (() => {
+            // Construir lista plana con categoría
+            const allItems = [
+              targets.master    ? { ...targets.master,    categoryLabel: 'Maestro', selectable: true }  : null,
+              targets.dashboard ? { ...targets.dashboard, categoryLabel: 'Consola', selectable: true }  : null,
+              ...(targets.cores     || []).map(t => ({ ...t, categoryLabel: 'Core',    selectable: t.hasGit })),
+              ...(targets.instances || []).map(t => ({ ...t, categoryLabel: 'Cliente', selectable: t.hasGit })),
+            ].filter(Boolean);
+
+            const q = gitSearch.toLowerCase().trim();
+            const filtered = q
+              ? allItems.filter(t =>
+                  (t.name || '').toLowerCase().includes(q) ||
+                  (t.path || '').toLowerCase().includes(q) ||
+                  (t.categoryLabel || '').toLowerCase().includes(q)
+                )
+              : allItems;
+
+            return (
+              <div className="space-y-2">
+                {/* Buscador */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 text-slate-500 w-3.5 h-3.5" />
+                  <input
+                    type="text"
+                    placeholder="Buscar repositorio..."
+                    value={gitSearch}
+                    onChange={e => setGitSearch(e.target.value)}
+                    className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl pl-8 pr-7 py-2 text-xs focus:border-violet-500 outline-none text-[var(--color-text)] placeholder:text-slate-600 transition-all"
+                  />
+                  {gitSearch && (
+                    <button
+                      onClick={() => setGitSearch('')}
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-[var(--color-text)] text-[10px] font-bold leading-none transition-colors"
+                    >✕</button>
+                  )}
+                </div>
+
+                {/* Contador */}
+                <div className="flex justify-between items-center px-0.5">
+                  <span className="text-[9px] uppercase font-black tracking-wider text-[var(--color-text-muted)] flex items-center gap-1">
+                    <FolderOpen size={10} /> Ecosistema PROTOTIPE
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-600">{filtered.length}/{allItems.length}</span>
+                </div>
+
+                {/* Lista filtrada */}
+                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
+                  {filtered.length === 0 ? (
+                    <div className="py-10 flex flex-col items-center gap-2 text-center">
+                      <Search size={18} className="text-slate-600" />
+                      <span className="text-[10px] text-slate-500 font-semibold italic leading-relaxed">
+                        Sin resultados para<br/>"{gitSearch}"
+                      </span>
+                      <button
+                        onClick={() => setGitSearch('')}
+                        className="mt-1 text-[10px] text-violet-400 hover:text-violet-300 font-bold underline underline-offset-2"
+                      >Limpiar</button>
+                    </div>
+                  ) : (
+                    filtered.map(t => (
+                      <TargetItem
+                        key={t.path}
+                        target={t}
+                        isSelected={selected?.path === t.path}
+                        onClick={t.selectable
+                          ? handleSelectTarget
+                          : () => showToast?.(`"${t.name}" no tiene repositorio Git`, { type: 'error' })}
+                        categoryLabel={t.categoryLabel}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ─── PANEL DERECHO: Operaciones ───────────────────────────────────── */}
