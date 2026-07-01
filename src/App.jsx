@@ -1603,6 +1603,75 @@ export default function App() {
     setBorderColor(dark ? '#333333' : '#e2e8f0');
     setTextMutedColor(dark ? '#a0a0a0' : '#64748b');
   };
+  const handleStartDevServer = async (clientId) => {
+    setDevServerStatus('starting');
+    setDevServerLogs(['[Launchpad] Conectando con el Bridge...', '[Launchpad] Iniciando npm run dev en la carpeta de la instancia...']);
+    setShowDevLogs(true);
+    
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/dev/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDevServerStatus('running');
+        setDevServerUrl(data.url);
+        setDevServerLogs(prev => [...prev, `[Launchpad] ¡Servidor iniciado con éxito!`, `[Launchpad] URL local: ${data.url}`]);
+        showToast('Servidor Vite iniciado con éxito', { type: 'success' });
+        
+        const eventSource = new EventSource(`${CLI_URL}/api/project/dev/logs-stream?clientId=${clientId}`);
+        eventSource.onmessage = (event) => {
+          try {
+            const logData = JSON.parse(event.data);
+            if (logData.type === 'log') {
+              setDevServerLogs(prev => {
+                const updated = [...prev, logData.log];
+                if (updated.length > 50) updated.shift();
+                return updated;
+              });
+            } else if (logData.type === 'status' && logData.status === 'stopped') {
+              setDevServerStatus('idle');
+              setDevServerLogs(prev => [...prev, `[Launchpad] El servidor de desarrollo se detuvo.`]);
+              eventSource.close();
+            }
+          } catch (e) {
+            console.error('Error parseando logs de dev server:', e);
+          }
+        };
+        eventSource.onerror = () => {
+          eventSource.close();
+        };
+      } else {
+        throw new Error(data.error || 'No se pudo iniciar el servidor local.');
+      }
+    } catch (err) {
+      setDevServerStatus('error');
+      setDevServerLogs(prev => [...prev, `❌ Error: ${err.message}`]);
+      showToast(`Fallo al iniciar servidor: ${err.message}`, { type: 'error' });
+    }
+  };
+
+  const handleStopDevServer = async (clientId) => {
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/dev/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      });
+      if (res.ok) {
+        setDevServerStatus('idle');
+        setDevServerUrl('');
+        setDevServerLogs(prev => [...prev, `[Launchpad] Servidor de desarrollo detenido.`]);
+        showToast('Servidor Vite detenido', { type: 'info' });
+      }
+    } catch (err) {
+      showToast(`Error al detener: ${err.message}`, { type: 'error' });
+    }
+  };
+
   const handleGenerateAAAContrast = () => {
     const rgbToHex = (r, g, b) => {
       const toHex = (c) => {
@@ -1753,6 +1822,10 @@ export default function App() {
   const [mockNewSaleValue, setMockNewSaleValue] = useState('')
   const [mockTheme, setMockTheme] = useState('dark')
   const [mockDeviceMode, setMockDeviceMode] = useState('mobile')
+  const [devServerStatus, setDevServerStatus] = useState('idle') // 'idle' | 'starting' | 'running' | 'error'
+  const [devServerUrl, setDevServerUrl] = useState('')
+  const [devServerLogs, setDevServerLogs] = useState([])
+  const [showDevLogs, setShowDevLogs] = useState(false)
 
 
   // Pre-load all Google Fonts for previews when onboarding is active
@@ -11089,9 +11162,88 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
               </div>
             </div>
 
+            {/* Lanzador de Servidor Local (Launchpad) */}
+            <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-3 select-none">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-indigo-400 block tracking-widest flex items-center gap-1.5">
+                  <span>🚀</span> Lanzador Rápido de Instancia
+                </span>
+                <span className={`text-[8.5px] font-bold px-2 py-0.5 rounded-full ${
+                  devServerStatus === 'running' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                  devServerStatus === 'starting' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse' :
+                  devServerStatus === 'error' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                  'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                }`}>
+                  {devServerStatus === 'running' ? 'Activo' :
+                   devServerStatus === 'starting' ? 'Iniciando...' :
+                   devServerStatus === 'error' ? 'Fallo' : 'Apagado'}
+                </span>
+              </div>
+              
+              <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                ¿Quieres probar la aplicación de inmediato? Puedes compilar y levantar el servidor local Vite de esta instancia en 1-click:
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {devServerStatus !== 'running' && devServerStatus !== 'starting' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleStartDevServer(onboardingData.clientId)}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                  >
+                    <span>⚡ Levantarse Servidor (npm run dev)</span>
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    {devServerStatus === 'running' && (
+                      <a
+                        href={devServerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                      >
+                        <span>🔗 Abrir Sitio Local</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleStopDevServer(onboardingData.clientId)}
+                      className="px-4 py-2 bg-rose-600/30 hover:bg-rose-600/40 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    >
+                      Detener Servidor
+                    </button>
+                  </div>
+                )}
+                
+                {devServerStatus !== 'idle' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDevLogs(!showDevLogs)}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer ml-auto"
+                  >
+                    {showDevLogs ? 'Ocultar Logs' : 'Ver Logs'}
+                  </button>
+                )}
+              </div>
+
+              {showDevLogs && devServerLogs.length > 0 && (
+                <div className="mt-2 p-2.5 bg-slate-950 rounded-xl border border-slate-900 text-[9px] font-mono text-slate-350 max-h-36 overflow-y-auto space-y-1 scrollbar-thin leading-relaxed">
+                  {devServerLogs.map((logLine, idx) => (
+                    <div key={idx} className="truncate" title={logLine}>{logLine}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end pt-2">
               <button 
-                onClick={() => setOnboardingData(null)}
+                onClick={() => {
+                  setOnboardingData(null);
+                  setDevServerStatus('idle');
+                  setDevServerUrl('');
+                  setDevServerLogs([]);
+                  setShowDevLogs(false);
+                }}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Completado / Cerrar
