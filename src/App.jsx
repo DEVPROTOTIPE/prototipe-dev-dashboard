@@ -64,6 +64,9 @@ import {
   HeartPulse
 } from 'lucide-react'
 import GitBackupPanel from './components/admin/GitBackupPanel'
+import RecaudoPanel from './components/admin/RecaudoPanel'
+import CobrosPanel from './components/admin/CobrosPanel'
+import CoreSyncPanel from './components/admin/CoreSyncPanel'
 import SkillsRoadmapPanel from './components/admin/SkillsRoadmapPanel'
 import BriefingStudioView from './components/admin/BriefingStudioView'
 import CotizadorView from './components/admin/CotizadorView'
@@ -1493,6 +1496,13 @@ export default function App() {
   const [newClientName, setNewClientName] = useState('')
   const [selectedCrmClientId, setSelectedCrmClientId] = useState(null)
   const [crmSearch, setCrmSearch] = useState('')
+  const [expandedGroups, setExpandedGroups] = useState({
+    clientes: true,
+    finanzas: true,
+    core: false,
+    monitoreo: false
+  })
+  const [hoveredGroup, setHoveredGroup] = useState(null)
   const [clientesSaas, setClientesSaas] = useState([
     { id: 'ventas-smartfix', comisionPorcentaje: 1.5 },
     { id: 'tienda-calzado-x', comisionPorcentaje: 2.0 },
@@ -4283,6 +4293,34 @@ export default function App() {
     )
   }
 
+  const handleRegisterClientFromSync = async (client) => {
+    try {
+      const dbInstance = getFirestore()
+      const clientRef = doc(dbInstance, 'clientes_control', client.clientId.toLowerCase())
+      await setDoc(clientRef, {
+        nombre: client.projectName || client.clientId,
+        niche: 'Retail / Ecommerce / POS',
+        billingMode: 'pago_fijo_mensual',
+        comisionPorcentaje: 0,
+        montoFijoServicio: 0,
+        pagoMensualFijo: 0,
+        enableDianBilling: false,
+        costoPorFacturaDian: 0,
+        creadoEn: serverTimestamp(),
+        targetPath: '',
+        template: 'ventas',
+        customRequirements: 'Registrado automáticamente desde panel de Sincronización Masiva.',
+        archived: false,
+        status: 'active'
+      })
+      showToast('Cliente registrado con éxito en la base de datos central ✓', { type: 'success' })
+      return true
+    } catch (err) {
+      showToast(`Error al registrar cliente: ${err.message}`, { type: 'error' })
+      return false
+    }
+  }
+
   // RENDER PANEL PRINCIPAL
   if (isOnboardingActive) {
     return (
@@ -6497,10 +6535,69 @@ export default function App() {
     )
   }
 
+  // CONSTANTES DE NAVEGACIÓN POR GRUPOS COLLAPSIBLES
+  const SIDEBAR_GROUPS = [
+    {
+      id: 'inicio',
+      label: 'Inicio',
+      icon: LayoutDashboard,
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }
+      ]
+    },
+    {
+      id: 'clientes',
+      label: 'Clientes y Ventas',
+      icon: Users,
+      items: [
+        { id: 'crm', label: 'CRM Clientes', icon: Users },
+        { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles },
+        { id: 'briefing', label: 'Briefing Studio', icon: ClipboardList }
+      ]
+    },
+    {
+      id: 'finanzas',
+      label: 'Finanzas y Cobranza',
+      icon: CreditCard,
+      items: [
+        { id: 'billing', label: 'Facturación', icon: CreditCard },
+        { id: 'recaudo', label: 'Recaudación', icon: Clock },
+        { id: 'cobros', label: 'Cobros Realizados', icon: CheckCircle },
+        { id: 'cotizador', label: 'Cotizador', icon: Calculator }
+      ]
+    },
+    {
+      id: 'core',
+      label: 'Ecosistema Core',
+      icon: Layers,
+      items: [
+        { id: 'cores', label: 'Plantillas Core', icon: Layers },
+        { id: 'coresync', label: 'Sincronización Masiva', icon: RefreshCw },
+        { id: 'flags', label: 'Feature Flags', icon: ToggleLeft },
+        { id: 'library', label: 'Biblioteca', icon: BookOpen }
+      ]
+    },
+    {
+      id: 'monitoreo',
+      label: 'Monitoreo y DevOps',
+      icon: HeartPulse,
+      items: [
+        { id: 'health', label: 'Health Monitor', icon: HeartPulse },
+        { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, badgeKey: 'activeFailures' },
+        { id: 'skills', label: 'Salud y Roadmap', icon: Activity },
+        { id: 'git', label: 'Control Git', icon: GitCommit },
+        { id: 'e2e', label: 'Tests E2E', icon: FlaskConical }
+      ]
+    }
+  ]
+
   // CONSTANTES DE NAVEGACIÓN
   const NAV_TABS = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, shortLabel: 'Inicio' },
+    { id: 'crm', label: 'CRM Clientes', icon: Users, shortLabel: 'CRM' },
     { id: 'billing', label: 'Facturación', icon: CreditCard, shortLabel: 'Cobros' },
+    { id: 'recaudo', label: 'Recaudación', icon: Clock, shortLabel: 'Recaudo' },
+    { id: 'cobros', label: 'Cobros Realizados', icon: CheckCircle, shortLabel: 'Cobrado' },
     { id: 'onboarding', label: 'Nuevo Cliente', icon: Sparkles, shortLabel: 'Nuevo' },
     { id: 'library', label: 'Biblioteca', icon: BookOpen, shortLabel: 'Biblioteca' },
     { id: 'skills', label: 'Salud y Roadmap', icon: Activity, shortLabel: 'Roadmap' },
@@ -6512,6 +6609,7 @@ export default function App() {
     { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
     { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
+    { id: 'coresync', label: 'Sincronización Masiva', icon: RefreshCw, shortLabel: 'Sync Masivo' },
   ]
 
 
@@ -6741,35 +6839,135 @@ export default function App() {
         <aside className={`hidden lg:flex flex-col shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur-md transition-all duration-300 ${
           sidebarCollapsed ? 'w-[64px]' : 'w-[220px]'
         }`}>
-          <div className="flex flex-col gap-1 p-3 flex-1 pt-5">
-            {NAV_TABS.map(tab => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
+          <div className="flex flex-col gap-1.5 p-3 flex-1 pt-5 overflow-y-auto scrollbar-thin select-none">
+            {SIDEBAR_GROUPS.map(group => {
+              const GroupIcon = group.icon;
+              const isGroupActive = group.items.some(item => activeTab === item.id);
+              const isExpanded = expandedGroups[group.id];
+
+              if (group.id === 'inicio') {
+                const item = group.items[0];
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    id={`sidebar-tab-${item.id}`}
+                    onClick={() => setActiveTab(item.id)}
+                    title={sidebarCollapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left shrink-0 ${
+                      isActive
+                        ? 'sidebar-item-active text-violet-400 border-violet-500/30'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/50 border-transparent'
+                    }`}
+                  >
+                    <span className="relative shrink-0 flex items-center">
+                      <Icon size={15} className={isActive ? 'text-violet-400' : ''} />
+                    </span>
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                    {!sidebarCollapsed && isActive && <ChevronRight size={10} className="ml-auto text-violet-400/60" />}
+                  </button>
+                );
+              }
+
               return (
-                <button
-                  key={tab.id}
-                  id={`sidebar-tab-${tab.id}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  title={sidebarCollapsed ? tab.label : undefined}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left ${
-                    isActive
-                      ? 'sidebar-item-active text-violet-400 border-violet-500/30'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/50 border-transparent'
-                  }`}
+                <div 
+                  key={group.id} 
+                  className="flex flex-col gap-0.5 relative shrink-0"
+                  onMouseEnter={() => sidebarCollapsed && setHoveredGroup(group.id)}
+                  onMouseLeave={() => sidebarCollapsed && setHoveredGroup(null)}
                 >
-                  {/* F4: Badge de notificación para errores activos */}
-                  <span className="relative shrink-0">
-                    <Icon size={16} className={isActive ? 'text-violet-400' : ''} />
-                    {tab.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-[3px] bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse">
-                        {failures.filter(f => !f.resolved).length > 9 ? '9+' : failures.filter(f => !f.resolved).length}
-                      </span>
+                  <button
+                    onClick={() => {
+                      if (!sidebarCollapsed) {
+                        setExpandedGroups(prev => ({ ...prev, [group.id]: !prev[group.id] }));
+                      } else {
+                        setActiveTab(group.items[0].id);
+                      }
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left ${
+                      isGroupActive && sidebarCollapsed
+                        ? 'sidebar-item-active text-violet-400 border-violet-500/30'
+                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/30 border-transparent'
+                    }`}
+                  >
+                    <GroupIcon size={15} className={isGroupActive ? 'text-violet-400' : 'text-[var(--color-text-muted)]'} />
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="truncate uppercase tracking-wider text-[9px] font-black">{group.label}</span>
+                        {isExpanded ? (
+                          <ChevronDown size={11} className="ml-auto opacity-60" />
+                        ) : (
+                          <ChevronRight size={11} className="ml-auto opacity-60" />
+                        )}
+                      </>
                     )}
-                  </span>
-                  {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                  {!sidebarCollapsed && isActive && <ChevronRight size={12} className="ml-auto text-violet-400/60" />}
-                </button>
-              )
+                  </button>
+
+                  {!sidebarCollapsed && isExpanded && (
+                    <div className="pl-4 flex flex-col gap-0.5 border-l border-[var(--color-border)]/50 ml-5 mt-0.5">
+                      {group.items.map(item => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            id={`sidebar-tab-${item.id}`}
+                            onClick={() => setActiveTab(item.id)}
+                            className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer w-full text-left ${
+                              isActive
+                                ? 'text-violet-400 font-extrabold'
+                                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/40'
+                            }`}
+                          >
+                            <span className="relative shrink-0 flex items-center">
+                              <Icon size={12} className={isActive ? 'text-violet-400' : 'text-slate-500'} />
+                              {item.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[10px] h-[10px] bg-red-500 rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse" />
+                              )}
+                            </span>
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {sidebarCollapsed && hoveredGroup === group.id && (
+                    <div className="absolute left-[54px] top-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl py-2 px-2 shadow-2xl z-50 w-48 flex flex-col gap-1 backdrop-blur-xl animate-scale-up">
+                      <div className="px-2.5 py-1 border-b border-[var(--color-border)]/50 mb-1">
+                        <span className="text-[9px] font-black text-violet-400 uppercase tracking-widest">{group.label}</span>
+                      </div>
+                      {group.items.map(item => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setActiveTab(item.id);
+                              setHoveredGroup(null);
+                            }}
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer w-full text-left ${
+                              isActive
+                                ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
+                                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/60 border border-transparent'
+                            }`}
+                          >
+                            <span className="relative shrink-0 flex items-center">
+                              <Icon size={13} className={isActive ? 'text-violet-400' : 'text-slate-500'} />
+                              {item.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[10px] h-[10px] bg-red-500 rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse" />
+                              )}
+                            </span>
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
           {/* Sidebar footer */}
@@ -6998,7 +7196,7 @@ export default function App() {
                   { label: 'Por Recaudar', val: totalPendiente, icon: Clock, col: 'from-amber-500/20 to-amber-500/5 dark:from-amber-500/10 dark:to-amber-500/2', iconCol: 'text-amber-600 dark:text-amber-400', type: 'pendiente' },
                   { label: 'Clientes Activos', val: clientesActivos, icon: Users, col: 'from-cyan-500/20 to-cyan-500/5 dark:from-cyan-500/10 dark:to-cyan-500/2', iconCol: 'text-cyan-600 dark:text-cyan-400', isNumber: true, type: 'clientes' }
                 ].map((card, idx) => (
-                  <div key={idx} onClick={() => card.type === 'clientes' ? setActiveTab('crm') : setActiveMetricModal(card.type)}
+                  <div key={idx} onClick={() => card.type === 'clientes' ? setActiveTab('crm') : card.type === 'pendiente' ? setActiveTab('recaudo') : card.type === 'cobrado' ? setActiveTab('cobros') : setActiveMetricModal(card.type)}
                     className={`p-5 bg-gradient-to-br ${card.col} bg-[var(--color-surface)] rounded-2xl flex flex-col gap-2 shadow-sm relative overflow-hidden group active:scale-[0.98] cursor-pointer border border-[var(--color-border)] hover-glow-card`}>
                     <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     <div className="flex items-center justify-between">
@@ -8208,6 +8406,27 @@ export default function App() {
             </div>
           )}
 
+          {/* ===== TAB: RECAUDO ===== */}
+          {activeTab === 'recaudo' && (
+            <RecaudoPanel
+              periodReports={filteredPeriodReports}
+              clientesSaas={clientesSaas}
+              onTogglePayment={handleTogglePayment}
+              onGoToCrm={(clientId) => { setSelectedCrmClientId(clientId); setActiveTab('crm'); }}
+              showToast={showToast}
+            />
+          )}
+
+          {/* ===== TAB: COBROS ===== */}
+          {activeTab === 'cobros' && (
+            <CobrosPanel
+              periodReports={filteredPeriodReports}
+              clientesSaas={clientesSaas}
+              onTogglePayment={handleTogglePayment}
+              showToast={showToast}
+            />
+          )}
+
           {/* ===== TAB: BILLING ===== */}
           {activeTab === 'billing' && (
             <div className="space-y-6 tab-content-enter">
@@ -9316,6 +9535,15 @@ export default function App() {
             <CoreManagerPanel showToast={(msg, type) => showToast(msg, { type })} />
           )}
 
+          {/* ===== TAB: SINCRONIZACIÓN MASIVA EN LOTE ===== */}
+          {activeTab === 'coresync' && (
+            <CoreSyncPanel 
+              showToast={(msg, type) => showToast(msg, { type })} 
+              registeredClientIds={clientesSaas.map(c => c.id)}
+              onRegisterClient={handleRegisterClientFromSync}
+            />
+          )}
+
           {/* ===== TAB: CONTROL GIT ===== */}
           {activeTab === 'git' && (
             <GitBackupPanel showToast={showToast} showAlert={showAlert} showConfirm={showConfirm} />
@@ -10217,174 +10445,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Modal de Detalle de Comisión Cobrada */}
-      {activeMetricModal === 'cobrado' && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
-          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="text-emerald-500" size={18} />
-                <h3 className="font-extrabold text-sm uppercase text-[var(--color-text)] tracking-wider">
-                  Detalle de Comisiones Cobradas
-                </h3>
-              </div>
-              <button 
-                onClick={() => setActiveMetricModal(null)}
-                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Listado de Pagados */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Comisiones Recaudadas (Pagadas)</h4>
-                <span className="text-xs font-black font-mono text-emerald-400">Total: ${totalCobrado.toLocaleString('es-CO')}</span>
-              </div>
-
-              <div className="overflow-x-auto border border-[var(--color-border)] rounded-2xl">
-                <table className="w-full text-left border-collapse text-[10px]">
-                  <thead>
-                    <tr className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-b border-[var(--color-border)] font-bold text-[8px] uppercase tracking-wider">
-                      <th className="p-3">Periodo</th>
-                      <th className="p-3">Cliente</th>
-                      <th className="p-3 text-right">Venta Bruta</th>
-                      <th className="p-3 text-right">Comisión</th>
-                      <th className="p-3 text-center">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]/40 font-mono text-[9px] text-[var(--color-text-muted)]">
-                    {filteredPeriodReports.filter(r => r.estadoPago === 'pagado').map((r, idx) => (
-                      <tr key={idx} className="hover:bg-[var(--color-surface-2)]/20 transition-all">
-                        <td className="p-3 font-sans font-bold text-[var(--color-text)]">{formatPeriod(r.periodo)}</td>
-                        <td className="p-3 font-sans text-[var(--color-text)] font-semibold">{r.clientId}</td>
-                        <td className="p-3 text-right">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</td>
-                        <td className="p-3 text-right text-emerald-400 font-bold">${Number(r.comisionValor || 0).toLocaleString('es-CO')}</td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => handleTogglePayment(r)}
-                            className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[8px] font-bold rounded cursor-pointer border border-amber-500/10 active:scale-95 transition-all"
-                          >
-                            Revertir
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredPeriodReports.filter(r => r.estadoPago === 'pagado').length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="p-6 text-center text-xs text-[var(--color-text-muted)] italic font-sans">
-                          No se han registrado comisiones cobradas en este periodo.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
-              <button 
-                onClick={() => setActiveMetricModal(null)}
-                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Detalle de Comisión Pendiente */}
-      {activeMetricModal === 'pendiente' && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
-          <div className="relative w-full max-w-3xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="text-amber-550 dark:text-amber-400" size={18} />
-                <h3 className="font-extrabold text-sm uppercase text-[var(--color-text)] tracking-wider">
-                  Detalle de Comisiones Pendientes
-                </h3>
-              </div>
-              <button 
-                onClick={() => setActiveMetricModal(null)}
-                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Listado de Pendientes */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">Cuentas por Cobrar</h4>
-                <span className="text-xs font-black font-mono text-amber-500">Total: ${totalPendiente.toLocaleString('es-CO')}</span>
-              </div>
-
-              <div className="overflow-x-auto border border-[var(--color-border)] rounded-2xl">
-                <table className="w-full text-left border-collapse text-[10px]">
-                  <thead>
-                    <tr className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)] border-b border-[var(--color-border)] font-bold text-[8px] uppercase tracking-wider">
-                      <th className="p-3">Periodo</th>
-                      <th className="p-3">Cliente</th>
-                      <th className="p-3 text-right">Venta Bruta</th>
-                      <th className="p-3 text-right">Comisión</th>
-                      <th className="p-3 text-center">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border)]/40 font-mono text-[9px] text-[var(--color-text-muted)]">
-                    {filteredPeriodReports.filter(r => r.estadoPago !== 'pagado').map((r, idx) => (
-                      <tr key={idx} className="hover:bg-[var(--color-surface-2)]/20 transition-all">
-                        <td className="p-3 font-sans font-bold text-[var(--color-text)]">{formatPeriod(r.periodo)}</td>
-                        <td className="p-3 font-sans text-[var(--color-text)] font-semibold">{r.clientId}</td>
-                        <td className="p-3 text-right">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</td>
-                        <td className="p-3 text-right text-amber-500 font-bold">${Number(r.comisionValor || 0).toLocaleString('es-CO')}</td>
-                        <td className="p-3 text-center flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              setActiveMetricModal(null);
-                              setSelectedCrmClientId(r.clientId);
-                              setActiveMetricModal('clientes');
-                            }}
-                            className="px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[8px] font-bold rounded cursor-pointer border border-indigo-500/10 active:scale-95 transition-all"
-                          >
-                            Gestionar CRM
-                          </button>
-                          <button
-                            onClick={() => handleTogglePayment(r)}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-550 text-white text-[8px] font-bold rounded cursor-pointer active:scale-95 transition-all shadow-sm"
-                          >
-                            Registrar Pago
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredPeriodReports.filter(r => r.estadoPago !== 'pagado').length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="p-6 text-center text-xs text-[var(--color-text-muted)] italic font-sans">
-                          ¡No hay comisiones pendientes de cobro! Excelente salud financiera.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-[var(--color-border)]">
-              <button 
-                onClick={() => setActiveMetricModal(null)}
-                className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
 
       {/* Modal Visor de Diffs */}
       {activeDiffFile && (
