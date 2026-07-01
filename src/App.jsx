@@ -1603,6 +1603,81 @@ export default function App() {
     setBorderColor(dark ? '#333333' : '#e2e8f0');
     setTextMutedColor(dark ? '#a0a0a0' : '#64748b');
   };
+  const handleGenerateAAAContrast = () => {
+    const rgbToHex = (r, g, b) => {
+      const toHex = (c) => {
+        const hex = c.toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      };
+      return '#' + toHex(r) + toHex(g) + toHex(b);
+    };
+
+    let attempts = 0;
+    while (attempts < 2000) {
+      attempts++;
+      const isDark = Math.random() > 0.2; // 80% dark mode, 20% light mode
+      
+      let bg, text, primary, secondary;
+      if (isDark) {
+        // Dark background: low RGB values (6 - 22)
+        const bgR = Math.floor(Math.random() * 16) + 6;
+        const bgG = Math.floor(Math.random() * 16) + 6;
+        const bgB = Math.floor(Math.random() * 20) + 10;
+        bg = rgbToHex(bgR, bgG, bgB);
+
+        // Light text: high RGB values (240 - 255)
+        const textR = Math.floor(Math.random() * 16) + 240;
+        const textG = Math.floor(Math.random() * 16) + 240;
+        const textB = Math.floor(Math.random() * 16) + 240;
+        text = rgbToHex(textR, textG, textB);
+      } else {
+        // Light background: high RGB values (245 - 255)
+        const bgR = Math.floor(Math.random() * 11) + 245;
+        const bgG = Math.floor(Math.random() * 11) + 245;
+        const bgB = Math.floor(Math.random() * 11) + 245;
+        bg = rgbToHex(bgR, bgG, bgB);
+
+        // Dark text: low RGB values (6 - 22)
+        const textR = Math.floor(Math.random() * 17) + 6;
+        const textG = Math.floor(Math.random() * 17) + 6;
+        const textB = Math.floor(Math.random() * 17) + 6;
+        text = rgbToHex(textR, textG, textB);
+      }
+
+      // Primary: needs to contrast with white (#ffffff)
+      // Saturated but dark (Luminance <= 0.10)
+      const priR = Math.floor(Math.random() * 120);
+      const priG = Math.floor(Math.random() * 120);
+      const priB = Math.floor(Math.random() * 160) + 20;
+      primary = rgbToHex(priR, priG, priB);
+
+      // Accent/Secondary: just make it look nice (e.g. higher lightness, complimentary or different hue)
+      const secR = Math.floor(Math.random() * 100) + 120;
+      const secG = Math.floor(Math.random() * 100) + 120;
+      const secB = Math.floor(Math.random() * 100) + 120;
+      secondary = rgbToHex(secR, secG, secB);
+
+      // Verify ratios
+      const ratioBgText = getContrastRatio(bg, text);
+      const ratioPrimaryWhite = getContrastRatio(primary, '#ffffff');
+
+      if (ratioBgText >= 7.0 && ratioPrimaryWhite >= 7.0) {
+        setPrimaryColor(primary);
+        setSecondaryColor(secondary);
+        setBgColor(bg);
+        setTextColor(text);
+        
+        const dark = isDark;
+        setSurfaceColor(dark ? '#181b23' : '#ffffff');
+        setSurface2Color(dark ? '#222630' : '#f1f5f9');
+        setBorderColor(dark ? '#2e3545' : '#cbd5e1');
+        setTextMutedColor(dark ? '#94a3b8' : '#475569');
+        
+        showToast('¡Nueva paleta AAA generada al 100%! 🟢', { type: 'success' });
+        return;
+      }
+    }
+  };
   const [enablePwa, setEnablePwa] = useState(true)
   const [enablePush, setEnablePush] = useState(true)
   const [enableBilling, setEnableBilling] = useState(false)
@@ -4808,6 +4883,27 @@ export default function App() {
 
                 {wizardTab === 'branding' && (
                   <div className="space-y-6 animate-fade-in">
+                      
+                      {/* Generador de Paleta AAA (Recomendación contraste 100% AAA) */}
+                      <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
+                        <div className="space-y-1 text-center sm:text-left">
+                          <span className="text-xs font-bold text-[var(--color-text)] block flex items-center gap-1.5 justify-center sm:justify-start">
+                            <span>✨</span> Generador Inteligente AAA (Contraste 100% OK)
+                          </span>
+                          <span className="text-[10px] text-[var(--color-text-muted)] leading-relaxed block">
+                            Genera combinaciones aleatorias de colores premium que certifican la norma WCAG AAA de forma matemática.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleGenerateAAAContrast}
+                          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md shrink-0"
+                        >
+                          <Sparkles size={13} className="animate-spin-slow" />
+                          Generar Paleta AAA
+                        </button>
+                      </div>
+
                       {/* Paletas de Colores Preestablecidas (Por Categorías de Nicho) */}
                       <div className="space-y-3">
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paletas de Colores de Marca Recomendadas</span>
