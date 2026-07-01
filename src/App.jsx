@@ -1858,7 +1858,10 @@ export default function App() {
   ])
   const [selectedWaTemplate, setSelectedWaTemplate] = useState('recordatorio-simple')
   const [waClientId, setWaClientId] = useState('')
-  const [waPeriodo, setWaPeriodo] = useState(() => new Date().toISOString().substring(0, 7))
+  const [waPeriodo, setWaPeriodo] = useState(() => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  })
   const [waComision, setWaComision] = useState('')
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [editingTemplateBody, setEditingTemplateBody] = useState('')
@@ -2675,6 +2678,58 @@ export default function App() {
       setUpdatingReportId(null)
     }
   }
+
+  // Eliminar reporte de facturación
+  const handleDeleteReport = async (report, e) => {
+    if (e) e.stopPropagation()
+    if (updatingReportId === report.id) return
+
+    const confirmed = await showConfirm({
+      title: 'Eliminar Reporte',
+      message: `¿Estás seguro de que deseas eliminar permanentemente el reporte de ${report.clientId} (${report.periodo})? Esta acción es irreversible.`,
+      confirmText: 'Sí, Eliminar',
+      cancelText: 'Cancelar',
+      variant: 'danger'
+    })
+    
+    if (!confirmed) return
+
+    setUpdatingReportId(report.id)
+    addLog(`Eliminando reporte de ${report.clientId} (${report.periodo})...`, "info")
+    
+    try {
+      if (isSimulated) {
+        setReports(prev => prev.filter(r => r.id !== report.id))
+        if (selectedReport && selectedReport.id === report.id) {
+          setSelectedReport(null)
+        }
+        addLog(`[Sandbox] Reporte eliminado localmente.`, "success")
+        showToast('Reporte eliminado con éxito', { type: 'success' })
+        return
+      }
+
+      const centralApp = getCentralApp()
+      if (!centralApp) return
+      const dbInstance = getFirestore(centralApp)
+
+      const docRef = doc(dbInstance, 'reportesBilling', report.id)
+      await deleteDoc(docRef)
+      
+      setReports(prev => prev.filter(r => r.id !== report.id))
+      if (selectedReport && selectedReport.id === report.id) {
+        setSelectedReport(null)
+      }
+      addLog(`[Firestore] Reporte ${report.id} eliminado con éxito de Firestore Central.`, "success")
+      showToast('Reporte de telemetría eliminado', { type: 'success' })
+    } catch (err) {
+      console.error("Error eliminando reporte:", err)
+      addLog(`Error al eliminar reporte: ${err.message}`, "error")
+      showToast(`Error al eliminar reporte: ${err.message}`, { type: 'error' })
+    } finally {
+      setUpdatingReportId(null)
+    }
+  }
+
 
   // --- CHEQUEO Y CONTROL DE SERVIDORES DE DESARROLLO LOCAL POR CLIENTE ---
   useEffect(() => {
@@ -3699,7 +3754,8 @@ export default function App() {
       ? selectedClientObj.id 
       : (isSimulated ? 'cliente-simulado-sandbox' : 'ventas-smartfix')
       
-    const testPeriod = new Date().toISOString().substring(0, 7)
+    const d = new Date()
+    const testPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
     const reportId = `${targetClient}_${testPeriod}`
     const sales = Math.floor(Math.random() * 8000000) + 2000000
     
@@ -5714,7 +5770,8 @@ export default function App() {
                     }
 
                     if (isSimulated) {
-                      const testPeriod = new Date().toISOString().substring(0, 7)
+                      const d = new Date()
+                      const testPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
                       const reportId = `${clientId}_${testPeriod}`
                       const sales = Math.floor(Math.random() * 8000000) + 2000000
                       
@@ -7195,7 +7252,8 @@ export default function App() {
                     <span>Exportar Métricas</span>
                   </button>
                   <button onClick={() => {
-                      const period = new Date().toISOString().substring(0, 7)
+                      const d = new Date()
+                      const period = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
                       exportConsolidatedReconciliationPDF(period, clientesSaas, reports)
                       addLog(`Reporte de conciliación PDF exportado para el periodo ${period}.`, 'success')
                     }}
@@ -8508,6 +8566,13 @@ export default function App() {
                                   className="p-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-400 rounded-lg hover:scale-[1.05] active:scale-[0.98] cursor-pointer transition-all">
                                   <Download size={11} />
                                 </button>
+                              
+                                 {/* Botón Eliminar Reporte */}
+                                 <button onClick={(e) => handleDeleteReport(report, e)}
+                                   title="Eliminar Reporte"
+                                   className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 rounded-lg hover:scale-[1.05] active:scale-[0.98] cursor-pointer transition-all">
+                                   <Trash2 size={11} />
+                                 </button>
                               </div>
                             </td>
                           </tr>
