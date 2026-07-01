@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Layers, CheckCircle, StopCircle, Play, Copy, ChevronDown, ChevronRight,
   Zap, RefreshCw, Trash2, ArrowRight, Check, X, Eye
 } from 'lucide-react'
 import CustomSelect from '../ui/CustomSelect'
 
-const CLI_URL = 'http://localhost:3001'
+import { CLI_URL } from '../../config'
 
 const STATUS = {
   active:   { label: 'Activo',    cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
@@ -836,7 +837,7 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
       )}
 
       {/* Modal de diferencias y drift de plantillas Core */}
-      {showDiffModal && diffData && (
+      {showDiffModal && diffData && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-4xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
             
@@ -1084,7 +1085,8 @@ export default function CoreCard({ core, coreOptions, showToast, loadCores }) {
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
