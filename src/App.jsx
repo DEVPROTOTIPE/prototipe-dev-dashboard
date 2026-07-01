@@ -1561,6 +1561,11 @@ export default function App() {
   const [isFetchingConfig, setIsFetchingConfig] = useState(false)
   const [fbVapidKey, setFbVapidKey] = useState('')
   const [autoProvisionFirebase, setAutoProvisionFirebase] = useState(false)
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
+  const [customPort, setCustomPort] = useState('')
+  const [whatsappAdmin, setWhatsappAdmin] = useState('')
+  const [storeAddress, setStoreAddress] = useState('')
   // Logo & Validation States (Mejoras de Robustez)
   const [logoFilename, setLogoFilename] = useState('')
   const [logoBase64, setLogoBase64] = useState('')
@@ -4563,6 +4568,39 @@ export default function App() {
                       </div>
 
                       <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Email de Administrador Inicial (Opcional)</label>
+                        <input 
+                          type="email" 
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                          placeholder={newClientName.trim() ? `admin@${newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}.com` : 'admin@cliente.com'}
+                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Contraseña de Administrador (Opcional)</label>
+                        <input 
+                          type="text" 
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                          placeholder="Autogenerar contraseña segura"
+                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Puerto Local de Vite (Opcional)</label>
+                        <input 
+                          type="number" 
+                          value={customPort}
+                          onChange={(e) => setCustomPort(e.target.value)}
+                          placeholder="Asignar puerto (Ej: 5174)"
+                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Plantilla Base</label>
                         <CustomSelect 
                           value={selectedTemplate}
@@ -4894,6 +4932,28 @@ export default function App() {
                                 value={logoLocalPath}
                                 onChange={(e) => setLogoLocalPath(e.target.value)}
                                 placeholder="C:\Users\Sergio\Pictures\logo.svg"
+                                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">WhatsApp del Negocio (Admin WhatsApp)</label>
+                              <input 
+                                type="text" 
+                                value={whatsappAdmin}
+                                onChange={(e) => setWhatsappAdmin(e.target.value)}
+                                placeholder="573001234567"
+                                className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Dirección de la Sucursal (Recogida)</label>
+                              <input 
+                                type="text" 
+                                value={storeAddress}
+                                onChange={(e) => setStoreAddress(e.target.value)}
+                                placeholder="Calle 10 # 5-20, Medellín"
                                 className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
                               />
                             </div>
@@ -5499,6 +5559,11 @@ export default function App() {
                       targetPath,
                       logoPath: logoLocalPath,
                       telemetryToken,
+                      adminEmail: adminEmail.trim(),
+                      adminPassword: adminPassword.trim(),
+                      customPort: customPort.trim(),
+                      whatsappAdmin: whatsappAdmin.trim(),
+                      storeAddress: storeAddress.trim(),
                       autoProvisionFirebase,
                       paletteChoice: 'custom',
                       customPrimary: primaryColor,
@@ -5596,6 +5661,11 @@ export default function App() {
                       setFbMessagingSenderId('')
                       setFbAppId('')
                       setFbVapidKey('')
+                      setAdminEmail('')
+                      setAdminPassword('')
+                      setCustomPort('')
+                      setWhatsappAdmin('')
+                      setStoreAddress('')
                       setIsRegistering(false)
                       setIsProvisioning(false)
                       return
@@ -5624,6 +5694,10 @@ export default function App() {
                         targetPath,
                         template: selectedTemplate,
                         customRequirements: customRequirements.trim(),
+                        adminEmail: adminEmail.trim(),
+                        customPort: customPort.trim(),
+                        whatsappAdmin: whatsappAdmin.trim(),
+                        storeAddress: storeAddress.trim(),
                         firebaseConfig: {
                           apiKey: fbApiKey.trim(),
                           authDomain: fbAuthDomain.trim(),
