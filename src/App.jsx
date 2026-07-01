@@ -66,6 +66,7 @@ import {
 import GitBackupPanel from './components/admin/GitBackupPanel'
 import RecaudoPanel from './components/admin/RecaudoPanel'
 import CobrosPanel from './components/admin/CobrosPanel'
+import HealthRadar from './components/admin/HealthRadar'
 import CoreSyncPanel from './components/admin/CoreSyncPanel'
 import SkillsRoadmapPanel from './components/admin/SkillsRoadmapPanel'
 import BriefingStudioView from './components/admin/BriefingStudioView'
@@ -7550,78 +7551,12 @@ export default function App() {
                 {/* Columna Derecha: Radar de Salud + Telemetría */}
                 <div className="space-y-5">
                   {/* Radar de Salud de Instancias */}
-                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl flex flex-col shadow-sm relative overflow-hidden transition-colors duration-300 border border-[var(--color-border)]">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/3 rounded-full blur-3xl pointer-events-none" />
-                    <div className="space-y-1 mb-4">
-                      <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Health Radar</span>
-                      <h3 className="font-extrabold text-base text-[var(--color-text)] flex items-center gap-2">
-                        <Activity size={16} className="text-indigo-550 dark:text-indigo-400" />
-                        Radar de Salud de Instancias
-                      </h3>
-                    </div>
-                    
-                    <div className="space-y-2.5">
-                      {clientesSaas.map(client => {
-                        const failuresCount = failures.filter(f => f.clientId.toLowerCase() === client.id.toLowerCase() && !f.resolved).length
-                        
-                        // Determinar estado de salud y latencia
-                        let latency = 80 + (client.id.length * 17) % 180
-                        let lastSeenText = 'en línea'
-                        let status = 'green' // green, yellow, red
-                        
-                        if (failuresCount > 0) {
-                          status = 'red'
-                          latency = 4200 + (failuresCount * 450)
-                          lastSeenText = `hace ${5 + (client.id.length % 10)}s (Error)`
-                        } else if (client.id === 'tienda-calzado-x') {
-                          status = 'yellow'
-                          latency = 3150
-                          lastSeenText = 'hace 18 min'
-                        } else if (client.id === 'restaurante-gourmet') {
-                          latency = 95
-                          lastSeenText = 'hace 3 min'
-                        } else {
-                          lastSeenText = 'en línea'
-                        }
-
-                        return (
-                          <div 
-                            key={client.id}
-                            onClick={() => {
-                              if (status === 'red') {
-                                setSelectedErrorClientFilter(client.id)
-                                setActiveTab('errors')
-                              }
-                            }}
-                            className={`p-2.5 bg-[var(--color-surface-2)]/20 hover:bg-[var(--color-surface-2)]/50 border border-[var(--color-border)]/50 rounded-xl flex items-center justify-between gap-3 transition-all duration-200 ${
-                              status === 'red' ? 'cursor-pointer hover:border-red-500/35 hover:shadow-sm' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="flex h-2 w-2 relative shrink-0">
-                                {status === 'red' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
-                                {status === 'yellow' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>}
-                                <span className={`relative inline-flex rounded-full h-2 w-2 ${status === 'red' ? 'bg-red-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-                              </span>
-                              <div className="min-w-0">
-                                <span className="text-[11px] font-bold text-[var(--color-text)] truncate block font-mono">{client.id}</span>
-                                <span className="text-[8px] text-[var(--color-text-muted)] block leading-none mt-0.5">{lastSeenText}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="text-right shrink-0 flex items-center gap-2">
-                              <span className="text-[10px] font-mono font-bold text-[var(--color-text-muted)]">{latency} ms</span>
-                              {failuresCount > 0 && (
-                                <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[8px] font-black border border-red-500/20">
-                                  {failuresCount} err
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  <HealthRadar
+                    clientesSaas={clientesSaas}
+                    failures={failures}
+                    setActiveTab={setActiveTab}
+                    setSelectedErrorClientFilter={setSelectedErrorClientFilter}
+                  />
 
                   {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
                   <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden">
