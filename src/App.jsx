@@ -6840,7 +6840,7 @@ export default function App() {
           sidebarCollapsed ? 'w-[64px]' : 'w-[220px]'
         }`}>
           <div className="flex flex-col gap-1.5 p-3 flex-1 pt-5 overflow-y-auto scrollbar-thin select-none">
-            {SIDEBAR_GROUPS.map(group => {
+            {SIDEBAR_GROUPS.map((group, groupIdx) => {
               const GroupIcon = group.icon;
               const isGroupActive = group.items.some(item => activeTab === item.id);
               const isExpanded = expandedGroups[group.id];
@@ -6850,23 +6850,25 @@ export default function App() {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    id={`sidebar-tab-${item.id}`}
-                    onClick={() => setActiveTab(item.id)}
-                    title={sidebarCollapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left shrink-0 ${
-                      isActive
-                        ? 'sidebar-item-active text-violet-400 border-violet-500/30'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/50 border-transparent'
-                    }`}
-                  >
-                    <span className="relative shrink-0 flex items-center">
-                      <Icon size={15} className={isActive ? 'text-violet-400' : ''} />
-                    </span>
-                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                    {!sidebarCollapsed && isActive && <ChevronRight size={10} className="ml-auto text-violet-400/60" />}
-                  </button>
+                  <div key={item.id} className="relative w-full shrink-0">
+                    <button
+                      id={`sidebar-tab-${item.id}`}
+                      onClick={() => setActiveTab(item.id)}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left relative group/item sidebar-tab-item ${
+                        isActive
+                          ? 'sidebar-item-active text-violet-400 border-violet-500/30 sidebar-tab-active'
+                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/50 border-transparent'
+                      }`}
+                    >
+                      <span className="sidebar-indicator" />
+                      <span className="relative shrink-0 flex items-center">
+                        <Icon size={15} className={`transition-all duration-200 ${isActive ? 'text-violet-400 sidebar-icon-glow' : 'group-hover/item:text-[var(--color-text)]'}`} />
+                      </span>
+                      {!sidebarCollapsed && <span className="truncate transition-transform duration-200 group-hover/item:translate-x-0.5">{item.label}</span>}
+                      {!sidebarCollapsed && isActive && <ChevronRight size={10} className="ml-auto text-violet-400/60" />}
+                    </button>
+                  </div>
                 );
               }
 
@@ -6877,6 +6879,10 @@ export default function App() {
                   onMouseEnter={() => sidebarCollapsed && setHoveredGroup(group.id)}
                   onMouseLeave={() => sidebarCollapsed && setHoveredGroup(null)}
                 >
+                  {/* Separador visual sutil entre grupos */}
+                  {groupIdx > 1 && !sidebarCollapsed && <div className="sidebar-separator" />}
+
+                  {/* Encabezado del grupo collapsible */}
                   <button
                     onClick={() => {
                       if (!sidebarCollapsed) {
@@ -6885,58 +6891,68 @@ export default function App() {
                         setActiveTab(group.items[0].id);
                       }
                     }}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left ${
+                    title={sidebarCollapsed ? group.label : undefined}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer border w-full text-left group/hdr ${
                       isGroupActive && sidebarCollapsed
                         ? 'sidebar-item-active text-violet-400 border-violet-500/30'
                         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/30 border-transparent'
                     }`}
                   >
-                    <GroupIcon size={15} className={isGroupActive ? 'text-violet-400' : 'text-[var(--color-text-muted)]'} />
+                    <GroupIcon size={15} className={`transition-all duration-200 ${isGroupActive ? 'text-violet-400 sidebar-icon-glow' : 'text-slate-500 group-hover/hdr:text-[var(--color-text)]'}`} />
                     {!sidebarCollapsed && (
                       <>
-                        <span className="truncate uppercase tracking-wider text-[9px] font-black">{group.label}</span>
+                        <span className="truncate uppercase tracking-[0.12em] text-[8.5px] font-black text-slate-500 dark:text-slate-400/65 group-hover/hdr:text-[var(--color-text-muted)] transition-colors">{group.label}</span>
                         {isExpanded ? (
-                          <ChevronDown size={11} className="ml-auto opacity-60" />
+                          <ChevronDown size={11} className="ml-auto opacity-45 group-hover/hdr:opacity-85 transition-opacity" />
                         ) : (
-                          <ChevronRight size={11} className="ml-auto opacity-60" />
+                          <ChevronRight size={11} className="ml-auto opacity-45 group-hover/hdr:opacity-85 transition-opacity" />
                         )}
                       </>
                     )}
                   </button>
 
-                  {!sidebarCollapsed && isExpanded && (
-                    <div className="pl-4 flex flex-col gap-0.5 border-l border-[var(--color-border)]/50 ml-5 mt-0.5">
-                      {group.items.map(item => {
-                        const Icon = item.icon;
-                        const isActive = activeTab === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            id={`sidebar-tab-${item.id}`}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer w-full text-left ${
-                              isActive
-                                ? 'text-violet-400 font-extrabold'
-                                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/40'
-                            }`}
-                          >
-                            <span className="relative shrink-0 flex items-center">
-                              <Icon size={12} className={isActive ? 'text-violet-400' : 'text-slate-500'} />
-                              {item.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
-                                <span className="absolute -top-1 -right-1 min-w-[10px] h-[10px] bg-red-500 rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse" />
-                              )}
-                            </span>
-                            <span className="truncate">{item.label}</span>
-                          </button>
-                        );
-                      })}
+                  {/* Sub-ítems en acordeón animado */}
+                  {!sidebarCollapsed && (
+                    <div className={`sidebar-accordion-wrapper ${isExpanded ? 'expanded' : ''}`}>
+                      <div className="sidebar-accordion-inner pl-4 flex flex-col gap-0.5 border-l border-[var(--color-border)]/50 ml-5 mt-0.5">
+                        {group.items.map(item => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              id={`sidebar-tab-${item.id}`}
+                              onClick={() => setActiveTab(item.id)}
+                              className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer w-full text-left relative group/sub sidebar-tab-item ${
+                                isActive
+                                  ? 'text-violet-400 font-extrabold sidebar-tab-active'
+                                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/40'
+                              }`}
+                            >
+                              <span className="sidebar-indicator" />
+                              <span className="relative shrink-0 flex items-center">
+                                <Icon size={12} className={`transition-all duration-200 ${isActive ? 'text-violet-400 sidebar-icon-glow' : 'text-slate-500 group-hover/sub:text-[var(--color-text-muted)]'}`} />
+                                {item.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
+                                  <span className="absolute -top-1 -right-1 min-w-[10px] h-[10px] bg-red-500 rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse" />
+                                )}
+                              </span>
+                              <span className="truncate transition-transform duration-200 group-hover/sub:translate-x-1">{item.label}</span>
+                              
+                              {/* Punto brillante de hover */}
+                              <span className="w-1 h-1 rounded-full bg-violet-400 opacity-0 group-hover/sub:opacity-100 transition-opacity ml-auto shrink-0 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
+                  {/* Popover flotante (modo colapsado) */}
                   {sidebarCollapsed && hoveredGroup === group.id && (
-                    <div className="absolute left-[54px] top-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl py-2 px-2 shadow-2xl z-50 w-48 flex flex-col gap-1 backdrop-blur-xl animate-scale-up">
-                      <div className="px-2.5 py-1 border-b border-[var(--color-border)]/50 mb-1">
-                        <span className="text-[9px] font-black text-violet-400 uppercase tracking-widest">{group.label}</span>
+                    <div className="absolute left-[52px] top-0 bg-[var(--color-surface)]/95 border border-[var(--color-border)]/80 rounded-2xl py-2 px-2 shadow-2xl z-50 w-48 flex flex-col gap-1 backdrop-blur-xl animate-scale-up border-l-2 border-l-violet-500/40">
+                      <div className="px-2.5 py-1.5 border-b border-[var(--color-border)]/50 mb-1 flex items-center gap-1.5">
+                        <GroupIcon size={11} className="text-violet-400" />
+                        <span className="text-[8.5px] font-black text-violet-400 uppercase tracking-widest leading-none">{group.label}</span>
                       </div>
                       {group.items.map(item => {
                         const Icon = item.icon;
@@ -6948,19 +6964,20 @@ export default function App() {
                               setActiveTab(item.id);
                               setHoveredGroup(null);
                             }}
-                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all duration-150 cursor-pointer w-full text-left ${
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer w-full text-left relative group/subpop ${
                               isActive
-                                ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20'
+                                ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20 font-extrabold'
                                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]/60 border border-transparent'
                             }`}
                           >
                             <span className="relative shrink-0 flex items-center">
-                              <Icon size={13} className={isActive ? 'text-violet-400' : 'text-slate-500'} />
+                              <Icon size={12} className={isActive ? 'text-violet-400 sidebar-icon-glow' : 'text-slate-500'} />
                               {item.badgeKey === 'activeFailures' && !isActive && failures.filter(f => !f.resolved).length > 0 && (
                                 <span className="absolute -top-1 -right-1 min-w-[10px] h-[10px] bg-red-500 rounded-full flex items-center justify-center leading-none shadow-sm animate-pulse" />
                               )}
                             </span>
-                            <span className="truncate">{item.label}</span>
+                            <span className="truncate transition-transform duration-250 group-hover/subpop:translate-x-1">{item.label}</span>
+                            <span className="w-1 h-1 rounded-full bg-violet-400 opacity-0 group-hover/subpop:opacity-100 transition-opacity ml-auto shrink-0 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                           </button>
                         );
                       })}

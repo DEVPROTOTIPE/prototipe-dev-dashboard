@@ -565,5 +565,47 @@ button:focus,
   box-shadow: none !important;
 }
 
+/* Sidebar Active Accent Indicator */
+.sidebar-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(to bottom, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+.sidebar-tab-active .sidebar-indicator {
+  height: 18px;
+  opacity: 1;
+}
 
+/* Active Icon Glow */
+.sidebar-icon-glow {
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.55));
+  transition: filter 0.2s ease;
+}
 
+/* Accordion Smooth Height Transition classes */
+.sidebar-accordion-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+.sidebar-accordion-wrapper.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.sidebar-accordion-inner {
+  overflow: hidden;
+}
+
+/* Sidebar Gradient Separator */
+.sidebar-separator {
+  height: 1px;
+  background: linear-gradient(to right, rgba(124, 58, 237, 0.15) 0%, rgba(6, 182, 212, 0.04) 70%, transparent 100%);
+  margin: 6px 8px;
+}
