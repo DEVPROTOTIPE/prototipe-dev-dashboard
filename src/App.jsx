@@ -6099,7 +6099,7 @@ export default function App() {
                               <div 
                                 className="p-2.5 rounded-xl relative overflow-hidden transition-all duration-300 shadow-sm border flex flex-col justify-center"
                                 style={{ 
-                                  backgroundColor: `${secondaryColor}10`,
+                                  background: `linear-gradient(135deg, ${secondaryColor}12 0%, ${primaryColor}06 100%)`,
                                   borderColor: `${primaryColor}20`
                                 }}
                               >
@@ -6392,7 +6392,7 @@ export default function App() {
                         <div 
                           className="p-3 rounded-2xl relative overflow-hidden transition-all duration-300 shadow-md border"
                           style={{ 
-                            backgroundColor: `${secondaryColor}12`,
+                            background: `linear-gradient(135deg, ${secondaryColor}15 0%, ${primaryColor}08 100%)`,
                             borderColor: `${primaryColor}25`
                           }}
                         >
@@ -6401,12 +6401,6 @@ export default function App() {
                             ${mockOrders.reduce((sum, item) => sum + item.val, 0).toLocaleString('es-CO')}
                           </span>
                           <p className="text-[7px] opacity-80 mt-1">{mockOrders.length} ventas procesadas exitosamente</p>
-                          
-                          {/* Decorative gradient spot inside card */}
-                          <div 
-                            className="absolute right-[-10%] bottom-[-10%] w-12 h-12 rounded-full blur-xl pointer-events-none opacity-40"
-                            style={{ backgroundColor: secondaryColor }}
-                          />
                         </div>
 
                         {/* Quick Action / Sale Registration Form */}
