@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { CLI_URL } from '../../config';
 
 const PAGE_SIZE = 15;
 
@@ -88,7 +89,7 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
 
   const handleCheckSingle = async (clientId, url) => {
     try {
-      const res = await fetch(`http://127.0.0.1:3001/api/health/${clientId}?url=${encodeURIComponent(url)}`);
+      const res = await fetch(`${CLI_URL}/api/health/${clientId}?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
@@ -113,7 +114,7 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
     setChecking(true);
     const clientsQuery = clientes.map(c => `${c.id},${c.url}`).join(';');
     try {
-      const res = await fetch(`http://127.0.0.1:3001/api/health/check?clients=${encodeURIComponent(clientsQuery)}`);
+      const res = await fetch(`${CLI_URL}/api/health/check?clients=${encodeURIComponent(clientsQuery)}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 

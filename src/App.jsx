@@ -2127,6 +2127,30 @@ export default function App() {
   }
 
   // Reintentar solo el aprovisionamiento físico en disco (CLI) cuando Firestore ya fue exitoso
+  // Helper para generar la ruta de destino de auto-inyección
+  const getDefaultRelativePath = (comp) => {
+    if (!comp) return '';
+    const cleanName = comp.technicalName || comp.name.replace(/[^a-zA-Z0-9]/g, '');
+    const mdLower = comp.link.toLowerCase();
+    
+    if (mdLower.includes('/logica_y_hooks/') || mdLower.includes('hook') || comp.name.toLowerCase().startsWith('use')) {
+      return `src/hooks/${cleanName.startsWith('use') ? cleanName : 'use' + cleanName}.js`;
+    }
+    if (mdLower.includes('/servicios_y_firebase/') || mdLower.includes('service')) {
+      return `src/services/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}Service.js`;
+    }
+    if (mdLower.includes('/utilidades/') || mdLower.includes('util')) {
+      return `src/utils/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}.js`;
+    }
+    if (mdLower.includes('/paginas/') || mdLower.includes('page')) {
+      return `src/pages/${cleanName}Page.jsx`;
+    }
+    if (comp.resourceType === 'module') {
+      return `src/components/common/${cleanName}.jsx`;
+    }
+    return `src/components/ui/${cleanName}.jsx`;
+  }
+
   const handleRetryCliProvisioning = async () => {
     if (!pendingCliProvisioning) return
     const { clientId, nombre, comisionPorcentaje, telemetryToken, payload } = pendingCliProvisioning
@@ -4745,9 +4769,7 @@ export default function App() {
                 )}
 
                 {wizardTab === 'branding' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-fade-in">
-                    {/* Columna Izquierda: Configuración de Marca y Colores (lg:col-span-7) */}
-                    <div className="lg:col-span-7 space-y-6">
+                  <div className="space-y-6 animate-fade-in">
                       {/* Paletas de Colores Preestablecidas (Por Categorías de Nicho) */}
                       <div className="space-y-3">
                         <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paletas de Colores de Marca Recomendadas</span>
@@ -5164,269 +5186,6 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Columna Derecha: Vista Previa e Integridad de Accesibilidad (lg:col-span-5) */}
-                    <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-6">
-                      {/* Simulador Premium de Interfaz en Tiempo Real */}
-                      <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Simulador de Interfaz (Tiempo Real)</span>
-                          <span className="text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full px-2 py-0.5">Live Mockup</span>
-                        </div>
-
-                        {/* Contenedor del Mockup */}
-                        <div 
-                          className="border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 relative"
-                          style={{ 
-                            backgroundColor: bgColor, 
-                            fontFamily: `'${googleFont}', sans-serif`,
-                            color: textColor 
-                          }}
-                        >
-                          {/* Barra de Estado Mock */}
-                          <div className="px-3 py-1.5 flex items-center justify-between text-[8px] opacity-40 border-b select-none" style={{ borderColor: `${borderColor}40` }}>
-                            <span>12:00 PM</span>
-                            <div className="flex items-center gap-1">
-                              <span>📶</span>
-                              <span>🔋 100%</span>
-                            </div>
-                          </div>
-
-                          {/* Navbar Mock */}
-                          <div className="px-3 py-2.5 flex items-center justify-between border-b" style={{ borderColor: `${borderColor}30` }}>
-                            <div className="flex items-center gap-1.5">
-                              {logoBase64 ? (
-                                <img 
-                                  src={`data:image/*;base64,${logoBase64}`} 
-                                  alt="Preview Logo" 
-                                  className="h-4 w-auto object-contain"
-                                />
-                              ) : (
-                                <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[7px] text-white font-bold">P</div>
-                              )}
-                              <span className="text-[10px] font-extrabold tracking-tight">Mi Tienda</span>
-                            </div>
-                            <div className="flex gap-2.5 text-[9px] font-semibold opacity-80">
-                              <span style={{ color: primaryColor }}>Inicio</span>
-                              <span>Buscar</span>
-                              <span>Carrito</span>
-                            </div>
-                          </div>
-
-                          {/* Contenido Mock */}
-                          <div className="p-3.5 space-y-3.5">
-                            {/* Saludo y Categoría */}
-                            <div className="space-y-0.5">
-                              <span className="text-[8px] font-bold tracking-wide uppercase opacity-50">Explorar catálogo</span>
-                              <h5 className="text-[12px] font-black leading-none">Nuestros Productos</h5>
-                            </div>
-
-                            {/* Tarjeta de Producto Mock */}
-                            <div 
-                              className="p-3 border shadow-sm transition-all animate-fade-in"
-                              style={{ 
-                                backgroundColor: surfaceColor, 
-                                borderColor: borderColor,
-                                borderRadius: radiusBase 
-                              }}
-                            >
-                              {/* Imagen del Producto Mock */}
-                              <div 
-                                className="w-full h-20 rounded-lg relative overflow-hidden mb-2.5 flex items-center justify-center"
-                                style={{ 
-                                  background: `linear-gradient(135deg, ${primaryColor}20 0%, ${secondaryColor}20 100%)` 
-                                }}
-                              >
-                                <span className="text-[16px]">🛍️</span>
-                                <span 
-                                  className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold text-white shadow-sm animate-pulse"
-                                  style={{ backgroundColor: secondaryColor }}
-                                >
-                                  Nuevo
-                                </span>
-                              </div>
-
-                              {/* Detalles del Producto */}
-                              <div className="space-y-1">
-                                <div className="flex items-start justify-between gap-1">
-                                  <span className="text-[10px] font-bold leading-tight block truncate">Chaqueta Premium Fit</span>
-                                  <span className="text-[10px] font-extrabold shrink-0" style={{ color: primaryColor }}>$89.900</span>
-                                </div>
-                                <p className="text-[8px] leading-relaxed" style={{ color: textMutedColor }}>
-                                  Diseño exclusivo de alta costura, materiales sostenibles y confort total para el día a día.
-                                </p>
-                              </div>
-
-                              {/* Botones de Acción de Tarjeta */}
-                              <div className="flex gap-1.5 mt-2.5">
-                                <button 
-                                  type="button" 
-                                  className="flex-1 py-1.5 text-[8.5px] font-black text-center text-white transition-all shadow-sm flex items-center justify-center gap-1 active:scale-95"
-                                  style={{ 
-                                    backgroundColor: primaryColor,
-                                    borderRadius: radiusBase 
-                                  }}
-                                >
-                                  🛒 Comprar
-                                </button>
-                                <button 
-                                  type="button" 
-                                  className="px-2 py-1.5 text-[8.5px] font-bold transition-all border flex items-center justify-center active:scale-95"
-                                  style={{ 
-                                    borderColor: borderColor,
-                                    color: textColor,
-                                    borderRadius: radiusBase 
-                                  }}
-                                >
-                                  ❤️
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Alerta de Descuento Mock */}
-                            <div 
-                              className="p-2.5 border flex items-center justify-between gap-2"
-                              style={{ 
-                                backgroundColor: surface2Color, 
-                                borderColor: borderColor,
-                                borderRadius: radiusBase 
-                              }}
-                            >
-                              <div className="space-y-0.5">
-                                <span className="text-[8.5px] font-bold block leading-none">Envío Gratis Garantizado</span>
-                                <span className="text-[7.5px] block opacity-60" style={{ color: textMutedColor }}>Por compras superiores a $150k</span>
-                              </div>
-                              <span className="text-xs">🚚</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
-                      <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
-                          <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Contraste Botón Primario */}
-                          {(() => {
-                            const ratio = getContrastRatio(primaryColor, '#ffffff');
-                            const feedback = getContrastFeedback(ratio);
-                            return (
-                              <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
-                                  <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                                </div>
-                                
-                                <div className="flex flex-col gap-1.5 mt-1">
-                                  <span className={`text-[8px] font-bold px-2 py-1 rounded-full text-center ${feedback.badgeClass}`}>
-                                    {feedback.text}
-                                  </span>
-                                  <div 
-                                    className="px-2 py-1.5 rounded-lg text-[9px] font-bold text-white shadow-sm text-center"
-                                    style={{ backgroundColor: primaryColor }}
-                                  >
-                                    Botón Primario
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Contraste Fondo vs Texto */}
-                          {(() => {
-                            const ratio = getContrastRatio(bgColor, textColor);
-                            const feedback = getContrastFeedback(ratio);
-                            return (
-                              <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
-                                  <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                                </div>
-                                
-                                <div className="flex flex-col gap-1.5 mt-1">
-                                  <span className={`text-[8px] font-bold px-2 py-1 rounded-full text-center ${feedback.badgeClass}`}>
-                                    {feedback.text}
-                                  </span>
-                                  <div 
-                                    className="p-1.5 rounded-lg text-[8px] border font-medium text-center truncate w-full"
-                                    style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
-                                  >
-                                    Texto de Ejemplo
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sección de Validación de Accesibilidad WCAG 2.1 */}
-                    <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Estudio de Accesibilidad y Contraste WCAG 2.1</span>
-                        <span className="text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-2 py-0.5">Estándar W3C</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Contraste Botón Primario */}
-                        {(() => {
-                          const ratio = getContrastRatio(primaryColor, '#ffffff');
-                          const feedback = getContrastFeedback(ratio);
-                          return (
-                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                              <div>
-                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste del Botón Primario</span>
-                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
-                                  {feedback.text}
-                                </span>
-                                <div 
-                                  className="px-2 py-1 rounded text-[9px] font-bold text-white shadow-sm"
-                                  style={{ backgroundColor: primaryColor }}
-                                >
-                                  Botón Primario
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Contraste Fondo vs Texto */}
-                        {(() => {
-                          const ratio = getContrastRatio(bgColor, textColor);
-                          const feedback = getContrastFeedback(ratio);
-                          return (
-                            <div className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
-                              <div>
-                                <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Contraste Fondo vs Texto</span>
-                                <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${feedback.badgeClass}`}>
-                                  {feedback.text}
-                                </span>
-                                <div 
-                                  className="p-1 rounded text-[8px] border font-medium truncate max-w-[120px]"
-                                  style={{ backgroundColor: bgColor, color: textColor, borderColor: `${textColor}20` }}
-                                >
-                                  Texto de Ejemplo
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
                 )}
 
                 {wizardTab === 'modules' && (
@@ -5518,18 +5277,35 @@ export default function App() {
                           Módulo de Facturación Electrónica
                         </label>
 
-                        <div className="pl-6 border-l border-indigo-500/20 space-y-3 mt-1">
-                          <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
-                            <input 
-                              type="checkbox" 
-                              checked={enableDianBilling} 
-                              onChange={(e) => setEnableDianBilling(e.target.checked)}
-                              className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                            />
-                            Facturación Electrónica DIAN Directa
-                          </label>
+                        {enableBilling && (
+                          <div className="pl-6 border-l border-indigo-500/20 space-y-3 mt-1">
+                            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                              <input 
+                                type="checkbox" 
+                                checked={enableDianBilling} 
+                                onChange={(e) => setEnableDianBilling(e.target.checked)}
+                                className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                              />
+                              Facturación Electrónica DIAN Directa
+                            </label>
 
+                            {enableDianBilling && (
+                              <div className="space-y-1.5 pl-6 animate-fade-in">
+                                <label className="text-[10px] font-bold text-[var(--color-text-muted)] block uppercase tracking-wider">Costo por Factura DIAN ($ COP)</label>
+                                <div className="relative max-w-[150px]">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[var(--color-text-muted)]">$</span>
+                                  <input 
+                                    type="number"
+                                    min="0"
+                                    value={costoPorFacturaDian}
+                                    onChange={(e) => setCostoPorFacturaDian(Number(e.target.value) || 0)}
+                                    className="w-full bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-lg pl-6 pr-2.5 py-1 text-xs font-bold text-[var(--color-text-muted)] focus:outline-none focus:border-indigo-500 transition-colors"
+                                  />
                                 </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Selector de Recomendaciones de la Biblioteca — Premium Toggle Cards */}
@@ -5889,6 +5665,7 @@ export default function App() {
                       addLog(`[Firestore] Aprovisionamiento exitoso para el cliente ${clientId} en la nube central.`, "success")
                       
                       let promptResult = ''
+                      setProvisioningLogs([])
 
                       try {
                         const cliRes = await fetch(`${CLI_URL}/api/create-project`, {
@@ -5898,10 +5675,80 @@ export default function App() {
                         })
 
                         if (cliRes.ok) {
-                          const resData = await cliRes.json()
-                          promptResult = resData.prompt || (resData.data && resData.data.prompt) || ''
-                          addLog(`[CLI API] Aprovisionamiento físico del proyecto en disco completado correctamente.`, "success")
-                          showToast(`Cliente ${newClientName} registrado y proyecto creado en disco`, { type: 'success' })
+                          const { taskId } = await cliRes.json()
+                          addLog(`[CLI API] Creación de proyecto asíncrona iniciada. Task ID: ${taskId}`, "info")
+                          setProvisioningLogs(prev => [...prev, `[CLI API] Creación de proyecto asíncrona iniciada. Task ID: ${taskId}`])
+                          
+                          // Abrir canal de eventos SSE
+                          await new Promise((resolve, reject) => {
+                            const eventSource = new EventSource(`${CLI_URL}/api/create-project/stream?taskId=${taskId}`)
+                            
+                            eventSource.onmessage = async (event) => {
+                              try {
+                                const data = JSON.parse(event.data)
+                                if (data.type === 'log') {
+                                  addLog(data.line, "info")
+                                  setProvisioningLogs(prev => [...prev, data.line])
+                                } else if (data.type === 'success') {
+                                  eventSource.close()
+                                  promptResult = data.data.prompt || ''
+                                  addLog(`[CLI API] Aprovisionamiento físico completado en disco.`, "success")
+                                  setProvisioningLogs(prev => [...prev, `[CLI API] Aprovisionamiento físico completado en disco.`])
+                                  
+                                  // --- AUTO-INYECCION SECUENCIAL EN LOTE ---
+                                  if (selectedRecomendations && selectedRecomendations.length > 0) {
+                                    addLog(`[Auto-Inject] Iniciando auto-inyección de ${selectedRecomendations.length} componentes...`, "info")
+                                    setProvisioningLogs(prev => [...prev, `[Auto-Inject] Iniciando auto-inyección de ${selectedRecomendations.length} componentes...`])
+                                    
+                                    for (const rec of selectedRecomendations) {
+                                      const targetRelPath = getDefaultRelativePath(rec)
+                                      addLog(`[Auto-Inject] Inyectando ${rec.name} en ${targetRelPath}...`, "info")
+                                      setProvisioningLogs(prev => [...prev, `[Auto-Inject] Inyectando ${rec.name} en ${targetRelPath}...`])
+                                      
+                                      try {
+                                        const injectRes = await fetch(`${CLI_URL}/api/library/inject`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            clientId,
+                                            componentLink: rec.link,
+                                            targetRelativePath: targetRelPath
+                                          })
+                                        })
+                                        
+                                        if (injectRes.ok) {
+                                          addLog(`[Auto-Inject] ${rec.name} inyectado correctamente.`, "success")
+                                          setProvisioningLogs(prev => [...prev, `[Auto-Inject] ${rec.name} inyectado correctamente.`])
+                                        } else {
+                                          const errTxt = await injectRes.text()
+                                          addLog(`[Auto-Inject Warning] Falló inyección de ${rec.name}: ${errTxt}`, "warning")
+                                          setProvisioningLogs(prev => [...prev, `[Auto-Inject Warning] Falló inyección de ${rec.name}: ${errTxt}`])
+                                        }
+                                      } catch (injErr) {
+                                        addLog(`[Auto-Inject Warning] Error de conexión inyectando ${rec.name}: ${injErr.message}`, "warning")
+                                        setProvisioningLogs(prev => [...prev, `[Auto-Inject Warning] Error de conexión inyectando ${rec.name}: ${injErr.message}`])
+                                      }
+                                    }
+                                    addLog(`[Auto-Inject] Inyección en lote finalizada.`, "success")
+                                    setProvisioningLogs(prev => [...prev, `[Auto-Inject] Inyección en lote finalizada.`])
+                                  }
+                                  
+                                  showToast(`Cliente ${newClientName} registrado y proyecto creado en disco`, { type: 'success' })
+                                  resolve()
+                                } else if (data.type === 'error') {
+                                  eventSource.close()
+                                  reject(new Error(data.message || 'Error en el motor de aprovisionamiento del CLI.'))
+                                }
+                              } catch (parseErr) {
+                                console.error('Error parseando evento SSE:', parseErr)
+                              }
+                            }
+                            
+                            eventSource.onerror = (err) => {
+                              eventSource.close()
+                              reject(new Error('Conexión SSE perdida o rechazada por el Bridge.'))
+                            }
+                          })
                         } else {
                           const errText = await cliRes.text()
                           let errMessage = ''
@@ -5911,23 +5758,19 @@ export default function App() {
                           } catch (_) {
                             errMessage = errText
                           }
-                          addLog(`[CLI API Warning] CLI respondió con error: ${errMessage}. Datos guardados en Firestore — puedes reintentar.`, "warning")
-                          setPendingCliProvisioning({
-                            clientId, nombre: newClientName.trim(), comisionPorcentaje, telemetryToken,
-                            payload: cliPayload
-                          })
-                          showToast(`El cliente se guardó en Firestore. Presiona "Reintentar" cuando el CLI esté disponible.`, { type: 'error' })
+                          throw new Error(errMessage)
                         }
                       } catch (cliErr) {
                         console.error("Error en API de aprovisionamiento:", cliErr)
-                        addLog(`[CLI API Warning] Daemon CLI offline o error de conexión: ${cliErr.message}. Datos en Firestore seguros — usa el botón Reintentar cuando el CLI esté disponible.`, "warning")
+                        addLog(`[CLI API Warning] Aprovisionamiento fallido: ${cliErr.message}. Datos en Firestore seguros — usa el botón Reintentar.`, "warning")
                         setPendingCliProvisioning({
                           clientId, nombre: newClientName.trim(), comisionPorcentaje, telemetryToken,
                           payload: cliPayload
                         })
-                        showToast('Daemon CLI offline. Firestore OK. Presiona "Reintentar" cuando el servidor esté disponible.', { type: 'error' })
+                        showToast(`Aprovisionamiento local fallido: ${cliErr.message}. Puedes reintentar.`, { type: 'error' })
                       }
-
+                      
+                      // Saltamos catch viejo
                       setOnboardingData({
                         clientId,
                         token: telemetryToken,
@@ -6367,6 +6210,52 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* Estudio de Accesibilidad WCAG 2.1 - Reubicado */}
+              {wizardTab === 'branding' && (
+                <div className="p-4 bg-slate-500/5 dark:bg-slate-900/40 border border-[var(--color-border)] rounded-2xl space-y-3 w-full max-w-[240px] mt-4 select-none">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Contraste WCAG 2.1</span>
+                    <span className="text-[8px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full px-1.5 py-0.5">W3C</span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {/* Contraste Botón Primario */}
+                    {(() => {
+                      const ratio = getContrastRatio(primaryColor, '#ffffff');
+                      const feedback = getContrastFeedback(ratio);
+                      return (
+                        <div className="p-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Botón Primario</span>
+                            <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                          </div>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full text-center ${feedback.badgeClass}`}>
+                            {feedback.text}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Contraste Fondo vs Texto */}
+                    {(() => {
+                      const ratio = getContrastRatio(bgColor, textColor);
+                      const feedback = getContrastFeedback(ratio);
+                      return (
+                        <div className="p-2.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl space-y-2 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase block">Fondo vs Texto</span>
+                            <span className="text-xs font-black text-[var(--color-text)] block mt-0.5">{ratio.toFixed(2)} : 1</span>
+                          </div>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full text-center ${feedback.badgeClass}`}>
+                            {feedback.text}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
             </div>
           </div>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { FlaskConical, ChevronDown, Check, Play, StopCircle, CircleCheck, CircleX } from 'lucide-react'
 
+import { CLI_URL } from '../../config'
+
 export default function E2EPanel() {
-  const CLI_BASE = 'http://localhost:3001'
+  const CLI_BASE = CLI_URL
   const [e2eProjects, setE2eProjects] = useState([])
   const [e2eProjectsLoading, setE2eProjectsLoading] = useState(false)
   const [e2eSelectedProject, setE2eSelectedProject] = useState(null)

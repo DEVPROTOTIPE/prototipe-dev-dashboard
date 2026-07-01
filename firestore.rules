@@ -42,8 +42,10 @@ service cloud.firestore {
     // o para lectura básica, permitir si el clientId es exacto y se comprueba contra un header de token en la petición).
     // Implementación: allow read si request.auth != null o si el token del query de lectura es válido para ese clientId.
     match /clientes_control/{clientId} {
-      // Lectura pública: las instancias cliente necesitan leer su tasa comisional y configuración de alerta
-      allow read: if true;
+      // Lectura pública: las instancias cliente necesitan leer su tasa comisional y configuración de alerta por ID
+      allow get: if true;
+      // Restricción: solo el desarrollador autenticado puede listar todos los clientes
+      allow list: if request.auth != null;
       // Escritura autenticada: el dashboard del desarrollador puede modificar cualquier campo
       // Escritura pública restringida: solo se permite actualizar el campo lastPingResponse (respuesta al Ping Test en tiempo real)
       allow update: if request.auth != null ||

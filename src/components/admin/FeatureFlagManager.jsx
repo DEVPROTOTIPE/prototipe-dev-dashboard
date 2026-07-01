@@ -11,6 +11,7 @@ import {
   Info 
 } from 'lucide-react';
 import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { CLI_URL } from '../../config';
 
 const CORE_FLAGS = [
   { id: 'creditsEnabled', label: 'Créditos y Fiado', desc: 'Permite a los clientes fiar y abonar deudas mediante un timeline interactivo' },
@@ -39,7 +40,7 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
 
   const loadCoresMetadata = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/cores/metadata');
+      const res = await fetch(`${CLI_URL}/api/cores/metadata`);
       const data = await res.json();
       if (data.success) {
         setCoresMetadata(data.metadata);

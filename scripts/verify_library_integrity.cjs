@@ -97,12 +97,12 @@ try {
   const readmeLines = readmeContent.split('\n');
   let brokenLinksCount = 0;
   readmeLines.forEach((line, index) => {
-    // Buscar file:///D:/PROTOTIPE/Documentacion%20PROTOTIPE/...
-    const matches = line.match(/file:\/\/\/D:\/PROTOTIPE\/Documentacion%20PROTOTIPE\/[a-zA-Z0-9_\-\/%]+\.[a-zA-Z0-9]+/gi);
+    // Buscar file:///[letra]:/PROTOTIPE/Documentacion%20PROTOTIPE/...
+    const matches = line.match(/file:\/\/\/[a-zA-Z]:\/PROTOTIPE\/Documentacion%20PROTOTIPE\/[a-zA-Z0-9_\-\/%]+\.[a-zA-Z0-9]+/gi);
     if (matches) {
       matches.forEach(matchedUri => {
         const cleanUri = decodeURIComponent(matchedUri);
-        const relativePart = cleanUri.replace(/file:\/\/\/D:\/PROTOTIPE\//i, '').replace(/\//g, path.sep);
+        const relativePart = cleanUri.replace(/file:\/\/\/[a-zA-Z]:\/PROTOTIPE\//i, '').replace(/\//g, path.sep);
         const fullPath = path.join(rootDir, relativePart);
         if (!fs.existsSync(fullPath)) {
           console.error(`  - L${index + 1}: Enlace roto en README.md -> ${matchedUri} (No existe en disco: ${fullPath})`);

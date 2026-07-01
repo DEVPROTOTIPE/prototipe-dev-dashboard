@@ -4,6 +4,7 @@ import {
   Sliders, ToggleLeft, ToggleRight, Package, ShoppingBag, Receipt, Search, Info, Plus, Loader2
 } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
+import { CLI_URL } from '../../config';
 
 const sandboxModules = import.meta.glob('./sandboxes/*.jsx');
 
@@ -627,7 +628,7 @@ export default function ComponentSandbox({ componentName = '', technicalName = '
     if (!technicalName || !componentLink) return;
     setScaffolding(true);
     try {
-      const res = await fetch('http://localhost:3001/api/library/sandbox/scaffold', {
+      const res = await fetch(`${CLI_URL}/api/library/sandbox/scaffold`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

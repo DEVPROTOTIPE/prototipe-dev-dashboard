@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useCopyToClipboard from '../../hooks/useCopyToClipboard';
 import ComponentSandbox, { COMPONENT_SANDBOX_MAP, getSandboxKey } from './ComponentSandbox';
 
-const CLI_URL = 'http://localhost:3001';
+import { CLI_URL } from '../../config';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const DETAIL_TABS = [

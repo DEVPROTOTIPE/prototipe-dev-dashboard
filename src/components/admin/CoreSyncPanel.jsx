@@ -5,7 +5,8 @@ import {
   Rocket, Hammer, GitMerge, ChevronRight, ChevronDown, Info
 } from 'lucide-react'
 
-const CLI_BASE = 'http://localhost:3001'
+import { CLI_URL } from '../../config'
+const CLI_BASE = CLI_URL
 
 // ─── Helpers de estado ────────────────────────────────────────────────────────
 const STATUS_META = {
@@ -73,6 +74,8 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
   const [logs, setLogs]                     = useState([])
   const [syncState, setSyncState]           = useState('idle')    // idle | running | done | error
   const [templateDropOpen, setTemplateDropOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterMode, setFilterMode] = useState('all') // 'all' | 'outdated' | 'unregistered'
   const logsEndRef   = useRef(null)
   const eventSourceRef = useRef(null)
   const templateDropRef = useRef(null)
@@ -148,6 +151,10 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
 
   const selectAll  = () => setSelectedClients(selectedTemplate?.clients.map(c => c.folderName) ?? [])
   const selectNone = () => setSelectedClients([])
+  const selectOutdated = () => {
+    const outdated = selectedTemplate?.clients.filter(c => c.isOutdated).map(c => c.folderName) ?? []
+    setSelectedClients(outdated)
+  }
 
   // ── Lanzar sincronización ────────────────────────────────────────────────
   const startSync = () => {
@@ -216,6 +223,23 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
   const unregisteredClients = selectedTemplate?.clients.filter(
     c => !registeredSet.has(c.clientId.toLowerCase()) && !localRegistered.has(c.clientId.toLowerCase())
   ) ?? []
+
+  const filteredClients = (selectedTemplate?.clients ?? []).filter(client => {
+    const matchesSearch = 
+      client.clientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.folderName.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    if (!matchesSearch) return false
+
+    const isReg = registeredSet.has(client.clientId.toLowerCase()) || localRegistered.has(client.clientId.toLowerCase())
+    if (filterMode === 'outdated') {
+      return client.isOutdated
+    }
+    if (filterMode === 'unregistered') {
+      return !isReg
+    }
+    return true
+  })
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -404,34 +428,104 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
                     <PackageCheck size={13} className="text-violet-400" />
                     Instancias Detectadas ({selectedTemplate.clients.length})
                   </h3>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={selectAll}
-                      disabled={syncState === 'running'}
-                      className="text-[9px] font-bold text-violet-400 hover:text-violet-300 transition-colors disabled:opacity-50"
-                    >
-                      Todas
-                    </button>
-                    <span className="text-[9px] text-[var(--color-text-muted)]">|</span>
-                    <button
-                      type="button"
-                      onClick={selectNone}
-                      disabled={syncState === 'running'}
-                      className="text-[9px] font-bold text-violet-400 hover:text-violet-300 transition-colors disabled:opacity-50"
-                    >
-                      Ninguna
-                    </button>
-                  </div>
                 </div>
+
+                {selectedTemplate.clients.length > 0 && (
+                  <div className="space-y-3">
+                    {/* Controles de Búsqueda y Filtro */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Buscar cliente por nombre o carpeta..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        disabled={syncState === 'running'}
+                        className="w-full h-8 pl-8 pr-8 text-[11px] rounded-xl border bg-[var(--color-surface-2)]/30 border-[var(--color-border)] text-[var(--color-text)] focus:outline-none focus:border-violet-500/50 transition-all placeholder:text-[var(--color-text-muted)]"
+                      />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-2.5 top-2 text-[var(--color-text-muted)]" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2.5 top-1.5 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+                      {[
+                        { id: 'all', label: 'Todos' },
+                        { id: 'outdated', label: 'Desactualizados' },
+                        { id: 'unregistered', label: 'Sin Registrar' }
+                      ].map(pill => (
+                        <button
+                          key={pill.id}
+                          type="button"
+                          disabled={syncState === 'running'}
+                          onClick={() => setFilterMode(pill.id)}
+                          className={`px-2.5 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer whitespace-nowrap ${
+                            filterMode === pill.id
+                              ? 'bg-violet-500/15 border-violet-500/30 text-violet-400'
+                              : 'bg-[var(--color-surface-2)]/20 border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)]/40'
+                          }`}
+                        >
+                          {pill.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[9px] font-bold text-violet-400 bg-[var(--color-surface-2)]/10 p-2 rounded-xl border border-[var(--color-border)]/50">
+                      <span className="text-[9px] text-[var(--color-text-muted)] font-mono">
+                        {filteredClients.length} filtrados
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClients(prev => {
+                            const filteredKeys = filteredClients.map(c => c.folderName)
+                            return Array.from(new Set([...prev, ...filteredKeys]))
+                          })}
+                          disabled={syncState === 'running'}
+                          className="hover:text-violet-300 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          Filtrados
+                        </button>
+                        <span className="text-[9px] text-[var(--color-text-muted)]">|</span>
+                        <button
+                          type="button"
+                          onClick={selectOutdated}
+                          disabled={syncState === 'running'}
+                          className="hover:text-violet-300 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          Desactualizados
+                        </button>
+                        <span className="text-[9px] text-[var(--color-text-muted)]">|</span>
+                        <button
+                          type="button"
+                          onClick={selectNone}
+                          disabled={syncState === 'running'}
+                          className="hover:text-violet-300 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {selectedTemplate.clients.length === 0 ? (
                   <p className="text-[10px] text-[var(--color-text-muted)] py-4 text-center">
                     No hay instancias de cliente registradas para este template.
                   </p>
+                ) : filteredClients.length === 0 ? (
+                  <p className="text-[10px] text-[var(--color-text-muted)] py-6 text-center">
+                    Ningún cliente coincide con los filtros aplicados.
+                  </p>
                 ) : (
                   <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                    {selectedTemplate.clients.map(client => {
+                    {filteredClients.map(client => {
                       const isChecked = selectedClients.includes(client.folderName)
                       const status    = clientStatuses[client.folderName]
 

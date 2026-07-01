@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { doc, setDoc, deleteDoc, collection, getDocs, getFirestore, serverTimestamp } from 'firebase/firestore';
 import CustomSelect from '../ui/CustomSelect';
+import { CLI_URL } from '../../config';
 
 const SECCIONES = [
   { id: 1, title: 'Información General', desc: 'Nombre, NIT, ubicación y web' },
@@ -62,7 +63,7 @@ export default function BriefingStudioView({ dbInstance, showToast, onImportToOn
 
   const loadCoresMetadata = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/cores/metadata');
+      const res = await fetch(`${CLI_URL}/api/cores/metadata`);
       const data = await res.json();
       if (data.success) {
         setCores(data.metadata);
@@ -472,7 +473,7 @@ export default function BriefingStudioView({ dbInstance, showToast, onImportToOn
   const handleAnalyzeBriefing = async () => {
     setAnalyzing(true);
     try {
-      const res = await fetch('http://127.0.0.1:3001/api/briefing/analyze', {
+      const res = await fetch(`${CLI_URL}/api/briefing/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, coreKey: selectedCoreKey })
@@ -497,7 +498,7 @@ export default function BriefingStudioView({ dbInstance, showToast, onImportToOn
       const briefingMarkdown = generateBriefingMarkdown();
       const analisisMarkdown = generateAnalisisMarkdown();
 
-      const res = await fetch('http://127.0.0.1:3001/api/briefing/export', {
+      const res = await fetch(`${CLI_URL}/api/briefing/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

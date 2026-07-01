@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Plus, RefreshCw, Layers, Copy, Play, ArrowRight, Package } from 'lucide-react'
 import CoreCard from './CoreCard'
 
-const CLI_URL = 'http://localhost:3001'
+import { CLI_URL } from '../../config'
 
 function InputField({ label, value, onChange, placeholder, required, hint }) {
   return (

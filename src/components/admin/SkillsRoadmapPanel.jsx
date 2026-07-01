@@ -19,7 +19,7 @@ import {
   CheckSquare
 } from 'lucide-react';
 
-const CLI_URL = 'http://localhost:3001';
+import { CLI_URL } from '../../config';
 
 export default function SkillsRoadmapPanel({ showToast }) {
   const [tasks, setTasks] = useState([]);

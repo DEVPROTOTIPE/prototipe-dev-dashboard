@@ -7,7 +7,8 @@ import {
 import { db } from '../../firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
-const CLI_BASE = 'http://localhost:3001'
+import { CLI_URL } from '../../config'
+const CLI_BASE = CLI_URL
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fileTypeIcon = (type) => {
