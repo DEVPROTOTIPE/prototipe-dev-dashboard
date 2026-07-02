@@ -354,27 +354,84 @@ function extractReactCode(md) {
   return match ? match[1].trim() : null;
 }
 
+// ─── Extractor de manifiesto JSON (metadata header) de la ficha técnica ────────
+function extractManifest(md) {
+  if (!md) return null;
+  const match = md.match(/<!--\s*(\{[\s\S]*?\})\s*-->/);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
 // ─── Genera la ruta de destino por defecto para la auto-inyección ────────────
-function getDefaultRelativePath(comp) {
+function getDefaultRelativePath(comp, manifest = null) {
   if (!comp) return '';
-  const cleanName = comp.technicalName || comp.name.replace(/[^a-zA-Z0-9]/g, '');
-  const mdLower = comp.link.toLowerCase();
-  
-  if (mdLower.includes('/logica_y_hooks/') || mdLower.includes('hook') || comp.name.toLowerCase().startsWith('use')) {
-    return `src/hooks/${cleanName.startsWith('use') ? cleanName : 'use' + cleanName}.js`;
+
+  // Capa 1: Si hay un manifiesto parseado con targetPath válido, esa es la verdad absoluta
+  if (manifest && typeof manifest.targetPath === 'string' && manifest.targetPath.trim() !== '') {
+    return manifest.targetPath.trim();
   }
+
+  // Capa 2: Resiliencia ante objetos incompletos o sin metadata
+  const compName = comp.technicalName || comp.name || 'Component';
+  const cleanName = compName.replace(/[^a-zA-Z0-9]/g, '');
+  const mdLink = comp.link || '';
+  const mdLower = mdLink.toLowerCase();
+  const nameLower = cleanName.toLowerCase();
+
+  // Normalización de Hooks (use[Nombre])
+  if (mdLower.includes('/logica_y_hooks/') || mdLower.includes('hook') || nameLower.startsWith('use')) {
+    let hookName = cleanName;
+    if (nameLower.startsWith('use')) {
+      // Normalizar para que empiece con "use" en minúsculas y luego camelCase
+      hookName = 'use' + cleanName.slice(3).charAt(0).toUpperCase() + cleanName.slice(4);
+    } else {
+      hookName = 'use' + cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
+    return `src/hooks/${hookName}.js`;
+  }
+
+  // Normalización de Servicios
   if (mdLower.includes('/servicios_y_firebase/') || mdLower.includes('service')) {
-    return `src/services/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}Service.js`;
+    let serviceName = cleanName;
+    if (nameLower.endsWith('service')) {
+      serviceName = cleanName.slice(0, cleanName.length - 7) + 'Service';
+    } else {
+      serviceName = cleanName + 'Service';
+    }
+    // Asegurar minúscula inicial para servicios
+    serviceName = serviceName.charAt(0).toLowerCase() + serviceName.slice(1);
+    return `src/services/${serviceName}.js`;
   }
+
+  // Normalización de Utilidades
   if (mdLower.includes('/utilidades/') || mdLower.includes('util')) {
-    return `src/utils/${cleanName.charAt(0).toLowerCase() + cleanName.slice(1)}.js`;
+    const utilName = cleanName.charAt(0).toLowerCase() + cleanName.slice(1);
+    return `src/utils/${utilName}.js`;
   }
+
+  // Normalización de Páginas
   if (mdLower.includes('/paginas/') || mdLower.includes('page')) {
-    return `src/pages/${cleanName}Page.jsx`;
+    let pageName = cleanName;
+    if (nameLower.endsWith('page')) {
+      pageName = cleanName.slice(0, cleanName.length - 4) + 'Page';
+    } else {
+      pageName = cleanName + 'Page';
+    }
+    return `src/pages/${pageName}.jsx`;
   }
-  if (comp.resourceType === 'module') {
+
+  // Módulos Completos
+  if (comp.resourceType === 'module' || mdLower.includes('/modulos_completos/')) {
     return `src/components/common/${cleanName}.jsx`;
   }
+
+  // Componentes de Interfaz
   return `src/components/ui/${cleanName}.jsx`;
 }
 
@@ -1366,7 +1423,8 @@ export default function ComponentLibraryView({ showToast }) {
                             setShowInjectPanel(p => !p);
                             setEnvVarsValues({}); // CORE-126: resetear valores
                             if (selectedComponent) {
-                              setInjectRelativePath(getDefaultRelativePath(selectedComponent));
+                              const manifest = extractManifest(componentContent);
+                              setInjectRelativePath(getDefaultRelativePath(selectedComponent, manifest));
                             }
                           }}
                           className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -2092,7 +2150,14 @@ export default function ComponentLibraryView({ showToast }) {
                             <code className="font-mono text-[10px] text-slate-300 select-all overflow-x-auto whitespace-nowrap scrollbar-none">
                               {(() => {
                                 const compName = selectedComponent.technicalName;
-                                let importPath = `components/admin/${compName}`;
+                                const manifest = extractManifest(componentContent);
+                                let defaultPath = getDefaultRelativePath(selectedComponent, manifest);
+                                if (defaultPath.startsWith('src/')) {
+                                  defaultPath = defaultPath.slice(4);
+                                }
+                                defaultPath = defaultPath.replace(/\.(jsx|js|tsx|ts)$/, '');
+                                
+                                let importPath = defaultPath;
                                 if (preflightResult?.suggestedPath) {
                                   let rawPath = preflightResult.suggestedPath;
                                   if (rawPath.startsWith('src/')) {
@@ -2107,7 +2172,14 @@ export default function ComponentLibraryView({ showToast }) {
                             <button
                               onClick={() => {
                                 const compName = selectedComponent.technicalName;
-                                let importPath = `components/admin/${compName}`;
+                                const manifest = extractManifest(componentContent);
+                                let defaultPath = getDefaultRelativePath(selectedComponent, manifest);
+                                if (defaultPath.startsWith('src/')) {
+                                  defaultPath = defaultPath.slice(4);
+                                }
+                                defaultPath = defaultPath.replace(/\.(jsx|js|tsx|ts)$/, '');
+                                
+                                let importPath = defaultPath;
                                 if (preflightResult?.suggestedPath) {
                                   let rawPath = preflightResult.suggestedPath;
                                   if (rawPath.startsWith('src/')) {

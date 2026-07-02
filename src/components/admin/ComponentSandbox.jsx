@@ -155,6 +155,10 @@ const COMPONENT_META = {
 
 // Mapa: nombre en minúsculas → clave de playground
 export const COMPONENT_SANDBOX_MAP = {
+  'circular_dish_menu': 'CircularDishMenu',
+  'circulardishmenu': 'CircularDishMenu',
+  'menu de platos circular': 'CircularDishMenu',
+  'menu de platos circular (circulardishmenu)': 'CircularDishMenu',
   'switch de modo oscuro (darkmodetoggle)': 'dark_mode_toggle',
   'darkmodetoggle': 'dark_mode_toggle',
   'switch de modo oscuro': 'dark_mode_toggle',
