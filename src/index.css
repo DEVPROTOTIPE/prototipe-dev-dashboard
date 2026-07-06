@@ -1,0 +1,646 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', sans-serif;
+  --color-slate-50: var(--color-slate-50);
+  --color-slate-100: var(--color-slate-100);
+  --color-slate-200: var(--color-slate-200);
+  --color-slate-300: var(--color-slate-300);
+  --color-slate-400: var(--color-slate-400);
+  --color-slate-500: var(--color-slate-500);
+  --color-slate-600: var(--color-slate-600);
+  --color-slate-700: var(--color-slate-700);
+  --color-slate-800: var(--color-slate-800);
+  --color-slate-900: var(--color-slate-900);
+  --color-slate-950: var(--color-slate-950);
+  --color-slate-955: var(--color-slate-955);
+  
+  /* Colores de marca personalizados y variables auxiliares */
+  --color-slate-650: var(--color-slate-650);
+  --color-slate-755: var(--color-slate-755);
+  --color-indigo-650: var(--color-indigo-650);
+  --color-indigo-550: var(--color-indigo-550);
+  --color-red-650: var(--color-red-650);
+  --color-red-550: var(--color-red-550);
+  --color-violet-650: var(--color-violet-650);
+  --color-violet-550: var(--color-violet-550);
+  --color-cyan-650: var(--color-cyan-650);
+  --color-cyan-550: var(--color-cyan-550);
+  --color-emerald-650: var(--color-emerald-650);
+  --color-emerald-550: var(--color-emerald-550);
+  --color-amber-650: var(--color-amber-650);
+  --color-amber-550: var(--color-amber-550);
+  --color-pink-650: var(--color-pink-650);
+  --color-pink-550: var(--color-pink-550);
+}
+
+:root {
+  --color-primary: #7c3aed; /* Violeta Eléctrico */
+  --color-primary-hover: #6d28d9;
+  --color-accent: #06b6d4; /* Cian Tecnológico */
+  
+  /* Gradiente de marca PROTOTIPE */
+  --brand-gradient: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+
+  /* ── Sombra flotante de tarjetas (Modo Oscuro) ── */
+  --card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.2);
+  --card-shadow-hover:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.4),
+    0 16px 40px rgba(0, 0, 0, 0.25);
+
+  /* ── Tokens de fondo tecnológico (Modo Oscuro) ── */
+  --dot-color: rgba(255, 255, 255, 0.09);
+  --orb-primary: rgba(124, 58, 237, 0.28);
+  --orb-accent:  rgba(6, 182, 212, 0.20);
+  --orb-indigo:  rgba(99, 102, 241, 0.18);
+  --vignette-color: rgba(7, 11, 19, 0.65);
+  --color-surface-glass: rgba(15, 23, 42, 0.6);
+  
+  /* Tema Oscuro por Defecto */
+  --color-bg: #070b13;
+  --color-surface: #0f172a;
+  --color-surface-2: #1e293b;
+  --color-surface-3: #2d3748;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  color-scheme: dark;
+
+  /* Escala de Slate para Modo Oscuro */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+  --color-slate-955: #070b13;
+
+  /* Colores auxiliares en Modo Oscuro */
+  --color-slate-650: #3a4759;
+  --color-slate-755: #1e293b;
+  --color-indigo-650: #4f46e5;
+  --color-indigo-550: #6366f1;
+  --color-red-650: #dc2626;
+  --color-red-550: #ef4444;
+  --color-violet-650: #7c3aed;
+  --color-violet-550: #8b5cf6;
+  --color-cyan-650: #0891b2;
+  --color-cyan-550: #06b6d4;
+  --color-emerald-650: #059669;
+  --color-emerald-550: #10b981;
+  --color-amber-650: #d97706;
+  --color-amber-550: #f59e0b;
+  --color-pink-650: #db2777;
+  --color-pink-550: #ec4899;
+}
+
+:root.light {
+  /* Tema Claro */
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-surface-3: #e2e8f0;
+  --color-border: rgba(0, 0, 0, 0.06);
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  color-scheme: light;
+
+  /* ── Sombra flotante de tarjetas (Modo Claro) ── */
+  --card-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 4px 12px rgba(15, 23, 42, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.05);
+  --card-shadow-hover:
+    0 2px 6px rgba(15, 23, 42, 0.08),
+    0 8px 20px rgba(15, 23, 42, 0.12),
+    0 16px 40px rgba(15, 23, 42, 0.07);
+
+  /* ── Tokens de fondo tecnológico (Modo Claro) ── */
+  --dot-color: rgba(15, 23, 42, 0.12);
+  --orb-primary: rgba(124, 58, 237, 0.22);
+  --orb-accent:  rgba(6, 182, 212, 0.16);
+  --orb-indigo:  rgba(99, 102, 241, 0.16);
+  --vignette-color: rgba(248, 250, 252, 0.35);
+  --color-surface-glass: rgba(255, 255, 255, 0.7);
+
+  /* Escala de Slate Invertida para Modo Claro */
+  --color-slate-50: #0f172a;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #ffffff;
+  --color-slate-950: #f8fafc;
+  --color-slate-955: #f8fafc;
+
+  /* Colores auxiliares en Modo Claro (manteniendo contraste alto) */
+  --color-slate-650: #334155;
+  --color-slate-755: #94a3b8;
+  --color-indigo-650: #4338ca;
+  --color-indigo-550: #4f46e5;
+  --color-red-650: #b91c1c;
+  --color-red-550: #dc2626;
+  --color-violet-650: #6d28d9;
+  --color-violet-550: #7c3aed;
+  --color-cyan-650: #0e7490;
+  --color-cyan-550: #0891b2;
+  --color-emerald-650: #047857;
+  --color-emerald-550: #059669;
+  --color-amber-650: #b45309;
+  --color-amber-550: #d97706;
+  --color-pink-650: #be185d;
+  --color-pink-550: #db2777;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   FONDO TECNOLÓGICO PREMIUM — PROTOTIPE Dev Dashboard
+   Implementado como divs dentro del wrapper del dashboard (no body).
+   Garantiza visibilidad sobre el contenedor opaco h-screen.
+   GPU compositor only (transform) — zero JS — zero repaint.
+   ════════════════════════════════════════════════════════════════ */
+
+.tech-bg-dots {
+  position: fixed;
+  width: 110vw;
+  height: 110vh;
+  top: -5vh;
+  left: -5vw;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, var(--dot-color) 1.2px, transparent 1.2px);
+  background-size: 32px 32px;
+  animation: grid-drift 60s linear infinite;
+  will-change: transform;
+}
+
+.tech-bg-orb-1 {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 20%, var(--orb-primary) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 90% 80%, var(--orb-accent)  0%, transparent 55%);
+  will-change: transform;
+  animation: orb-drift-a 35s ease-in-out infinite alternate;
+}
+
+.tech-bg-orb-2 {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, var(--orb-indigo) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, var(--orb-accent)  0%, transparent 50%);
+  will-change: transform;
+  animation: orb-drift-b 45s ease-in-out infinite alternate;
+}
+
+.tech-bg-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: 
+    radial-gradient(ellipse 110% 110% at 50% 50%, transparent 30%, var(--vignette-color) 100%);
+}
+
+@keyframes grid-drift {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(32px, 32px); }
+}
+
+@keyframes orb-drift-a {
+  0%   { transform: translate(0%,   0%)  scale(1);    }
+  33%  { transform: translate(2%,   3%)  scale(1.05); }
+  66%  { transform: translate(-2%,  1%)  scale(0.95); }
+  100% { transform: translate(3%,  -2%)  scale(1.08); }
+}
+
+@keyframes orb-drift-b {
+  0%   { transform: translate(0%,   0%)  scale(1);    }
+  33%  { transform: translate(-3%, -2%)  scale(0.95); }
+  66%  { transform: translate(2%,  -3%)  scale(1.05); }
+  100% { transform: translate(-2%,  2%)  scale(0.97); }
+}
+
+/* Keyframes y animaciones premium */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes radar-pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-up {
+  animation: scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.animate-radar-pulse {
+  animation: radar-pulse 2s infinite ease-out;
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* Tarjeta premium con hover reactivo y glow */
+.hover-glow-card {
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+}
+
+.hover-glow-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 12px 24px -10px rgba(124, 58, 237, 0.15), 0 0 1px 1px rgba(124, 58, 237, 0.1);
+}
+
+/* Estilos Premium Globales para Select Dropdowns */
+select {
+  appearance: none;
+  background-color: var(--color-surface-2) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+  padding: 0.5rem 2.5rem 0.5rem 0.75rem !important;
+  font-size: 0.75rem !important; /* text-xs */
+  line-height: 1rem !important;
+  outline: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 1rem !important;
+  cursor: pointer !important;
+}
+
+select:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 1px var(--color-primary) !important;
+}
+
+select option {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  padding: 0.5rem !important;
+}
+
+/* Safe area padding-bottom utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Custom layout utilities */
+.bottom-nav-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tab content transition */
+@keyframes tab-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tab-content-enter {
+  animation: tab-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide up animation for bottom nav */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Sidebar nav item active glow */
+.sidebar-item-active {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(6, 182, 212, 0.08) 100%);
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.2);
+}
+
+/* Scrollbar thin utilities */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(124, 58, 237, 0.3);
+  border-radius: 2px;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Estilos de contraste y foco para controles de entrada en modo claro */
+:root.light input[type="text"]:not(.bg-transparent), 
+:root.light input[type="number"]:not(.bg-transparent), 
+:root.light input[type="password"]:not(.bg-transparent), 
+:root.light input[type="email"]:not(.bg-transparent), 
+:root.light textarea:not(.bg-transparent) {
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+:root.light input[type="text"]:not(.bg-transparent):focus, 
+:root.light input[type="number"]:not(.bg-transparent):focus, 
+:root.light input[type="password"]:not(.bg-transparent):focus, 
+:root.light textarea:not(.bg-transparent):focus {
+  border-color: var(--color-primary) !important;
+  background-color: var(--color-surface) !important;
+  box-shadow: 0 0 0 1px var(--color-primary) !important;
+}
+
+/* Animaciones y clases de Neon Glow para el botón central de onboarding */
+@keyframes center-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes center-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.6), 0 0 5px rgba(6, 182, 212, 0.4);
+    border-color: rgba(6, 182, 212, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(124, 58, 237, 0.9), 0 0 12px rgba(6, 182, 212, 0.6);
+    border-color: rgba(6, 182, 212, 0.9);
+  }
+}
+
+.animate-center-float {
+  animation: center-float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: center-pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* Botón Central Onboarding Hover Effect */
+.onboarding-center-btn {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.group:hover .onboarding-center-btn {
+  transform: translateY(-3px) scale(1.15);
+  box-shadow: 0 0 35px rgba(124, 58, 237, 0.95), 0 0 15px rgba(6, 182, 212, 0.85);
+  border-color: rgba(6, 182, 212, 0.95) !important;
+}
+
+/* Correcciones de transparencia y bordes/fondos blancos en Modo Claro */
+:root.light .border-white\/\[0\.08\],
+:root.light .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+:root.light .border-white\/\[0\.05\],
+:root.light .border-white\/\[0\.04\] {
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+:root.light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+:root.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+:root.light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+:root.light .bg-white\/\[0\.02\] {
+  background-color: rgba(0, 0, 0, 0.015) !important;
+}
+:root.light .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+:root.light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Asegurar contraste de texto blanco e interactivo en contenedores claros en Modo Claro */
+:root.light :is(.bg-slate-950, .bg-slate-900, .bg-slate-800, .bg-slate-955) :not(.mockup-preview-panel *) .text-white:not([class*="bg-indigo"]):not([class*="bg-violet"]):not([class*="bg-purple"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([class*="bg-amber"]):not([class*="bg-pink"]):not([class*="bg-red"]):not([class*="bg-teal"]):not([class*="bg-rose"]):not([class*="bg-sky"]):not([class*="bg-orange"]) {
+  color: var(--color-text) !important;
+}
+
+:root.light :is(.bg-slate-950, .bg-slate-900, .bg-slate-800, .bg-slate-955) :not(.mockup-preview-panel *) .hover\:text-white:hover:not([class*="bg-indigo"]):not([class*="bg-violet"]):not([class*="bg-purple"]):not([class*="bg-cyan"]):not([class*="bg-emerald"]):not([class*="bg-green"]):not([class*="bg-blue"]):not([class*="bg-amber"]):not([class*="bg-pink"]):not([class*="bg-red"]):not([class*="bg-teal"]):not([class*="bg-rose"]):not([class*="bg-sky"]):not([class*="bg-orange"]) {
+  color: var(--color-text) !important;
+}
+
+
+
+
+
+/* ════════════════════════════════════════════════════════════════
+   EFECTO FLOTANTE GLOBAL DE TARJETAS — Dev Dashboard PROTOTIPE
+   Aplica sombra a todos los contenedores tipo tarjeta (rounded-2xl
+   y rounded-3xl con borde), excluyendo botones, inputs y nav.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Tarjetas principales: rounded-2xl con borde */
+div[class*="rounded-2xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]),
+/* Tarjetas grandes: rounded-3xl con borde */
+div[class*="rounded-3xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-2"]):not([class*="h-3"]):not([class*="h-4"]):not([class*="h-5"]):not([class*="h-6"]):not([class*="h-7"]):not([class*="h-8"]):not([class*="h-9"]):not([class*="h-10"]):not([class*="rounded-full"]) {
+  border-radius: 1.25rem !important;
+  box-shadow: var(--card-shadow);
+  background-color: var(--color-surface-glass) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.3s ease,
+    background-color 0.3s ease;
+}
+
+/* Hover elevado — solo tarjetas que no sean contenedores de scroll o paneles fijos */
+div[class*="rounded-2xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover,
+div[class*="rounded-3xl"][class*="border"]:not(.mockup-preview-panel *):not([class*="absolute"]):not([class*="fixed"]):not([class*="overflow-y-auto"]):not([class*="overflow-auto"]):not([class*="h-full"]):not([class*="w-full"][class*="h-"]):not([class*="w-2"]):not([class*="w-3"]):not([class*="w-4"]):not([class*="w-5"]):not([class*="w-6"]):not([class*="w-7"]):not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="rounded-full"]):hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Restaurar para elementos que NO deben flotar: navbars, sidebars,
+   modales de pantalla completa, contenedores de layout */
+nav[class*="border"],
+aside[class*="border"],
+div[class*="fixed"][class*="border"],
+div[class*="sticky"][class*="top-0"],
+div[class*="z-50"][class*="border"],
+div[class*="inset-0"],
+div[class*="h-screen"],
+div[class*="min-h-screen"] {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* También restaurar botones que usen rounded-2xl */
+button[class*="rounded-2xl"],
+button[class*="rounded-3xl"] {
+  box-shadow: unset;
+  transform: unset;
+}
+
+/* Quitar la línea de enfoque (outline) predeterminada al hacer clic en los gráficos de Recharts */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-wrapper *:focus {
+  outline: none !important;
+}
+
+button:focus,
+[role="button"]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Sidebar Active Accent Indicator */
+.sidebar-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(to bottom, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+.sidebar-tab-active .sidebar-indicator {
+  height: 18px;
+  opacity: 1;
+}
+
+/* Active Icon Glow */
+.sidebar-icon-glow {
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.55));
+  transition: filter 0.2s ease;
+}
+
+/* Accordion Smooth Height Transition classes */
+.sidebar-accordion-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+.sidebar-accordion-wrapper.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.sidebar-accordion-inner {
+  overflow: hidden;
+}
+
+/* Sidebar Gradient Separator */
+.sidebar-separator {
+  height: 1px;
+  background: linear-gradient(to right, rgba(124, 58, 237, 0.15) 0%, rgba(6, 182, 212, 0.04) 70%, transparent 100%);
+  margin: 6px 8px;
+}
+
+/* Health Radar Sweep Animation */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-radar-sweep {
+  animation: radar-sweep 5s linear infinite;
+  transform-origin: center;
+}
+
+/* Radar Blip Pulse/Ping Animation */
+@keyframes blip-ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.animate-blip-ping {
+  animation: blip-ping 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+

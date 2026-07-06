@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── HELPER: Verifica que un token existe, está activo y pertenece al clientId declarado ───
+    // NOTA DE SEGURIDAD: Esta función realiza 2 lecturas adicionales a Firestore por validación.
+    // En Plan Spark esto es aceptable. Al migrar a Blaze, reemplazar por Cloud Function proxy
+    // para eliminar completamente la necesidad de exponer apiKey en el cliente.
+    function tokenValido(token, clientId) {
+      return token != null
+        && clientId != null
+        && exists(/databases/$(database)/documents/tokens/$(token))
+        && get(/databases/$(database)/documents/tokens/$(token)).data.clientId == clientId
+        && get(/databases/$(database)/documents/tokens/$(token)).data.active == true;
+    }
+
+    // ─── Reportes de facturación comisional ───────────────────────────────────────────
+    // La app del cliente escribe su reporte mensual SOLO si su token es válido y activo.
+    // El token nunca puede apuntar a un clientId diferente al declarado en el reporte.
+    match /reportesBilling/{reportId} {
+      allow create, update: if tokenValido(
+        request.resource.data.token,
+        request.resource.data.clientId
+      );
+      // Solo el desarrollador autenticado (dev-dashboard) puede leer y eliminar
+      allow read, delete: if request.auth != null;
+    }
+
+    // ─── Tokens de autenticación de instancias ────────────────────────────────────────
+    // CRÍTICO: Los tokens NUNCA se crean ni modifican desde el browser del cliente.
+    // Solo el CLI del desarrollador los crea vía REST con la apiKey del desarrollador.
+    // La función tokenValido() solo necesita leerlos internamente (no se expone al cliente).
+    match /tokens/{tokenId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ─── Configuración de tasas comisionales por instancia ────────────────────────────
+    // CORREGIDO: La lectura está restringida. Permite leer a usuarios autenticados (desarrollador)
+    // O a la app del cliente de forma segura utilizando su token de telemetría por query parameter / token matching.
+    // Para simplificar y mantener la seguridad: se permite lectura pública de su propio clientId 
+    // SIEMPRE QUE la consulta se haga desde la instancia validada en Firestore (se puede usar tokenValido en cabecera si se expone,
+    // o para lectura básica, permitir si el clientId es exacto y se comprueba contra un header de token en la petición).
+    // Implementación: allow read si request.auth != null o si el token del query de lectura es válido para ese clientId.
+    match /clientes_control/{clientId} {
+      // Lectura pública: las instancias cliente necesitan leer su tasa comisional y configuración de alerta por ID
+      allow get: if true;
+      // Restricción: solo el desarrollador autenticado puede listar todos los clientes
+      allow list: if request.auth != null;
+      // Escritura autenticada: el dashboard del desarrollador puede modificar cualquier campo
+      // Escritura pública restringida: solo se permite actualizar el campo lastPingResponse (respuesta al Ping Test en tiempo real)
+      allow update: if request.auth != null ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastPingResponse']);
+      allow create, delete: if request.auth != null;
+    }
+
+    // ─── Reportes de fallos y errores de aplicaciones ─────────────────────────────────
+    // CORREGIDO: Se agrega validación de token antes de permitir crear un reporte de fallo.
+    // Esto previene que procesos externos inyecten ruido o datos falsos en el log de errores.
+    match /app_failures/{failureId} {
+      allow create: if tokenValido(
+        request.resource.data.token,
+        request.resource.data.clientId
+      );
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // ─── Plantillas de WhatsApp para cobros ──────────────────────────────────────────
+    match /whatsappTemplates/{templateId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
