@@ -1,4 +1,4 @@
-﻿# SYSTEM PROMPT â€” PROTOTIPE DEV AI v2.0
+# SYSTEM PROMPT â€” PROTOTIPE DEV AI v2.0
 
 ## PROHIBICIÃ“N ABSOLUTA DE RESTAURAR O DESCARTAR CAMBIOS FÃSICOS (CRÃTICO - OBLIGATORIO)
 
@@ -470,8 +470,9 @@ Todo componente, botÃ³n o funciÃ³n entregado debe ser 100% funcional y compl
 
 Para asegurar la estabilidad del monorepo, siempre que modifiques, portes o crees cÃ³digo, debes ejecutar de manera 100% autÃ³noma y transparente en segundo plano el protocolo de integridad fÃ­sica y documental:
 1. **CompilaciÃ³n de ValidaciÃ³n**: Ejecutar `cmd /c npm run build` en el proyecto activo para asegurar la ausencia de fallos de compilaciÃ³n o empaquetado.
-2. **SincronizaciÃ³n de Archivos de Control**: Actualizar `bitacora_cambios.md` (cÃ³digo de tarea), `mapa_aplicacion.md` (rutas fÃ­sicas) y marcar como completadas las tareas en `tareas_pendientes.md` de forma inmediata.
+2. **SincronizaciÃ³n de Archivos de Control**: Actualizar `bitacora_cambios.md` (cÃ³digo de tarea y descripciÃ³n), `mapa_aplicacion.md` (rutas fÃ­sicas), `mapa_documentacion_ia.md` (registro semÃ¡ntico) y marcar como completadas las tareas en `tareas_pendientes.md` de forma inmediata.
 3. **Linter y ValidaciÃ³n Prebuild (React)**: Si el comando `npm run build` falla debido a variables no importadas u hooks huÃ©rfanos (como `useMemo`, `useState`, etc.), debes analizar las variables importadas, inyectar los hooks omitidos y auto-corregir los fallos proactivamente antes de dar por completada la tarea.
+4. **OBLIGACIÃ“N ABSOLUTA DE CIERRE (BLOQUEO DE RESPUESTA)**: Queda estrictamente prohibido al agente de IA responder al usuario informando de la finalización de un cambio sin haber editado y guardado físicamente estos archivos de documentación en el disco y Git en ese mismo turno. Este paso es un requisito de salida bloqueante y autónomo que no requiere confirmación del usuario.
 
 ---
 
