@@ -725,12 +725,41 @@ try {
           console.warn(`⚠️ No se pudo obtener el estado de Git (raíz): ${err.message}`);
         }
 
-        try {
-          // 2. Subrepo dev-dashboard (tiene su propio .git separado)
-          const statusDash = execSync('git status --porcelain', { cwd: devDashboardDir, encoding: 'utf8' });
-          gitChanges.push(...parseGitStatus(statusDash, 'Central PROTOTIPE/dev-dashboard'));
-        } catch (err) {
-          // Si no tiene repo propio, simplemente lo ignoramos
+        // 2. Auto-descubrimiento dinámico de subrepos (todos los .git bajo rootDir hasta profundidad 4)
+        // Cubre: dev-dashboard, Plantillas Core/App Ventas, Instancias Clientes actuales y futuras
+        const findSubRepos = (baseDir, maxDepth = 4) => {
+          const repos = [];
+          const scan = (dir, depth) => {
+            if (depth > maxDepth) return;
+            try {
+              const entries = fs.readdirSync(dir, { withFileTypes: true });
+              for (const entry of entries) {
+                if (!entry.isDirectory()) continue;
+                const fullPath = path.join(dir, entry.name);
+                // Si este directorio tiene un .git propio y no es el rootDir
+                if (entry.name === '.git' && dir !== rootDir) {
+                  repos.push(dir);
+                  return; // No seguir escaneando dentro de un subrepo
+                }
+                // Ignorar node_modules, .git dirs, dist
+                if (['node_modules', '.git', 'dist', '.cache'].includes(entry.name)) continue;
+                scan(fullPath, depth + 1);
+              }
+            } catch (_) { /* Sin permisos, ignorar */ }
+          };
+          scan(baseDir, 0);
+          return repos;
+        };
+
+        const subRepos = findSubRepos(rootDir);
+        for (const repoPath of subRepos) {
+          try {
+            const statusSub = execSync('git status --porcelain', { cwd: repoPath, encoding: 'utf8' });
+            if (!statusSub.trim()) continue; // Sin cambios, saltar
+            // Calcular ruta relativa al rootDir para normalizar el prefijo
+            const relPrefix = path.relative(rootDir, repoPath).replace(/\\/g, '/');
+            gitChanges.push(...parseGitStatus(statusSub, relPrefix));
+          } catch (_) { /* Subrepo sin cambios o sin git, ignorar */ }
         }
 
 
