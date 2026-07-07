@@ -418,7 +418,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
   }
 
   // Auto-generar mensaje de commit
-  const handleAutoMessage = () => {
+  const handleAutoMessage = async () => {
     if (!gitStatus?.changes?.length) return
     const modified = gitStatus.changes.filter(c => c.type === 'M').map(c => c.file.split('/').pop()).slice(0, 3)
     const added = gitStatus.changes.filter(c => c.type === 'A').map(c => c.file.split('/').pop()).slice(0, 2)
@@ -434,6 +434,20 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
     let prefix = ''
     if (recentTaskDrifts.length > 0) {
       prefix = `${recentTaskDrifts[0].id}: `
+    } else {
+      // Intentar autodetectar la tarea en progreso o más reciente de la hoja de ruta
+      try {
+        const res = await fetch(`${CLI_BASE}/api/roadmap`)
+        const data = await res.json()
+        if (data.success && data.tasks?.length > 0) {
+          const activeTask = data.tasks.find(t => !t.completed) || data.tasks[0]
+          if (activeTask && activeTask.id) {
+            prefix = `${activeTask.id}: `
+          }
+        }
+      } catch (err) {
+        console.warn('[AutoMessage Detection] No se pudo autodetectar la última tarea del roadmap:', err)
+      }
     }
     setCommitMessage(`${prefix}[${branch}] ${date} — ${parts.join(' | ')}`)
   }
