@@ -637,6 +637,152 @@ try {
     hasErrors = true;
   }
 
+  // 7. Validación de Trazabilidad de Roadmap (Git status vs Tarea Activa) (CORE-285)
+  console.log('\n[Info] Validando correspondencia de cambios en Git con la tarea activa del Roadmap...');
+  try {
+    const roadmapPath = path.join(rootDir, 'Documentacion PROTOTIPE', '02_Tareas_Roadmap', 'tareas_pendientes.md');
+    if (fs.existsSync(roadmapPath)) {
+      const lines = fs.readFileSync(roadmapPath, 'utf8').split(/\r?\n/);
+      const bulletRegex = /^\s*[-*]\s+(?:\*\*)?\[( |\/|x)\]\s+(?:~~)?(.+?)(?:~~)?(?:\*\*)?\s*$/i;
+
+      // Buscar la primera tarea activa (no tachada con ~~)
+      let activeTaskId = null;
+      let activeTaskArchivos = new Set();
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(bulletRegex);
+        if (match) {
+          const isCompleted = line.includes('~~'); // Si está tachado es histórica/cerrada
+          const titleText = match[2];
+          if (!isCompleted) {
+            // Es la tarea activa!
+            const idRegex = /(?:(CORE|CLI|DASH|TPL|PLT|INST|DOC|LND|BIZ|HOTFIX|CLIENTE|E2E)-([A-Z0-9_-]+))/i;
+            const idMatch = titleText.match(idRegex);
+            if (idMatch) {
+              activeTaskId = `${idMatch[1].toUpperCase()}-${idMatch[2].toUpperCase()}`;
+
+              // Extraer archivos declarados en esta tarea activa
+              let inArchivos = false;
+              let j = i + 1;
+              while (j < lines.length) {
+                const l = lines[j];
+                if (l.match(/^\s*[-*]\s+(?:\*\*)?\[[ x\/]\]/i)) break;
+                const trimmed = l.trim();
+                if (trimmed.match(/^-\s*Archivos:/i)) {
+                  const inlineRest = trimmed.replace(/^-\s*Archivos:\s*/i, '').trim();
+                  if (inlineRest) {
+                    const inlineFileRegex = /\[`?([^`\]\s]+)`?\]/g;
+                    let fm;
+                    while ((fm = inlineFileRegex.exec(inlineRest)) !== null) {
+                      const cleanPath = fm[1].replace(/\\/g, '/');
+                      activeTaskArchivos.add(cleanPath);
+                    }
+                  }
+                  inArchivos = true;
+                } else if (inArchivos) {
+                  const fileMatch = trimmed.match(/^-?\s*\[`?([^`\]\s]+)`?\]/);
+                  if (fileMatch) {
+                    const cleanPath = fileMatch[1].replace(/\\/g, '/');
+                    activeTaskArchivos.add(cleanPath);
+                  }
+                }
+                j++;
+              }
+              break; // Solo nos interesa la primera tarea activa (la actual)
+            }
+          }
+        }
+      }
+
+      if (activeTaskId) {
+        // Obtener archivos modificados locales vía git (cubre múltiples repos del monorepo)
+        const { execSync } = require('child_process');
+        let gitChanges = [];
+
+        // Helper para parsear el output de git status --porcelain
+        const parseGitStatus = (output, pathPrefix = '') => {
+          return output.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
+              const parts = line.split(/\s+/);
+              const status = parts[0];
+              let filePath = parts.slice(1).join(' ').replace(/\\/g, '/');
+              // Eliminar comillas dobles que git añade en Windows a rutas con espacios o no-ASCII
+              if (filePath.startsWith('"') && filePath.endsWith('"')) {
+                filePath = filePath.slice(1, -1);
+              }
+              return { status, path: pathPrefix ? `${pathPrefix}/${filePath}` : filePath };
+            });
+        };
+
+        try {
+          // 1. Repositorio raíz del monorepo (Documentacion, Prototipe-CLI, etc.)
+          const statusRoot = execSync('git status --porcelain', { cwd: rootDir, encoding: 'utf8' });
+          gitChanges.push(...parseGitStatus(statusRoot));
+        } catch (err) {
+          console.warn(`⚠️ No se pudo obtener el estado de Git (raíz): ${err.message}`);
+        }
+
+        try {
+          // 2. Subrepo dev-dashboard (tiene su propio .git separado)
+          const statusDash = execSync('git status --porcelain', { cwd: devDashboardDir, encoding: 'utf8' });
+          gitChanges.push(...parseGitStatus(statusDash, 'Central PROTOTIPE/dev-dashboard'));
+        } catch (err) {
+          // Si no tiene repo propio, simplemente lo ignoramos
+        }
+
+
+        const missingRegistries = [];
+        gitChanges.forEach(change => {
+          const file = change.path;
+          // Ignorar archivos de sistema y temporales
+          if (
+            file.includes('node_modules') ||
+            file.startsWith('.gemini') ||
+            file.startsWith('.git') ||
+            file.includes('sync_manifest.json') ||
+            file.endsWith('tareas_pendientes.md') ||
+            file.endsWith('bitacora_cambios.md') ||
+            file.includes('scratch/')
+          ) {
+            return;
+          }
+
+          // Verificar si la ruta del archivo modificado coincide con alguna declarada en la tarea
+          let isRegistered = false;
+          for (const registeredPath of activeTaskArchivos) {
+            if (file.toLowerCase() === registeredPath.toLowerCase() || file.toLowerCase().endsWith(registeredPath.toLowerCase())) {
+              isRegistered = true;
+              break;
+            }
+          }
+
+          if (!isRegistered) {
+            missingRegistries.push(file);
+          }
+        });
+
+        if (missingRegistries.length > 0) {
+          console.error(`\n❌ [Fallo Linter] Se detectaron cambios locales en Git no registrados en la tarea activa (${activeTaskId}):`);
+          missingRegistries.forEach(file => {
+            console.error(`  - [No Registrado] ${file}`);
+          });
+          console.error(`Acción requerida: Registra estos archivos en la lista '- Archivos:' de la tarea ${activeTaskId} en tareas_pendientes.md.`);
+          hasErrors = true;
+        } else {
+          console.log(`[Éxito] Todos los cambios locales en Git están debidamente registrados en la tarea activa (${activeTaskId}).`);
+        }
+      } else {
+        console.warn('⚠️ No se detectó ninguna tarea activa en progreso en tareas_pendientes.md.');
+      }
+    }
+  } catch (err) {
+    console.error(`⚠️ Error al validar correspondencia de cambios en Git con el Roadmap: ${err.message}`);
+    hasErrors = true;
+  }
+
   // Comportamiento de salida final
   if (hasErrors) {
     console.error('\n==================================================');
