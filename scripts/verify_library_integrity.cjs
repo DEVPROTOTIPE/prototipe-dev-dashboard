@@ -620,8 +620,16 @@ try {
         });
         hasErrors = true;
       } else {
-        manifest.lastSyncAt = now;
-        writeJsonAtomic(manifestPath, manifest);
+        // Solo actualizar y escribir si realmente hubo alguna acción de sincronización (no todas noop)
+        const hasRealActions = actions.some(a => a.action !== 'noop');
+        if (hasRealActions) {
+          manifest.lastSyncAt = now;
+          writeJsonAtomic(manifestPath, manifest);
+          console.log('[Info] Manifiesto sync_manifest.json actualizado de forma atómica debido a cambios en skills.');
+        } else {
+          // Si no hubo cambios reales, no escribimos para evitar marcar el archivo como modificado en Git
+          console.log('[Info] Sin cambios detectados en skills. sync_manifest.json se conserva intacto.');
+        }
       }
     }
   } catch (syncErr) {
