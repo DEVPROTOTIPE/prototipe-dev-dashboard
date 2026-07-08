@@ -11959,7 +11959,7 @@ export default function App() {
                               </div>
                             </td>
                             <td className="p-4 font-mono font-bold text-[var(--color-text)] opacity-90">{report.periodo}</td>
-                            <td className="p-4 text-right font-mono text-[var(--color-text)]">${report.totalVentas.toLocaleString('es-CO')}</td>
+                            <td className="p-4 text-right font-mono text-[var(--color-text)]">${(report.totalVentas || 0).toLocaleString('es-CO')}</td>
                             <td className="p-4 text-center font-bold text-[var(--color-text-muted)]">
                               {(() => {
                                 const cfg = clientesSaas.find(c => c.id.toLowerCase() === report.clientId.toLowerCase())
@@ -11969,7 +11969,7 @@ export default function App() {
                                 return `${report.comisionPorcentaje || cfg?.comisionPorcentaje || 1.5}%`
                               })()}
                             </td>
-                            <td className="p-4 text-right font-mono font-extrabold text-indigo-600 dark:text-indigo-300">${report.comisionValor.toLocaleString('es-CO')}</td>
+                            <td className="p-4 text-right font-mono font-extrabold text-indigo-600 dark:text-indigo-300">${(report.comisionValor || 0).toLocaleString('es-CO')}</td>
                             <td className="p-4 text-center">
                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
                                 report.estadoPago === 'pagado'
