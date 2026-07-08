@@ -2540,6 +2540,10 @@ export default function App() {
   const [editAlertType, setEditAlertType] = useState('info')
   const [editAlertDismissible, setEditAlertDismissible] = useState(true)
 
+  // Estados de edición de Desactivación de Cuenta
+  const [editDeactivated, setEditDeactivated] = useState(false)
+  const [editDeactivationReason, setEditDeactivationReason] = useState('')
+
   const [fbApiKey, setFbApiKey] = useState('')
   const [fbAuthDomain, setFbAuthDomain] = useState('')
   const [fbProjectId, setFbProjectId] = useState('')
@@ -2609,8 +2613,6 @@ export default function App() {
   const [bgOrbsOpacity, setBgOrbsOpacity] = useState(0.16)      // 0.05 to 0.30
   const [borderBeam, setBorderBeam] = useState(false)
   const [tilt3d, setTilt3d] = useState(false)
-
-
   const handleBgColorChange = (hex) => {
     setBgColor(hex);
     const c = (hex || '#000000').replace('#', '');
@@ -3068,6 +3070,87 @@ export default function App() {
   const [logPage, setLogPage] = useState(1)
   const [crmStatusFilter, setCrmStatusFilter] = useState('todos')
 
+  const autoScanCompletedRef = useRef(false)
+
+  useEffect(() => {
+    if (reports.length > 0 && allClientesControl.length > 0 && !autoScanCompletedRef.current) {
+      autoScanCompletedRef.current = true
+      
+      const runAutoBillingRemindersScan = async () => {
+        const now = new Date()
+        const currentYear = now.getFullYear()
+        const currentMonth = now.getMonth() + 1
+        const currentDay = now.getDate()
+        
+        // Si el día actual es mayor o igual a 1 (1 día o más después de la fecha de facturación)
+        if (currentDay >= 1) {
+          const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1
+          const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear
+          const prevPeriod = `${prevYear}-${String(prevMonth).padStart(2, '0')}`
+
+          const pendingReports = reports.filter(r => 
+            r.periodo === prevPeriod && 
+            (r.estadoPago || 'pendiente').toLowerCase() === 'pendiente'
+          )
+
+          for (const report of pendingReports) {
+            const clientCfg = allClientesControl.find(c => c.id.toLowerCase() === report.clientId.toLowerCase())
+            if (!clientCfg) continue
+
+            // Solo inyectar si el cliente no tiene una alerta activa configurada
+            if (!clientCfg.sistemaAlerta || !clientCfg.sistemaAlerta.active) {
+              const template = waTemplates.find(t => t.id === 'recordatorio-simple')
+              const rawMsg = template?.body || 'Hola *{cliente}*, te informamos que la comisión del periodo *{periodo}* por valor de *${comision}* está pendiente.'
+              
+              const parsedMsg = rawMsg
+                .replace(/{cliente}/gi, clientCfg.nombre || report.clientId)
+                .replace(/{periodo}/gi, report.periodo)
+                .replace(/{comision}/gi, Number(report.comisionValor || 0).toLocaleString('es-CO'))
+                
+              // Limpiar formato WhatsApp (* para negrita, _ para cursiva, ~ para tachado)
+              const cleanMsg = parsedMsg
+                .replace(/\*([^*]+)\*/g, '$1')
+                .replace(/_([^_]+)_/g, '$1')
+                .replace(/~([^~]+)~/g, '$1')
+
+              const alertData = {
+                active: true,
+                type: 'info',
+                title: 'Recordatorio de Pago',
+                message: cleanMsg,
+                dismissible: true,
+                alertId: `auto-${report.clientId}-${report.periodo}`
+              }
+
+              try {
+                if (isSimulated) {
+                  setAllClientesControl(prev => prev.map(c => c.id.toLowerCase() === report.clientId.toLowerCase() ? {
+                    ...c,
+                    sistemaAlerta: alertData
+                  } : c))
+                } else {
+                  const centralApp = getCentralApp()
+                  if (centralApp) {
+                    const dbInstance = getFirestore(centralApp)
+                    const docRef = doc(dbInstance, 'clientes_control', report.clientId.toLowerCase())
+                    await updateDoc(docRef, {
+                      sistemaAlerta: alertData
+                    })
+                    addLog(`[Auto-Cron] Alerta de recordatorio simple inyectada automáticamente para ${report.clientId} (Periodo: ${report.periodo})`, "success")
+                  }
+                }
+              } catch (err) {
+                console.error("Error en auto-cron de cobro:", err)
+              }
+            }
+          }
+        }
+      }
+
+      runAutoBillingRemindersScan()
+    }
+  }, [reports, allClientesControl, isSimulated])
+
   const [activeTab, setActiveTab] = useState('dashboard')
   const [dashBgSettings, setDashBgSettings] = useState(() => {
     try {
@@ -3216,6 +3299,63 @@ export default function App() {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [editingTemplateBody, setEditingTemplateBody] = useState('')
   const [updatingReportId, setUpdatingReportId] = useState(null)
+  const [syncWaAlert, setSyncWaAlert] = useState(true)
+
+  const syncRemoteAlertFromTemplate = async (clientId, templateId, rawMessage) => {
+    if (!clientId) return
+    const idLower = clientId.toLowerCase()
+    
+    // Limpiar formato WhatsApp (* para negrita, _ para cursiva, ~ para tachado) para que se vea limpio en web
+    const cleanMessage = rawMessage
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      .replace(/~([^~]+)~/g, '$1')
+
+    let alertData = null
+    if (templateId === 'recordatorio-simple') {
+      alertData = {
+        active: true,
+        type: 'info',
+        title: 'Recordatorio de Pago',
+        message: cleanMessage,
+        dismissible: true,
+        alertId: Date.now().toString()
+      }
+    } else if (templateId === 'recordatorio-urgente') {
+      alertData = {
+        active: true,
+        type: 'warning',
+        title: '¡Cobro Pendiente URGENTE!',
+        message: cleanMessage,
+        dismissible: true,
+        alertId: Date.now().toString()
+      }
+    } else if (templateId === 'confirmacion-pago') {
+      alertData = null
+    }
+
+    try {
+      if (isSimulated) {
+        setAllClientesControl(prev => prev.map(c => c.id.toLowerCase() === idLower ? {
+          ...c,
+          sistemaAlerta: alertData
+        } : c))
+        addLog(`[Sandbox] Alerta remota sincronizada para ${clientId} desde plantilla: ${templateId}`, "success")
+      } else {
+        const centralApp = getCentralApp()
+        if (centralApp) {
+          const dbInstance = getFirestore(centralApp)
+          const docRef = doc(dbInstance, 'clientes_control', idLower)
+          await updateDoc(docRef, {
+            sistemaAlerta: alertData
+          })
+          addLog(`[Firestore] Alerta remota sincronizada para ${clientId} desde plantilla: ${templateId}`, "success")
+        }
+      }
+    } catch (err) {
+      console.error("Error al sincronizar alerta remota:", err)
+    }
+  }
 
   // Listado unificado de clientes que envían telemetría
   const telemetryClientsList = useMemo(() => {
@@ -4679,6 +4819,14 @@ export default function App() {
         if (selectedReport && selectedReport.id === report.id) {
           setSelectedReport(prev => ({ ...prev, estadoPago: nuevoEstado, updatedAt: { toDate: () => new Date() } }))
         }
+
+        if (nuevoEstado === 'pagado') {
+          setAllClientesControl(prev => prev.map(c => c.id.toLowerCase() === report.clientId.toLowerCase() ? {
+            ...c,
+            sistemaAlerta: null
+          } : c))
+        }
+
         addLog(`[Sandbox] Estado de pago actualizado localmente para ${report.clientId}.`, "success")
         showToast(`[Sandbox] Pago actualizado a ${nuevoEstado}`, { type: 'success' })
         return
@@ -4693,6 +4841,20 @@ export default function App() {
         estadoPago: nuevoEstado,
         updatedAt: serverTimestamp()
       })
+
+      // Limpiar alerta remota al confirmar pago
+      if (nuevoEstado === 'pagado') {
+        try {
+          const docRefClient = doc(dbInstance, 'clientes_control', report.clientId.toLowerCase())
+          await updateDoc(docRefClient, {
+            sistemaAlerta: null
+          })
+          addLog(`[Firestore] Alerta remota desactivada para ${report.clientId} al aprobar su pago.`, "success")
+        } catch (errAlert) {
+          console.error("Error al limpiar alerta remota tras pago:", errAlert)
+        }
+      }
+
       addLog(`[Firestore] Estado de pago guardado para ${report.clientId}.`, "success")
       showToast(`Pago de ${report.clientId} actualizado a ${nuevoEstado}`, { type: 'success' })
     } catch (err) {
@@ -4929,6 +5091,33 @@ export default function App() {
     }
   }, [selectedCrmClientId, activeMetricModal])
 
+  // Inicializar automáticamente los campos del CRM cuando se abre/selecciona un cliente
+  useEffect(() => {
+    if (selectedCrmClientId && activeMetricModal === 'clientes') {
+      const cfg = clientesSaas.find(c => c.id.toLowerCase() === selectedCrmClientId.toLowerCase()) || 
+                  allClientesControl.find(c => c.id.toLowerCase() === selectedCrmClientId.toLowerCase()) || {};
+      
+      setEditNiche(cfg.niche || 'retail_clothing');
+      setEditBillingMode(cfg.billingMode || 'percentage');
+      setEditComisionPorcentaje(cfg.comisionPorcentaje !== undefined ? cfg.comisionPorcentaje : 1.5);
+      setEditMontoFijoServicio(cfg.montoFijoServicio !== undefined ? cfg.montoFijoServicio : 500);
+      setEditPagoMensualFijo(cfg.pagoMensualFijo !== undefined ? cfg.pagoMensualFijo : 50000);
+      setEditSetupFee(cfg.setupFee !== undefined ? cfg.setupFee : 1500000);
+      setEditEnableDianBilling(!!cfg.enableDianBilling);
+      setEditCostoPorFacturaDian(cfg.costoPorFacturaDian !== undefined ? cfg.costoPorFacturaDian : 150);
+
+      const alertCfg = cfg.sistemaAlerta || {};
+      setEditAlertActive(!!alertCfg.active);
+      setEditAlertTitle(alertCfg.title || '');
+      setEditAlertMessage(alertCfg.message || '');
+      setEditAlertType(alertCfg.type || 'info');
+      setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
+
+      setEditDeactivated(!!cfg.deactivated);
+      setEditDeactivationReason(cfg.deactivationReason || '');
+    }
+  }, [selectedCrmClientId, activeMetricModal, clientesSaas, allClientesControl])
+
   useEffect(() => {
     if (activeTab === 'crm' && crmSubTab === 'paridad') {
       fetchGlobalDrift();
@@ -5139,6 +5328,8 @@ export default function App() {
         pagoMensualFijo: editPagoMensualFijo,
         enableDianBilling: editEnableDianBilling,
         costoPorFacturaDian: editCostoPorFacturaDian,
+        deactivated: editDeactivated,
+        deactivationReason: editDeactivationReason,
         sistemaAlerta: editAlertActive ? {
           active: true,
           title: editAlertTitle.trim(),
@@ -5171,7 +5362,9 @@ export default function App() {
         pagoMensualFijo: editPagoMensualFijo,
         setupFee: editSetupFee,
         enableDianBilling: editEnableDianBilling,
-        costoPorFacturaDian: editCostoPorFacturaDian
+        costoPorFacturaDian: editCostoPorFacturaDian,
+        deactivated: editDeactivated,
+        deactivationReason: editDeactivationReason
       }
 
       if (editAlertActive) {
@@ -10151,15 +10344,33 @@ export default function App() {
       }
     }
 
+    // Sincronizar alerta remota si está habilitado
+    if (syncWaAlert) {
+      if (waClientId) {
+        await syncRemoteAlertFromTemplate(waClientId, selectedWaTemplate, msg)
+      } else {
+        showToast('⚠️ Selecciona un cliente para sincronizar la alerta remota', { type: 'warning' })
+      }
+    }
+
     const encoded = encodeURIComponent(msg)
     window.open(`https://api.whatsapp.com/send/?text=${encoded}`, '_blank')
     showToast('Abriendo WhatsApp con el mensaje...', { type: 'success' })
   }
 
-  const handleCopyWaMessage = () => {
+  const handleCopyWaMessage = async () => {
     const msg = getWaPreview()
     navigator.clipboard.writeText(msg)
     showToast('Mensaje copiado al portapapeles ✓', { type: 'success' })
+
+    // Sincronizar alerta remota si está habilitado
+    if (syncWaAlert) {
+      if (waClientId) {
+        await syncRemoteAlertFromTemplate(waClientId, selectedWaTemplate, msg)
+      } else {
+        showToast('⚠️ Selecciona un cliente para sincronizar la alerta remota', { type: 'warning' })
+      }
+    }
   }
 
   // RENDER PANEL PRINCIPAL
@@ -12069,6 +12280,17 @@ export default function App() {
                         <input type="text" placeholder="Ej: 102,750 (dejar vacío para auto-calcular)" value={waComision} onChange={e => setWaComision(e.target.value)}
                           className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs text-[var(--color-text)] outline-none focus:border-emerald-500 w-full font-mono" />
                       </div>
+                      <div className="sm:col-span-2 pt-1">
+                        <label className="flex items-center gap-2.5 cursor-pointer text-[10px] font-semibold text-[var(--color-text-muted)] select-none">
+                          <input 
+                            type="checkbox" 
+                            checked={syncWaAlert} 
+                            onChange={(e) => setSyncWaAlert(e.target.checked)}
+                            className="w-4 h-4 rounded accent-emerald-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                          />
+                          Sincronizar Alerta Remota en la Aplicación (sistemaAlerta)
+                        </label>
+                      </div>
                     </div>
                     {/* Editor de plantilla */}
                     {editingTemplate === selectedWaTemplate ? (
@@ -13788,6 +14010,32 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+                  {/* Desactivación / Suspensión de Cuenta (Bloqueo Total) */}
+                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={editDeactivated} 
+                        onChange={(e) => setEditDeactivated(e.target.checked)}
+                        className="w-4 h-4 rounded accent-red-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                      />
+                      <span className={`w-2 h-2 rounded-full ${editDeactivated ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+                      Suspender / Desactivar Cuenta (Bloqueo Total)
+                    </label>
+
+                    {editDeactivated && (
+                      <div className="space-y-2 animate-fade-in pl-6 border-l border-red-500/20">
+                        <label className="text-[10px] font-bold text-red-400 block">Motivo de Suspensión Personalizado</label>
+                        <textarea 
+                          value={editDeactivationReason} 
+                          onChange={(e) => setEditDeactivationReason(e.target.value)}
+                          placeholder="Ingresa el motivo de la suspensión, ej: Tu cuenta ha sido suspendida temporalmente por falta de pago..."
+                          className="bg-[var(--color-surface-2)]/30 border border-red-500/20 rounded-xl px-3 py-2 text-xs w-full h-20 text-[var(--color-text)] outline-none focus:border-red-500 resize-none font-sans"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {/* Alerta Remota / Bloqueo del Sistema */}
                   <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
                     <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
