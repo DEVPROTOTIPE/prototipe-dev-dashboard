@@ -10709,10 +10709,10 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Charts + Logs */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+              {/* SECTION 1: METRICS & HEALTH RADAR (ROW 1) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch mb-5">
                 {/* Gráfico de barras */}
-                <div className="lg:col-span-2 bg-[var(--color-surface)] p-6 rounded-2xl flex flex-col shadow-sm relative overflow-hidden transition-colors duration-300 border border-[var(--color-border)]">
+                <div className="lg:col-span-2 bg-[var(--color-surface)] p-6 rounded-2xl flex flex-col shadow-sm relative overflow-hidden transition-colors duration-300 border border-[var(--color-border)] h-full">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/3 rounded-full blur-3xl pointer-events-none" />
                   <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
                     <div className="space-y-1">
@@ -10723,7 +10723,6 @@ export default function App() {
                       </h3>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      {/* CORE-136: Botones de resolución temporal */}
                       {[
                         { mode: 'years',  label: 'Años'    },
                         { mode: 'months', label: 'Meses'    },
@@ -10757,46 +10756,32 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Gráfico General Consolidado */}
-                  {generalChartData.length === 0 ? (
-                    <div className="h-40 flex items-center justify-center text-slate-500 text-xs">Sin datos consolidados.</div>
+                  {chartData.length === 0 ? (
+                    <div className="flex-1 min-h-[256px] flex items-center justify-center text-slate-500 text-xs">Sin datos suficientes.</div>
                   ) : (
-                    <div className="h-[220px] w-full mb-6 relative">
-                      <ResponsiveContainer width="100%" height={220} minWidth={0}>
+                    <div className="flex-1 w-full min-h-[256px]">
+                      <ResponsiveContainer width="100%" height={320} minWidth={0}>
                         <AreaChart data={generalChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <defs>
+                            <linearGradient id="colorGeneralVentas" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1}/>
+                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0}/>
+                            </linearGradient>
                             <linearGradient id="colorGeneralComisiones" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
                               <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
                             </linearGradient>
-                            <linearGradient id="colorGeneralVentas" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.05}/>
-                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0}/>
-                            </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                          <XAxis 
-                            dataKey="periodo" 
-                            stroke="rgba(255,255,255,0.2)" 
-                            fontSize={9} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tickFormatter={formatPeriod}
-                          />
-                          <YAxis 
-                            stroke="rgba(255,255,255,0.2)" 
-                            fontSize={9} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`}
-                          />
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
+                          <XAxis dataKey="periodo" stroke="rgba(255,255,255,0.15)" fontSize={9} tickLine={false} tickFormatter={formatPeriod} />
+                          <YAxis stroke="rgba(255,255,255,0.15)" fontSize={9} tickLine={false} tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`} />
                           <Tooltip 
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
                                 const data = payload[0].payload
                                 return (
-                                  <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-3 rounded-2xl shadow-2xl text-left text-[10px] space-y-1">
-                                    <p className="font-extrabold text-[var(--color-text)] uppercase">{formatPeriod(data.periodo)}</p>
+                                  <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-3 rounded-2xl shadow-2xl text-left text-[9px] space-y-1">
+                                    <p className="font-extrabold text-[var(--color-text)]">{formatPeriod(data.periodo)}</p>
                                     <p className="text-violet-400 font-semibold">Comisión: <span className="font-bold font-mono">${data.comisiones.toLocaleString('es-CO')}</span></p>
                                     <p className="text-cyan-400 font-semibold">Ventas: <span className="font-bold font-mono">${data.ventas.toLocaleString('es-CO')}</span></p>
                                     <p className="text-[var(--color-text-muted)] text-[8px]">{data.count} reportes en este mes</p>
@@ -10821,229 +10806,230 @@ export default function App() {
                       </ResponsiveContainer>
                     </div>
                   )}
-
-                  {/* Divisor */}
-                  <div className="flex items-center gap-2 border-t border-[var(--color-border)]/50 pt-5 pb-3">
-                    <span className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-none">Desglose por Cliente</span>
-                    <div className="h-px bg-[var(--color-border)]/30 flex-1" />
-                  </div>
-
-                  {chartData.length === 0 ? (
-                    <div className="h-40 flex items-center justify-center text-slate-500 text-xs">Sin datos suficientes.</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {chartData.map((client, idx) => {
-                        const isExpanded = expandedClientId === client.name
-                        const clientMode = getClientChartMode(client.name)
-                        const clientHistory = getClientHistoryData(client.name, clientMode)
-                        const colorSet = [
-                          { text: 'text-violet-650 dark:text-violet-400', bg: 'bg-violet-500/10', bar: 'bg-violet-500', stroke: '#8b5cf6' },
-                          { text: 'text-cyan-650 dark:text-cyan-400', bg: 'bg-cyan-500/10', bar: 'bg-cyan-500', stroke: '#0ea5e9' },
-                          { text: 'text-emerald-650 dark:text-emerald-400', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500', stroke: '#10b981' },
-                          { text: 'text-amber-650 dark:text-amber-400', bg: 'bg-amber-500/10', bar: 'bg-amber-500', stroke: '#f59e0b' },
-                          { text: 'text-pink-650 dark:text-pink-400', bg: 'bg-pink-500/10', bar: 'bg-pink-500', stroke: '#ec4899' }
-                        ][idx % 5]
-                        
-                        // Encontrar la configuración del cliente
-                        const clientCfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {}
-                        const billingText = clientCfg.billingMode === 'percentage' 
-                          ? `${clientCfg.comisionPorcentaje || 1.5}% Ventas` 
-                          : clientCfg.billingMode === 'fixed_per_service' 
-                            ? `$${(clientCfg.montoFijoServicio || 500).toLocaleString('es-CO')} / Serv` 
-                            : `$${(clientCfg.pagoMensualFijo || 50000).toLocaleString('es-CO')} / Mes`
-
-                        return (
-                          <div key={client.name} 
-                            className={`p-3 bg-[var(--color-surface-2)]/25 rounded-2xl border transition-all duration-300 shadow-sm flex flex-col ${
-                              isExpanded 
-                                ? 'border-violet-500/40 bg-[var(--color-surface-2)]/60' 
-                                : 'border-[var(--color-border)]/50 hover:bg-[var(--color-surface-2)]/50'
-                            }`}
-                          >
-                            {/* Fila principal (Clickable para expandir) */}
-                            <div 
-                              onClick={() => setExpandedClientId(isExpanded ? null : client.name)}
-                              className="flex items-center justify-between gap-3 cursor-pointer select-none"
-                            >
-                              <div className="flex items-center gap-3 min-w-[140px]">
-                                <div className={`w-8 h-8 rounded-xl ${colorSet.bg} ${colorSet.text} font-black flex items-center justify-center text-xs shrink-0 border border-current/10`}>
-                                  {client.name.substring(0, 2).toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                  <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate max-w-[100px]" title={client.name}>{client.name}</h4>
-                                  <p className="text-[9px] text-[var(--color-text-muted)]">{client.reportCount} reportes</p>
-                                </div>
-                              </div>
-                              <div className="flex-1 space-y-1 hidden sm:block px-4">
-                                <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)]">
-                                  <span>Ventas Brutas</span>
-                                  <span className="font-mono">${client.totalSales.toLocaleString('es-CO')}</span>
-                                </div>
-                                <div className="h-1 bg-[var(--color-bg)] rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full transition-all duration-700 ease-out ${colorSet.bar}`} style={{ width: `${Math.max((client.totalCommission / maxChartValue) * 100, 3)}%` }} />
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4 text-right min-w-[90px] justify-end">
-                                <div>
-                                  <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] block leading-none">Comisión</span>
-                                  <span className={`text-xs font-black font-mono mt-0.5 block ${colorSet.text}`}>${client.totalCommission.toLocaleString('es-CO')}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {client.pendingCount > 0 && (
-                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">{client.pendingCount} pend.</span>
-                                  )}
-                                  <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-violet-400' : ''}`} />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Panel Desplegable con Gráfico e Información */}
-                            <AnimatePresence initial={false}>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="pt-4 border-t border-[var(--color-border)]/40 mt-3 space-y-4">
-                                    {/* Botones de resolución temporal por cliente */}
-                                    <div className="flex items-center gap-1 mb-3">
-                                      {[
-                                        { mode: 'years',  label: 'Años'   },
-                                        { mode: 'months', label: 'Meses'   },
-                                        { mode: 'weeks',  label: 'Semanas' },
-                                        { mode: 'days',   label: 'Días'    },
-                                      ].map(({ mode, label }) => (
-                                        <button
-                                          key={mode}
-                                          onClick={(e) => { e.stopPropagation(); setClientChartMode(client.name, mode) }}
-                                          className={`px-2 py-0.5 rounded-full text-[8px] font-bold transition-all border ${
-                                            clientMode === mode
-                                              ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
-                                              : 'bg-transparent text-[var(--color-text-muted)] border-[var(--color-border)] hover:text-violet-400 hover:border-violet-500/30'
-                                          }`}
-                                        >
-                                          {label}
-                                        </button>
-                                      ))}
-                                    </div>
-                                    {/* Gráfico individual del cliente */}
-                                    {clientHistory.length === 0 ? (
-                                      <p className="text-[9px] text-[var(--color-text-muted)] italic text-center py-4">Sin datos de tendencia suficientes para este cliente.</p>
-                                    ) : (
-                                      <div className="h-28 w-full">
-                                        <ResponsiveContainer width="100%" height={112} minWidth={0}>
-                                          <AreaChart data={clientHistory} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                                            <defs>
-                                              <linearGradient id={`colorClientComisiones-${client.name}`} x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={colorSet.stroke} stopOpacity={0.15}/>
-                                                <stop offset="95%" stopColor={colorSet.stroke} stopOpacity={0.0}/>
-                                              </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
-                                            <XAxis dataKey="periodo" stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={formatPeriod} />
-                                            <YAxis stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`} />
-                                            <Tooltip 
-                                              content={({ active, payload }) => {
-                                                if (active && payload && payload.length) {
-                                                  const data = payload[0].payload
-                                                  return (
-                                                    <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-2.5 rounded-xl shadow-2xl text-left text-[9px] space-y-0.5">
-                                                      <p className="font-extrabold text-[var(--color-text)]">{formatPeriod(data.periodo)}</p>
-                                                      <p className={`${colorSet.text}`}>Comisión: <span className="font-bold font-mono">${data.comisiones.toLocaleString('es-CO')}</span></p>
-                                                      <p className="text-slate-400">Ventas: <span className="font-bold font-mono">${data.ventas.toLocaleString('es-CO')}</span></p>
-                                                    </div>
-                                                  )
-                                                }
-                                                return null
-                                              }}
-                                            />
-                                            <Area type="monotone" dataKey="comisiones" stroke={colorSet.stroke} strokeWidth={2} fillOpacity={1} fill={`url(#colorClientComisiones-${client.name})`} />
-                                          </AreaChart>
-                                        </ResponsiveContainer>
-                                      </div>
-                                    )}
-
-                                    {/* Configuración & Acciones */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[10px] bg-[var(--color-surface)]/40 p-2.5 rounded-xl border border-[var(--color-border)]/40">
-                                      <div>
-                                        <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Esquema Facturación</span>
-                                        <span className="font-bold text-[var(--color-text)] block mt-0.5">{billingText}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Nicho de Negocio</span>
-                                        <span className="font-bold text-[var(--color-text)] block mt-0.5 capitalize">{(clientCfg.niche || 'N/A').replace('_', ' ')}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Costo Setup</span>
-                                        <span className="font-bold text-[var(--color-text)] block mt-0.5 font-mono">${(clientCfg.setupFee || 0).toLocaleString('es-CO')}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1.5 justify-end">
-                                        <button 
-                                          onClick={() => {
-                                            const clientFailures = failures.filter(f => f.clientId.toLowerCase() === client.name.toLowerCase())
-                                            exportClientDetailPDF(client.name, clientCfg, reports.filter(r => r.clientId.toLowerCase() === client.name.toLowerCase()), clientFailures)
-                                            addLog(`Ficha PDF de cliente ${client.name} descargada.`, 'success')
-                                          }}
-                                          className="p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 border border-slate-500/20 rounded-lg cursor-pointer transition-all active:scale-95"
-                                          title="Exportar Reporte Ficha PDF"
-                                        >
-                                          <Download size={11} />
-                                        </button>
-                                        <button 
-                                          onClick={() => {
-                                            setEditNiche(clientCfg.niche || 'retail_clothing');
-                                            setEditBillingMode(clientCfg.billingMode || 'percentage');
-                                            setEditComisionPorcentaje(clientCfg.comisionPorcentaje !== undefined ? clientCfg.comisionPorcentaje : 1.5);
-                                            setEditMontoFijoServicio(clientCfg.montoFijoServicio !== undefined ? clientCfg.montoFijoServicio : 500);
-                                            setEditPagoMensualFijo(clientCfg.pagoMensualFijo !== undefined ? clientCfg.pagoMensualFijo : 50000);
-                                            setEditSetupFee(clientCfg.setupFee !== undefined ? clientCfg.setupFee : 1500000);
-                                            setEditEnableDianBilling(!!clientCfg.enableDianBilling);
-                                            setEditCostoPorFacturaDian(clientCfg.costoPorFacturaDian !== undefined ? clientCfg.costoPorFacturaDian : 150);
-                                            
-                                            const alertCfg = clientCfg.sistemaAlerta || {};
-                                            setEditAlertActive(!!alertCfg.active);
-                                            setEditAlertTitle(alertCfg.title || '');
-                                            setEditAlertMessage(alertCfg.message || '');
-                                            setEditAlertType(alertCfg.type || 'info');
-                                            setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
-
-                                            setCrmTab('config');
-                                            setDriftData(null);
-                                            setSelectedCrmClientId(client.name); 
-                                            setActiveMetricModal('clientes');
-                                          }}
-                                          className="px-2.5 py-1 bg-violet-600 hover:bg-violet-550 text-white rounded-lg text-[9px] font-extrabold cursor-pointer active:scale-95 transition-all shadow-sm"
-                                        >
-                                          Gestionar
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
                 </div>
 
-                {/* Columna Derecha: Radar de Salud + Telemetría */}
-                <div className="space-y-5">
-                  {/* Radar de Salud de Instancias */}
+                {/* Radar de Salud de Instancias */}
+                <div className="col-span-1">
                   <HealthRadar
                     clientesSaas={clientesSaas}
                     failures={failures}
                     setActiveTab={setActiveTab}
                     setSelectedErrorClientFilter={setSelectedErrorClientFilter}
                   />
+                </div>
+              </div>
 
-                  {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
-                  <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden">
+              {/* SECTION 2: OPERATIONS & TELEMETRY (ROW 2 - BALANCED GRID) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start mb-5">
+                {/* Desglose por Cliente */}
+                <div className="bg-[var(--color-surface)] p-6 rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] h-auto">
+                  <div>
+                    <div className="flex items-center gap-2 pb-3 mb-4">
+                      <span className="text-[10px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-none">Desglose por Cliente</span>
+                      <div className="h-px bg-[var(--color-border)]/30 flex-1" />
+                    </div>
+
+                    {chartData.length === 0 ? (
+                      <div className="h-40 flex items-center justify-center text-slate-500 text-xs">Sin datos suficientes.</div>
+                    ) : (
+                      <div className="space-y-3 overflow-y-auto max-h-[380px] pr-1.5 scrollbar-thin">
+                        {chartData.map((client, idx) => {
+                          const isExpanded = expandedClientId === client.name
+                          const clientMode = getClientChartMode(client.name)
+                          const clientHistory = getClientHistoryData(client.name, clientMode)
+                          const colorSet = [
+                            { text: 'text-violet-650 dark:text-violet-400', bg: 'bg-violet-500/10', bar: 'bg-violet-500', stroke: '#8b5cf6' },
+                            { text: 'text-cyan-650 dark:text-cyan-400', bg: 'bg-cyan-500/10', bar: 'bg-cyan-500', stroke: '#0ea5e9' },
+                            { text: 'text-emerald-650 dark:text-emerald-400', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500', stroke: '#10b981' },
+                            { text: 'text-amber-650 dark:text-amber-400', bg: 'bg-amber-500/10', bar: 'bg-amber-500', stroke: '#f59e0b' },
+                            { text: 'text-pink-650 dark:text-pink-400', bg: 'bg-pink-500/10', bar: 'bg-pink-500', stroke: '#ec4899' }
+                          ][idx % 5]
+                          
+                          const clientCfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {}
+                          const billingText = clientCfg.billingMode === 'percentage' 
+                            ? `${clientCfg.comisionPorcentaje || 1.5}% Ventas` 
+                            : clientCfg.billingMode === 'fixed_per_service' 
+                              ? `$${(clientCfg.montoFijoServicio || 500).toLocaleString('es-CO')} / Serv` 
+                              : `$${(clientCfg.pagoMensualFijo || 50000).toLocaleString('es-CO')} / Mes`
+
+                          return (
+                            <div key={client.name} 
+                              className={`p-3 bg-[var(--color-surface-2)]/25 rounded-2xl border transition-all duration-300 shadow-sm flex flex-col ${
+                                isExpanded 
+                                  ? 'border-violet-500/40 bg-[var(--color-surface-2)]/60' 
+                                  : 'border-[var(--color-border)]/50 hover:bg-[var(--color-surface-2)]/50'
+                              }`}
+                            >
+                              <div 
+                                onClick={() => setExpandedClientId(isExpanded ? null : client.name)}
+                                className="flex items-center justify-between gap-3 cursor-pointer select-none"
+                              >
+                                <div className="flex items-center gap-3 min-w-[140px]">
+                                  <div className={`w-8 h-8 rounded-xl ${colorSet.bg} ${colorSet.text} font-black flex items-center justify-center text-xs shrink-0 border border-current/10`}>
+                                    {client.name.substring(0, 2).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="font-extrabold text-xs text-[var(--color-text)] truncate max-w-[100px]" title={client.name}>{client.name}</h4>
+                                    <p className="text-[9px] text-[var(--color-text-muted)]">{client.reportCount} reportes</p>
+                                  </div>
+                                </div>
+                                <div className="flex-1 space-y-1 hidden sm:block px-4">
+                                  <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)]">
+                                    <span>Ventas Brutas</span>
+                                    <span className="font-mono">${client.totalSales.toLocaleString('es-CO')}</span>
+                                  </div>
+                                  <div className="h-1 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-700 ease-out ${colorSet.bar}`} style={{ width: `${Math.max((client.totalCommission / maxChartValue) * 100, 3)}%` }} />
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 text-right min-w-[90px] justify-end">
+                                  <div>
+                                    <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--color-text-muted)] block leading-none">Comisión</span>
+                                    <span className={`text-xs font-black font-mono mt-0.5 block ${colorSet.text}`}>${client.totalCommission.toLocaleString('es-CO')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {client.pendingCount > 0 && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">{client.pendingCount} pend.</span>
+                                    )}
+                                    <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-violet-400' : ''}`} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="pt-4 border-t border-[var(--color-border)]/40 mt-3 space-y-4">
+                                      <div className="flex items-center gap-1 mb-3">
+                                        {[
+                                          { mode: 'years',  label: 'Años'   },
+                                          { mode: 'months', label: 'Meses'   },
+                                          { mode: 'weeks',  label: 'Semanas' },
+                                          { mode: 'days',   label: 'Días'    },
+                                        ].map(({ mode, label }) => (
+                                          <button
+                                            key={mode}
+                                            onClick={(e) => { e.stopPropagation(); setClientChartMode(client.name, mode) }}
+                                            className={`px-2 py-0.5 rounded-full text-[8px] font-bold transition-all border ${
+                                              clientMode === mode
+                                                ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
+                                                : 'bg-transparent text-[var(--color-text-muted)] border-[var(--color-border)] hover:text-violet-400 hover:border-violet-500/30'
+                                            }`}
+                                          >
+                                            {label}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      {clientHistory.length === 0 ? (
+                                        <p className="text-[9px] text-[var(--color-text-muted)] italic text-center py-4">Sin datos de tendencia suficientes para este cliente.</p>
+                                      ) : (
+                                        <div className="h-28 w-full">
+                                          <ResponsiveContainer width="100%" height={112} minWidth={0}>
+                                            <AreaChart data={clientHistory} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                              <defs>
+                                                <linearGradient id={`colorClientComisiones-${client.name}`} x1="0" y1="0" x2="0" y2="1">
+                                                  <stop offset="5%" stopColor={colorSet.stroke} stopOpacity={0.15}/>
+                                                  <stop offset="95%" stopColor={colorSet.stroke} stopOpacity={0.0}/>
+                                                </linearGradient>
+                                              </defs>
+                                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
+                                              <XAxis dataKey="periodo" stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={formatPeriod} />
+                                              <YAxis stroke="rgba(255,255,255,0.15)" fontSize={8} tickLine={false} tickFormatter={(val) => `$${val.toLocaleString('es-CO', { notation: 'compact' })}`} />
+                                              <Tooltip 
+                                                content={({ active, payload }) => {
+                                                  if (active && payload && payload.length) {
+                                                    const data = payload[0].payload
+                                                    return (
+                                                      <div className="bg-slate-950/90 backdrop-blur-md border border-white/[0.08] p-2.5 rounded-xl shadow-2xl text-left text-[9px] space-y-0.5">
+                                                        <p className="font-extrabold text-[var(--color-text)]">{formatPeriod(data.periodo)}</p>
+                                                        <p className={`${colorSet.text}`}>Comisión: <span className="font-bold font-mono">${data.comisiones.toLocaleString('es-CO')}</span></p>
+                                                        <p className="text-slate-400">Ventas: <span className="font-bold font-mono">${data.ventas.toLocaleString('es-CO')}</span></p>
+                                                      </div>
+                                                    )
+                                                  }
+                                                  return null
+                                                }}
+                                              />
+                                              <Area type="monotone" dataKey="comisiones" stroke={colorSet.stroke} strokeWidth={2} fillOpacity={1} fill={`url(#colorClientComisiones-${client.name})`} />
+                                            </AreaChart>
+                                          </ResponsiveContainer>
+                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[10px] bg-[var(--color-surface)]/40 p-2.5 rounded-xl border border-[var(--color-border)]/40">
+                                        <div>
+                                          <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Esquema Facturación</span>
+                                          <span className="font-bold text-[var(--color-text)] block mt-0.5">{billingText}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Nicho de Negocio</span>
+                                          <span className="font-bold text-[var(--color-text)] block mt-0.5 capitalize">{(clientCfg.niche || 'N/A').replace('_', ' ')}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[8px] text-[var(--color-text-muted)] uppercase font-semibold block">Costo Setup</span>
+                                          <span className="font-bold text-[var(--color-text)] block mt-0.5 font-mono">${(clientCfg.setupFee || 0).toLocaleString('es-CO')}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 justify-end">
+                                          <button 
+                                            onClick={() => {
+                                              const clientFailures = failures.filter(f => f.clientId.toLowerCase() === client.name.toLowerCase())
+                                              exportClientDetailPDF(client.name, clientCfg, reports.filter(r => r.clientId.toLowerCase() === client.name.toLowerCase()), clientFailures)
+                                              addLog(`Ficha PDF de cliente ${client.name} descargada.`, 'success')
+                                            }}
+                                            className="p-1.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 border border-slate-500/20 rounded-lg cursor-pointer transition-all active:scale-95"
+                                            title="Exportar Reporte Ficha PDF"
+                                          >
+                                            <Download size={11} />
+                                          </button>
+                                          <button 
+                                            onClick={() => {
+                                              setEditNiche(clientCfg.niche || 'retail_clothing');
+                                              setEditBillingMode(clientCfg.billingMode || 'percentage');
+                                              setEditComisionPorcentaje(clientCfg.comisionPorcentaje !== undefined ? clientCfg.comisionPorcentaje : 1.5);
+                                              setEditMontoFijoServicio(clientCfg.montoFijoServicio !== undefined ? clientCfg.montoFijoServicio : 500);
+                                              setEditPagoMensualFijo(clientCfg.pagoMensualFijo !== undefined ? clientCfg.pagoMensualFijo : 50000);
+                                              setEditSetupFee(clientCfg.setupFee !== undefined ? clientCfg.setupFee : 1500000);
+                                              setEditEnableDianBilling(!!clientCfg.enableDianBilling);
+                                              setEditCostoPorFacturaDian(clientCfg.costoPorFacturaDian !== undefined ? clientCfg.costoPorFacturaDian : 150);
+                                              
+                                              const alertCfg = clientCfg.sistemaAlerta || {};
+                                              setEditAlertActive(!!alertCfg.active);
+                                              setEditAlertTitle(alertCfg.title || '');
+                                              setEditAlertMessage(alertCfg.message || '');
+                                              setEditAlertType(alertCfg.type || 'info');
+                                              setEditAlertDismissible(alertCfg.dismissible !== undefined ? alertCfg.dismissible : true);
+
+                                              setCrmTab('config');
+                                              setDriftData(null);
+                                              setSelectedCrmClientId(client.name); 
+                                              setActiveMetricModal('clientes');
+                                            }}
+                                            className="px-2.5 py-1 bg-violet-600 hover:bg-violet-550 text-white rounded-lg text-[9px] font-extrabold cursor-pointer active:scale-95 transition-all shadow-sm"
+                                          >
+                                            Gestionar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Consola de Telemetría (Estilo Ventana de Comandos Real e Interactiva) */}
+                <div className="bg-[var(--color-surface)] rounded-2xl flex flex-col shadow-sm transition-colors duration-300 border border-[var(--color-border)] overflow-hidden h-auto">
                   {/* Top Bar de Ventana de Comandos */}
                   <div className="bg-[var(--color-surface-2)]/60 px-4 py-2 border-b border-[var(--color-border)] flex items-center justify-between shrink-0 select-none">
                     <div className="flex items-center gap-1.5">
@@ -11055,7 +11041,7 @@ export default function App() {
                     <span className="w-6" />
                   </div>
                   
-                  <div className="p-5 flex flex-col flex-1 gap-3">
+                  <div className="p-5 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <span className="text-[9px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Live Monitor</span>
@@ -11074,7 +11060,6 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Canal DB & Status Info Row */}
                     <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div className="p-2 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl flex items-center gap-1.5 min-w-0">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${!isOnline ? 'bg-red-500' : (dbStatus === 'conectado' && !isSimulated ? 'bg-emerald-500' : 'bg-amber-500')}`} />
@@ -11090,9 +11075,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Interactive Filters Bar */}
                     <div className="space-y-2">
-                      {/* Tabs de tipo de log */}
                       <div className="flex bg-[var(--color-surface-2)]/60 p-0.5 rounded-xl border border-[var(--color-border)] justify-between">
                         {[
                           { id: 'todos', label: 'Todos' },
@@ -11114,7 +11097,6 @@ export default function App() {
                         ))}
                       </div>
 
-                      {/* Buscador de logs compacto */}
                       <div className="relative">
                         <input 
                           type="text" 
@@ -11135,7 +11117,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Active client filter badge */}
                     {telemetryClientFilter !== 'todos' && (
                       <div className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full self-start">
                         <span className="text-[8px] font-bold uppercase text-indigo-400">Cliente:</span>
@@ -11149,7 +11130,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Terminal logs list */}
                     <div className="flex-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl p-3 h-[240px] overflow-y-auto scrollbar-thin flex flex-col gap-2">
                       {filteredTelemetryLogs.length === 0 ? (
                         <div className="text-[var(--color-text-muted)] italic text-xs text-center my-auto flex flex-col items-center justify-center gap-1 select-none">
@@ -11204,7 +11184,6 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* Pagination & Limpiar */}
                     <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
                       <button 
                         onClick={() => { setSystemLogs([]); setLogPage(1) }} 
@@ -11237,7 +11216,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </div>
 
             {/* SIMULADOR DE PROYECCIONES DE INGRESOS */}
               <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-border)] transition-colors duration-300">
