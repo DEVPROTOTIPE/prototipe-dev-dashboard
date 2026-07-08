@@ -4279,17 +4279,22 @@ export default function App() {
         try {
           // Escuchar reportes en tiempo real
           const q = query(collection(dbInstance, 'reportesBilling'), orderBy('periodo', 'desc'))
+          let isReportsInitialLoad = true
           unsubDocs = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setReports(data)
             setIsLoading(false)
-            // Log additions dynamically
-            snapshot.docChanges().forEach((change) => {
-              if (change.type === "added") {
-                const docData = change.doc.data()
-                addLog(`Reporte de facturación periodico [${docData.periodo}] registrado por valor de $${Number(docData.comisionValor || 0).toLocaleString()} (Ventas: $${Number(docData.totalVentas || 0).toLocaleString()}).`, "success", docData.clientId)
-              }
-            })
+            // Log additions and modifications dynamically (skip on initial load)
+            if (!isReportsInitialLoad) {
+              snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") {
+                  const docData = change.doc.data()
+                  const actionWord = change.type === "added" ? "registrado" : "actualizado"
+                  addLog(`Reporte de facturación periodico [${docData.periodo}] ${actionWord} por valor de $${Number(docData.comisionValor || 0).toLocaleString()} (Ventas: $${Number(docData.totalVentas || 0).toLocaleString()}).`, "success", docData.clientId)
+                }
+              })
+            }
+            isReportsInitialLoad = false
           }, (error) => {
             console.warn("Fallo al leer datos reales. Cargando sandbox local:", error)
             loadSimulatedData()
@@ -4301,10 +4306,14 @@ export default function App() {
 
           // Escuchar configuración de tasas comisiones de instancias
           const qClientes = collection(dbInstance, 'clientes_control')
+          let isClientesInitialLoad = true
           unsubClientes = onSnapshot(qClientes, (snapshot) => {
             const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
             setAllClientesControl(data)
-            addLog(`Sincronizadas ${data.length} configuraciones de clientes en tiempo real.`, "success")
+            if (!isClientesInitialLoad) {
+              addLog(`Sincronizadas ${data.length} configuraciones de clientes en tiempo real.`, "success")
+            }
+            isClientesInitialLoad = false
           }, (error) => {
             console.warn("Fallo al escuchar clientes_control:", error)
           })
@@ -4340,6 +4349,7 @@ export default function App() {
 
           // Escuchar plantillas de WhatsApp en tiempo real
           const qWaTemplates = collection(dbInstance, 'whatsappTemplates')
+          let isWaTemplatesInitialLoad = true
           unsubWaTemplates = onSnapshot(qWaTemplates, async (snapshot) => {
             if (snapshot.empty) {
               // Colección vacía: Autocuración. Guardar plantillas base por defecto
@@ -4411,7 +4421,10 @@ export default function App() {
                 }
               })
               setWaTemplates(data)
-              addLog(`Sincronizadas ${data.length} plantillas de cobro WhatsApp en tiempo real.`, "success")
+              if (!isWaTemplatesInitialLoad) {
+                addLog(`Sincronizadas ${data.length} plantillas de cobro WhatsApp en tiempo real.`, "success")
+              }
+              isWaTemplatesInitialLoad = false
             }
           }, (error) => {
             console.warn("Fallo al escuchar whatsappTemplates:", error)
