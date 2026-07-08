@@ -2,6 +2,7 @@
 // Reutiliza la instancia ya inicializada por App.jsx (evita double-init)
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 
 const CENTRAL_CONFIG = {
   apiKey:            import.meta.env.VITE_DEVELOPER_CENTRAL_API_KEY            || '',
@@ -14,3 +15,4 @@ const CENTRAL_CONFIG = {
 
 const app = getApps().length ? getApp() : initializeApp(CENTRAL_CONFIG)
 export const db = getFirestore(app)
+export const auth = getAuth(app)
