@@ -2529,6 +2529,10 @@ export default function App() {
   const [editEnableDianBilling, setEditEnableDianBilling] = useState(false)
   const [editCostoPorFacturaDian, setEditCostoPorFacturaDian] = useState(150)
 
+  // Estados de Modo Mantenimiento Programado
+  const [crmMaintenanceMode, setCrmMaintenanceMode] = useState(false)
+  const [isTogglingMaintenance, setIsTogglingMaintenance] = useState(false)
+
   // Estados de edición de Alerta Remota del Sistema (sistemaAlerta)
   const [editAlertActive, setEditAlertActive] = useState(false)
   const [editAlertTitle, setEditAlertTitle] = useState('')
@@ -4907,6 +4911,12 @@ export default function App() {
   }, [selectedCrmClientId, isCrmClientCore]);
 
   useEffect(() => {
+    if (selectedCrmClientId && activeMetricModal === 'clientes') {
+      fetchCrmMaintenanceMode(selectedCrmClientId)
+    }
+  }, [selectedCrmClientId, activeMetricModal])
+
+  useEffect(() => {
     if (activeTab === 'crm' && crmSubTab === 'paridad') {
       fetchGlobalDrift();
     }
@@ -5254,6 +5264,48 @@ export default function App() {
       addLog(`[Build Audit Error] ${err.message}`, 'error')
     } finally {
       setBuildAuditing(false)
+    }
+  }
+
+  const fetchCrmMaintenanceMode = async (clientId) => {
+    try {
+      const response = await fetch(`${CLI_URL}/api/project/maintenance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setCrmMaintenanceMode(data.maintenanceMode)
+      }
+    } catch (err) {
+      console.error("Error al consultar Modo Mantenimiento:", err)
+    }
+  }
+
+  const handleToggleCrmMaintenance = async (targetStatus) => {
+    if (!selectedCrmClientId) return
+    setIsTogglingMaintenance(true)
+    try {
+      const response = await fetch(`${CLI_URL}/api/project/maintenance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: selectedCrmClientId, status: targetStatus })
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        setCrmMaintenanceMode(data.maintenanceMode)
+        addLog(`[Modo Mantenimiento] ${selectedCrmClientId} configurado en ${data.maintenanceMode ? 'ACTIVO' : 'DESACTIVADO'}.`, "success")
+        showToast(`Modo Mantenimiento ${data.maintenanceMode ? 'activado' : 'desactivado'} para ${selectedCrmClientId} ✓`, { type: 'success' })
+      } else {
+        throw new Error(data.error || 'Error al conmutar Modo Mantenimiento')
+      }
+    } catch (err) {
+      console.error(err)
+      addLog(`Error al conmutar Modo Mantenimiento: ${err.message}`, "error")
+      showToast(`Error al cambiar mantenimiento: ${err.message}`, { type: 'error' })
+    } finally {
+      setIsTogglingMaintenance(false)
     }
   }
 
@@ -13718,6 +13770,32 @@ export default function App() {
                         />
                       </div>
                     )}
+                  </div>
+                  {/* Modo Mantenimiento Programado */}
+                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-[var(--color-text)] flex items-center gap-1.5 select-none">
+                          <span className={`w-2.5 h-2.5 rounded-full ${crmMaintenanceMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+                          Modo Mantenimiento Programado
+                        </label>
+                        <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                          Bloquea temporalmente el acceso a la aplicación para los usuarios y muestra la pantalla premium de mejoras.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isTogglingMaintenance}
+                        onClick={() => handleToggleCrmMaintenance(!crmMaintenanceMode)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer disabled:opacity-50 border-none ${
+                          crmMaintenanceMode 
+                            ? 'bg-amber-500 hover:bg-amber-600 !text-white' 
+                            : 'bg-[var(--color-surface-3)] hover:bg-[var(--color-border)] text-[var(--color-text)]'
+                        }`}
+                      >
+                        {isTogglingMaintenance ? 'Procesando...' : (crmMaintenanceMode ? '⚠️ Activo (Bloqueada)' : 'Desactivado')}
+                      </button>
+                    </div>
                   </div>
                   {/* Alerta Remota / Bloqueo del Sistema */}
                   <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
