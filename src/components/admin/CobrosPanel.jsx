@@ -45,8 +45,8 @@ export default function CobrosPanel({
     const paidReports = periodReports.filter(r => r.estadoPago === 'pagado')
     const pendingReports = periodReports.filter(r => r.estadoPago !== 'pagado')
 
-    const totalCobrado = paidReports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
-    const totalPendiente = pendingReports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
+    const totalCobrado = paidReports.reduce((sum, r) => sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0), 0)
+    const totalPendiente = pendingReports.reduce((sum, r) => sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0), 0)
     const totalGenerado = totalCobrado + totalPendiente
 
     const totalVentasCobradas = paidReports.reduce((sum, r) => sum + (r.totalVentas || 0), 0)
@@ -116,7 +116,7 @@ export default function CobrosPanel({
         const group = groupedMap.get(clientKey)
         group.periodos.push(r.periodo)
         group.totalVentas += r.totalVentas || 0
-        group.comisionValor += r.comisionValor || 0
+        group.comisionValor += (r.comisionValor || 0) - (r.comisionesDeducidas || 0)
         group.count += 1
         group.originalReports.push(r)
       })
@@ -437,7 +437,12 @@ export default function CobrosPanel({
 
                       {/* Comisión Cobrada */}
                       <td className="p-4 text-right text-emerald-500 font-extrabold text-[11px] tracking-tight">
-                        ${item.comisionValor.toLocaleString('es-CO')}
+                        ${(item.comisionValor - (item.comisionesDeducidas || 0)).toLocaleString('es-CO')}
+                        {item.comisionesDeducidas > 0 && (
+                          <div className="text-[9px] text-amber-500 font-medium">
+                            (Deducido: ${item.comisionesDeducidas.toLocaleString('es-CO')})
+                          </div>
+                        )}
                       </td>
 
                       {/* Estado */}

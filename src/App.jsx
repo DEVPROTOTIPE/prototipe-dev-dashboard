@@ -5863,11 +5863,11 @@ export default function App() {
 
   // Métricas memoizadas
   const totalComision = useMemo(() => {
-    return filteredPeriodReports.reduce((sum, r) => sum + (r.comisionValor || 0), 0)
+    return filteredPeriodReports.reduce((sum, r) => sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0), 0)
   }, [filteredPeriodReports])
 
   const totalCobrado = useMemo(() => {
-    return filteredPeriodReports.reduce((sum, r) => (r.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? sum + (r.comisionValor || 0) : sum, 0)
+    return filteredPeriodReports.reduce((sum, r) => (r.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0) : sum, 0)
   }, [filteredPeriodReports])
 
   const totalPendiente = useMemo(() => {
@@ -5903,7 +5903,7 @@ export default function App() {
         }
       }
       acc[r.clientId].totalSales += (r.totalVentas || 0)
-      acc[r.clientId].totalCommission += (r.comisionValor || 0)
+      acc[r.clientId].totalCommission += (r.comisionValor || 0) - (r.comisionesDeducidas || 0)
       acc[r.clientId].reportCount += 1
       const reportStatus = (r.estadoPago || 'pendiente').toLowerCase()
       if (reportStatus === 'pendiente') {
@@ -5941,7 +5941,7 @@ export default function App() {
     const periodMap = reports.reduce((acc, r) => {
       const p = r.periodo || 'N/A'
       if (!acc[p]) acc[p] = { periodo: p, comisiones: 0, ventas: 0, count: 0 }
-      acc[p].comisiones += (r.comisionValor || 0)
+      acc[p].comisiones += (r.comisionValor || 0) - (r.comisionesDeducidas || 0)
       acc[p].ventas += (r.totalVentas || 0)
       acc[p].count += 1
       return acc
