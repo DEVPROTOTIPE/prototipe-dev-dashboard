@@ -453,6 +453,78 @@ try {
     });
   }
 
+  // Escaneo de Seguridad de Vistas Administrativas (RBAC & Admin Bypass)
+  console.log('\n[Info] Ejecutando linter de seguridad y control de acceso (RBAC Guard)...');
+
+  // 1. Validar que las rutas administrativas de la plantilla del cliente estén protegidas
+  const clientAppRoutesPath = path.join(rootDir, 'Plantillas Core', 'App Ventas', 'src', 'routes', 'AppRoutes.jsx');
+  if (fs.existsSync(clientAppRoutesPath)) {
+    const content = fs.readFileSync(clientAppRoutesPath, 'utf8');
+    
+    // Validar existencia de guardia de autenticación por rol
+    const hasRequireAuth = /RequireAuth/i.test(content);
+    const hasAdminRoleGuard = /allowedRole\s*=\s*{\s*(?:ROLES\.ADMIN|['"]admin['"])\s*}/i.test(content) || /allowedRole\s*=\s*(?:ROLES\.ADMIN|['"]admin['"])/i.test(content);
+
+    if (!hasRequireAuth || !hasAdminRoleGuard) {
+      console.error(`  - [Fallo Linter de Seguridad] El archivo de enrutamiento del cliente "${path.basename(clientAppRoutesPath)}" carece de protección robusta de rutas por rol "admin". Asegura que las rutas "/admin" requieran allowedRole={ROLES.ADMIN}.`);
+      linterFailsCount++;
+    }
+  }
+
+  // 2. Validar que los layouts de administración de la plantilla del cliente validen autenticación
+  const clientAdminLayoutPath = path.join(rootDir, 'Plantillas Core', 'App Ventas', 'src', 'layouts', 'AdminLayout.jsx');
+  if (fs.existsSync(clientAdminLayoutPath)) {
+    const content = fs.readFileSync(clientAdminLayoutPath, 'utf8');
+    const validatesAuth = /useAuthStore|auth|signOut|RequireAuth/i.test(content);
+
+    if (!validatesAuth) {
+      console.error(`  - [Fallo Linter de Seguridad] El Layout Administrativo "${path.basename(clientAdminLayoutPath)}" carece de hooks de autenticación. Debe interactuar conuseAuthStore o Firebase Auth.`);
+      linterFailsCount++;
+    }
+  }
+
+  // 3. Escaneo preventivo de vistas administrativas sueltas o legacy
+  const templateVentasSrc = path.join(rootDir, 'Plantillas Core', 'App Ventas', 'src');
+  if (fs.existsSync(templateVentasSrc)) {
+    const walkSync = (dir, fileList = []) => {
+      fs.readdirSync(dir).forEach(file => {
+        const filePath = path.join(dir, file);
+        if (fs.statSync(filePath).isDirectory()) {
+          walkSync(filePath, fileList);
+        } else if (file.endsWith('.jsx') || file.endsWith('.js')) {
+          fileList.push(filePath);
+        }
+      });
+      return fileList;
+    };
+
+    const clientFiles = walkSync(templateVentasSrc);
+    clientFiles.forEach(filePath => {
+      const filename = path.basename(filePath);
+      const normalizedPath = filePath.replace(/\\/g, '/');
+      
+      // Auditar archivos que se hagan pasar por paneles o admin pero que estén fuera de rutas protegidas
+      // ej. en components/common/ o public/ sin estar integrados en AppRoutes
+      if (/admin|panel/i.test(filename) && 
+          !normalizedPath.includes('routes') && 
+          !normalizedPath.includes('layouts') && 
+          !normalizedPath.includes('verify_library_integrity') && 
+          !normalizedPath.includes('particlesIcons') &&
+          !normalizedPath.includes('pages/admin')) { // Las páginas dentro de pages/admin ya están cubiertas por el AppRoutes global
+        
+        const content = fs.readFileSync(filePath, 'utf8');
+        const hasRbacCheck = /role\s*===\s*['"]admin['"]|role\s*==\s*['"]admin['"]|isAdmin|AuthGuard|requireAdmin|roleCheck|user\.role|profile\.role/i.test(content);
+        
+        if (!hasRbacCheck) {
+          console.error(`  - [Fallo Linter de Seguridad] Componente administrativo huérfano detectado: "${filename}" (${path.relative(rootDir, filePath)}). Fuera de pages/admin y carece de validación de rol "admin" explícita. Protégelo.`);
+          linterFailsCount++;
+        }
+      }
+    });
+  }
+
+
+
   if (linterFailsCount > 0) {
     console.warn(`\n[Advertencia Linter] El linter visual y estético detectó ${linterFailsCount} desviaciones de calidad del estándar premium (sólo informativo, no bloquea el build).`);
   } else {
