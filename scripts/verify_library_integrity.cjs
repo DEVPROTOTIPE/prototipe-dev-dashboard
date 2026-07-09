@@ -851,7 +851,9 @@ try {
             file.includes('/.tmp/') ||
             file.includes('\\.tmp\\') ||
             file.includes('.firebase/') ||
-            file.endsWith('.cache')
+            file.endsWith('.cache') ||
+            file.endsWith('GEMINI.md') ||
+            file.endsWith('AGENTS.md')
           ) {
             return;
           }
