@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Home, Search, ShoppingBag, User, Settings, Bell, Heart, Menu } from 'lucide-react';
+import { Home, Search, ShoppingBag, User, Bell, Heart } from 'lucide-react';
 import { SandboxLayout } from './SandboxLayout';
 
-// Opciones predefinidas para pruebas en el Sandbox
+// Opciones predefinidas para pruebas en el Sandbox (Nombres planos para compatibilidad con SandboxLayout y CustomSelect)
 const PRESETS = {
-  default: [
+  '3 Botones (Mínimo)': [
+    { id: 'home', label: 'Inicio', icon: Home },
+    { id: 'catalog', label: 'Buscar', icon: Search },
+    { id: 'cart', label: 'Bolsa', icon: ShoppingBag },
+  ],
+  '4 Botones (Recomendado)': [
     { id: 'home', label: 'Inicio', icon: Home },
     { id: 'catalog', label: 'Catálogo', icon: Search },
     { id: 'cart', label: 'Carrito', icon: ShoppingBag },
     { id: 'profile', label: 'Perfil', icon: User },
   ],
-  minimal: [
-    { id: 'home', label: 'Inicio', icon: Home },
-    { id: 'catalog', label: 'Buscar', icon: Search },
-    { id: 'cart', label: 'Bolsa', icon: ShoppingBag },
-  ],
-  extended: [
+  '5 Botones (Máximo)': [
     { id: 'home', label: 'Inicio', icon: Home },
     { id: 'catalog', label: 'Buscar', icon: Search },
     { id: 'favs', label: 'Favs', icon: Heart },
@@ -29,7 +29,7 @@ const PRESETS = {
 function AnimatedNavbarMobile({ 
   activeTab: externalActiveTab, 
   onChange, 
-  items = PRESETS.default,
+  items = PRESETS['4 Botones (Recomendado)'],
   demo = false 
 }) {
   const [localActiveTab, setLocalActiveTab] = useState('home');
@@ -90,7 +90,7 @@ function AnimatedNavbarMobile({
 }
 
 export default function AnimatedNavbarMobileSandbox() {
-  const [presetKey, setPresetKey] = useState('default');
+  const [presetKey, setPresetKey] = useState('4 Botones (Recomendado)');
   const [activeTab, setActiveTab] = useState('home');
   const [simulatedPage, setSimulatedPage] = useState('Inicio');
 
@@ -119,9 +119,9 @@ export default function AnimatedNavbarMobileSandbox() {
           type: 'select',
           value: presetKey,
           options: [
-            { value: 'minimal', label: '3 Opciones (Mínimo)' },
-            { value: 'default', label: '4 Opciones (Recomendado)' },
-            { value: 'extended', label: '5 Opciones (Máximo)' }
+            '3 Botones (Mínimo)',
+            '4 Botones (Recomendado)',
+            '5 Botones (Máximo)'
           ],
           onChange: handlePresetChange
         }
