@@ -3213,6 +3213,169 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [livePreviewComponent, setLivePreviewComponent] = useState(null)
 
+  // --- Estados y Lógica para Configuración de Alertas Omnicanal ---
+  const [alertsConfig, setAlertsConfig] = useState({
+    telegramToken: '',
+    telegramChatId: '',
+    discordWebhookUrl: '',
+    alertsEnabled: false,
+    channels: {
+      crashes: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      briefings: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      billing: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      devops: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true }
+    }
+  });
+  const [localAlertsConfig, setLocalAlertsConfig] = useState({
+    telegramToken: '',
+    telegramChatId: '',
+    discordWebhookUrl: '',
+    alertsEnabled: false,
+    channels: {
+      crashes: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      briefings: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      billing: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true },
+      devops: { telegramToken: '', telegramChatId: '', discordWebhookUrl: '', enabled: true }
+    }
+  });
+  const [selectedAlertSubTab, setSelectedAlertSubTab] = useState('general'); // 'general' | 'crashes' | 'briefings' | 'billing' | 'devops'
+  const [showTelegramHelp, setShowTelegramHelp] = useState(false);
+  const [savingAlertsConfig, setSavingAlertsConfig] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
+
+  useEffect(() => {
+    const centralApp = getCentralApp();
+    if (!centralApp) return;
+    const db = getFirestore(centralApp);
+    const docRef = doc(db, 'configuracion_sistema', 'monitoreo');
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const cfg = {
+          telegramToken: data.telegramToken || '',
+          telegramChatId: data.telegramChatId || '',
+          discordWebhookUrl: data.discordWebhookUrl || '',
+          alertsEnabled: !!data.alertsEnabled,
+          channels: {
+            crashes: {
+              telegramToken: data.channels?.crashes?.telegramToken || '',
+              telegramChatId: data.channels?.crashes?.telegramChatId || '',
+              discordWebhookUrl: data.channels?.crashes?.discordWebhookUrl || '',
+              enabled: data.channels?.crashes?.enabled !== false
+            },
+            briefings: {
+              telegramToken: data.channels?.briefings?.telegramToken || '',
+              telegramChatId: data.channels?.briefings?.telegramChatId || '',
+              discordWebhookUrl: data.channels?.briefings?.discordWebhookUrl || '',
+              enabled: data.channels?.briefings?.enabled !== false
+            },
+            billing: {
+              telegramToken: data.channels?.billing?.telegramToken || '',
+              telegramChatId: data.channels?.billing?.telegramChatId || '',
+              discordWebhookUrl: data.channels?.billing?.discordWebhookUrl || '',
+              enabled: data.channels?.billing?.enabled !== false
+            },
+            devops: {
+              telegramToken: data.channels?.devops?.telegramToken || '',
+              telegramChatId: data.channels?.devops?.telegramChatId || '',
+              discordWebhookUrl: data.channels?.devops?.discordWebhookUrl || '',
+              enabled: data.channels?.devops?.enabled !== false
+            }
+          }
+        };
+        setAlertsConfig(cfg);
+        setLocalAlertsConfig(cfg);
+
+        // Sincronizar con el CLI local
+        fetch('http://localhost:3001/api/project/notify/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg)
+        }).catch(() => {});
+      }
+    }, (err) => {
+      console.warn("Error al escuchar configuracion de monitoreo en App.jsx:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveAlertsConfig = async () => {
+    const centralApp = getCentralApp();
+    if (!centralApp) return;
+    setSavingAlertsConfig(true);
+    try {
+      const db = getFirestore(centralApp);
+      const docRef = doc(db, 'configuracion_sistema', 'monitoreo');
+      await setDoc(docRef, {
+        ...localAlertsConfig,
+        actualizadoEn: serverTimestamp()
+      });
+
+      // Sincronizar con el CLI local al guardar
+      try {
+        await fetch('http://localhost:3001/api/project/notify/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localAlertsConfig)
+        });
+      } catch (e) {
+        console.warn("No se pudo sincronizar config con CLI local:", e.message);
+      }
+
+      showToast('Configuración de alertas guardada exitosamente ✓', { type: 'success' });
+    } catch (err) {
+      showToast(`Error al guardar configuración de alertas: ${err.message}`, { type: 'error' });
+    } finally {
+      setSavingAlertsConfig(false);
+    }
+  };
+
+  const handleTestAlert = async () => {
+    setTestingAlert(true);
+    try {
+      let creds = {};
+      let channelLabel = 'General';
+
+      if (selectedAlertSubTab === 'general') {
+        creds = {
+          telegramToken: localAlertsConfig.telegramToken,
+          telegramChatId: localAlertsConfig.telegramChatId,
+          discordWebhookUrl: localAlertsConfig.discordWebhookUrl
+        };
+      } else {
+        const sub = localAlertsConfig.channels?.[selectedAlertSubTab] || {};
+        const hasSub = !!(sub.telegramToken || sub.discordWebhookUrl);
+        creds = {
+          telegramToken: hasSub ? sub.telegramToken : localAlertsConfig.telegramToken,
+          telegramChatId: hasSub ? sub.telegramChatId : localAlertsConfig.telegramChatId,
+          discordWebhookUrl: hasSub ? sub.discordWebhookUrl : localAlertsConfig.discordWebhookUrl
+        };
+        channelLabel = selectedAlertSubTab === 'crashes' ? 'Crashes 🔴' :
+                       selectedAlertSubTab === 'briefings' ? 'Preventas 📝' :
+                       selectedAlertSubTab === 'billing' ? 'Billing 💰' : 'DevOps ⚙️';
+      }
+
+      const response = await fetch('http://localhost:3001/api/project/notify/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creds)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let parsed;
+        try { parsed = JSON.parse(errText); } catch (_) {}
+        throw new Error(parsed?.error || errText);
+      }
+
+      showToast(`Alerta de prueba enviada al canal ${channelLabel} ✓`, { type: 'success' });
+    } catch (err) {
+      showToast(`Fallo al enviar alerta de prueba: ${err.message}`, { type: 'error' });
+    } finally {
+      setTestingAlert(false);
+    }
+  };
+
   const [failures, setFailures] = useState([])
   const [selectedErrorClientFilter, setSelectedErrorClientFilter] = useState('todos')
   const [errorSearchQuery, setErrorSearchQuery] = useState('')
@@ -13318,6 +13481,261 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* Canales de Alertas Omnicanal (Telegram / Discord) */}
+              <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                  <div>
+                    <h3 className="font-extrabold text-sm text-[var(--color-text)] flex items-center gap-2">
+                      <ShieldAlert size={16} className="text-indigo-400 shrink-0" />
+                      Canales de Alertas Omnicanal
+                    </h3>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Configura ruteo inteligente y credenciales específicas por tipo de alerta con fallback general.</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 select-none self-end sm:self-auto">
+                    <span className="text-[10px] font-bold text-[var(--color-text-muted)]">Alertas Activas:</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={localAlertsConfig.alertsEnabled} 
+                        onChange={(e) => setLocalAlertsConfig(prev => ({ ...prev, alertsEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Sub-selector de Pestañas de Canales */}
+                <div className="flex flex-wrap gap-1 p-1 bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)] text-xs">
+                  <button 
+                    onClick={() => setSelectedAlertSubTab('general')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${selectedAlertSubTab === 'general' ? 'bg-[var(--color-surface-3)] text-[var(--color-text)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  >
+                    Canal General (Fallback)
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAlertSubTab('crashes')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${selectedAlertSubTab === 'crashes' ? 'bg-[var(--color-surface-3)] text-rose-400 shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  >
+                    Crashes e Incidentes 🔴
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAlertSubTab('briefings')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${selectedAlertSubTab === 'briefings' ? 'bg-[var(--color-surface-3)] text-emerald-400 shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  >
+                    Preventas y Leads 📝
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAlertSubTab('billing')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${selectedAlertSubTab === 'billing' ? 'bg-[var(--color-surface-3)] text-amber-400 shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  >
+                    Billing y Comisiones 💰
+                  </button>
+                  <button 
+                    onClick={() => setSelectedAlertSubTab('devops')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${selectedAlertSubTab === 'devops' ? 'bg-[var(--color-surface-3)] text-indigo-400 shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  >
+                    DevOps y Despliegues ⚙️
+                  </button>
+                </div>
+                
+                {/* Formulario Dinámico y Guía de Ayuda */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Inputs */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {selectedAlertSubTab !== 'general' && (
+                      <div className="flex items-center justify-between p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl text-xs">
+                        <div>
+                          <p className="font-bold text-[var(--color-text)] uppercase tracking-wider text-[9px] text-indigo-400">Canal Específico Activo</p>
+                          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Puedes deshabilitar este tipo de alerta de forma independiente.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            checked={localAlertsConfig.channels?.[selectedAlertSubTab]?.enabled !== false} 
+                            onChange={(e) => setLocalAlertsConfig(prev => ({
+                              ...prev,
+                              channels: {
+                                ...prev.channels,
+                                [selectedAlertSubTab]: {
+                                  ...prev.channels?.[selectedAlertSubTab],
+                                  enabled: e.target.checked
+                                }
+                              }
+                            }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-8 h-4 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Telegram Config */}
+                      <div className="space-y-3 p-4 bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)]">
+                        <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Telegram Bot</p>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-1">Bot Token</label>
+                            <input 
+                              type="password" 
+                              value={selectedAlertSubTab === 'general' 
+                                ? localAlertsConfig.telegramToken 
+                                : (localAlertsConfig.channels?.[selectedAlertSubTab]?.telegramToken || '')}
+                              onChange={(e) => setLocalAlertsConfig(prev => {
+                                if (selectedAlertSubTab === 'general') {
+                                  return { ...prev, telegramToken: e.target.value };
+                                } else {
+                                  return {
+                                    ...prev,
+                                    channels: {
+                                      ...prev.channels,
+                                      [selectedAlertSubTab]: {
+                                        ...prev.channels?.[selectedAlertSubTab],
+                                        telegramToken: e.target.value
+                                      }
+                                    }
+                                  };
+                                }
+                              })}
+                              placeholder={selectedAlertSubTab === 'general' ? "Ej: 8864681736:AA..." : "Usar token general (fallback)"}
+                              className="w-full px-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-indigo-500 text-[var(--color-text)]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-1">Chat ID de Destino</label>
+                            <input 
+                              type="text" 
+                              value={selectedAlertSubTab === 'general' 
+                                ? localAlertsConfig.telegramChatId 
+                                : (localAlertsConfig.channels?.[selectedAlertSubTab]?.telegramChatId || '')}
+                              onChange={(e) => setLocalAlertsConfig(prev => {
+                                if (selectedAlertSubTab === 'general') {
+                                  return { ...prev, telegramChatId: e.target.value };
+                                } else {
+                                  return {
+                                    ...prev,
+                                    channels: {
+                                      ...prev.channels,
+                                      [selectedAlertSubTab]: {
+                                        ...prev.channels?.[selectedAlertSubTab],
+                                        telegramChatId: e.target.value
+                                      }
+                                    }
+                                  };
+                                }
+                              })}
+                              placeholder={selectedAlertSubTab === 'general' ? "Ej: 882566128" : "Usar Chat ID general (fallback)"}
+                              className="w-full px-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-indigo-500 text-[var(--color-text)]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Discord Config */}
+                      <div className="space-y-3 p-4 bg-[var(--color-bg)] rounded-xl border border-[var(--color-border)] flex flex-col justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Discord Webhook</p>
+                          <div className="space-y-2 mt-2">
+                            <label className="text-[10px] font-bold text-[var(--color-text-muted)] block mb-1">Webhook URL</label>
+                            <input 
+                              type="password" 
+                              value={selectedAlertSubTab === 'general' 
+                                ? localAlertsConfig.discordWebhookUrl 
+                                : (localAlertsConfig.channels?.[selectedAlertSubTab]?.discordWebhookUrl || '')}
+                              onChange={(e) => setLocalAlertsConfig(prev => {
+                                if (selectedAlertSubTab === 'general') {
+                                  return { ...prev, discordWebhookUrl: e.target.value };
+                                } else {
+                                  return {
+                                    ...prev,
+                                    channels: {
+                                      ...prev.channels,
+                                      [selectedAlertSubTab]: {
+                                        ...prev.channels?.[selectedAlertSubTab],
+                                        discordWebhookUrl: e.target.value
+                                      }
+                                    }
+                                  };
+                                }
+                              })}
+                              placeholder={selectedAlertSubTab === 'general' ? "https://discord.com/api/webhooks/..." : "Usar webhook general (fallback)"}
+                              className="w-full px-3 py-2 text-xs bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-indigo-500 text-[var(--color-text)]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-3 mt-4 md:mt-0">
+                          <button
+                            onClick={handleTestAlert}
+                            className="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {testingAlert ? 'Enviando Prueba...' : 'Probar Canal'}
+                          </button>
+                          <button
+                            onClick={handleSaveAlertsConfig}
+                            disabled={savingAlertsConfig}
+                            className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {savingAlertsConfig ? 'Guardando...' : 'Guardar Ajustes'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Interactive Telegram Bot Creation Help */}
+                  <div className="lg:col-span-1">
+                    <div className="bg-[var(--color-surface-2)]/30 rounded-xl border border-[var(--color-border)] overflow-hidden h-full flex flex-col justify-between">
+                      <div>
+                        <button 
+                          onClick={() => setShowTelegramHelp(!showTelegramHelp)}
+                          className="w-full px-4 py-3 flex items-center justify-between font-bold text-xs text-[var(--color-text)] cursor-pointer hover:bg-[var(--color-surface-2)]/50 transition-all select-none border-b border-[var(--color-border)]"
+                        >
+                          <span className="flex items-center gap-2">
+                            <BookOpen size={14} className="text-indigo-400" />
+                            Guía: Telegram Bots
+                          </span>
+                          <ChevronDown size={14} className={`text-[var(--color-text-muted)] transition-transform duration-300 ${showTelegramHelp ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <div className={`px-4 py-3 text-[10px] text-[var(--color-text-muted)] space-y-3.5 leading-relaxed bg-[var(--color-bg)]/10 overflow-y-auto max-h-[220px] scrollbar-thin ${showTelegramHelp ? 'block' : 'hidden lg:block'}`}>
+                          <div className="space-y-1">
+                            <p className="font-extrabold text-[var(--color-text)] uppercase tracking-wider text-[8px] text-indigo-400">1. Crear Bot con BotFather</p>
+                            <ol className="list-decimal pl-4 space-y-1">
+                              <li>Busca <b className="text-[var(--color-text)]">@BotFather</b> en Telegram.</li>
+                              <li>Envía el comando <code className="px-1 bg-[var(--color-surface-3)] rounded font-mono text-[var(--color-text)]">/newbot</code>.</li>
+                              <li>Asígnale un Nombre y un Username (debe terminar en <code className="font-mono">bot</code>).</li>
+                              <li>Copia el <b className="text-[var(--color-text)]">Bot Token</b> arrojado.</li>
+                            </ol>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="font-extrabold text-[var(--color-text)] uppercase tracking-wider text-[8px] text-indigo-400">2. Obtener Chat ID de Destino</p>
+                            <div className="space-y-2">
+                              <div className="p-2 bg-[var(--color-surface-2)]/40 rounded-lg border border-[var(--color-border)]/50">
+                                <p className="font-bold text-[var(--color-text)]">Chat Privado:</p>
+                                <p>Inicia tu bot y luego consulta tu ID personal con <b className="text-[var(--color-text)]">@userinfobot</b>.</p>
+                              </div>
+                              <div className="p-2 bg-[var(--color-surface-2)]/40 rounded-lg border border-[var(--color-border)]/50">
+                                <p className="font-bold text-[var(--color-text)]">Grupo de Telegram:</p>
+                                <p>Añade el bot al grupo, luego añade a <b className="text-[var(--color-text)]">@RawDataBot</b> para ver el ID negativo (ej: <code className="font-mono">-100...</code>).</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className={`p-3 bg-indigo-500/5 border-t border-[var(--color-border)] flex gap-2 items-start ${showTelegramHelp ? 'flex' : 'hidden lg:flex'}`}>
+                        <Sparkles size={14} className="text-indigo-400 shrink-0 mt-0.5" />
+                        <p className="text-[9px] text-[var(--color-text-muted)] leading-tight">Puedes usar el mismo Bot Token en varios canales y separarlos usando distintos Chat IDs de grupo.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Panel de Telemetría Centralizada Multi-Cliente (Premium Matrix) */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 

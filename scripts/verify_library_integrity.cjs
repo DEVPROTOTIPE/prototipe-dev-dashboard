@@ -744,7 +744,7 @@ try {
                 if (trimmed.match(/^-\s*Archivos:/i)) {
                   const inlineRest = trimmed.replace(/^-\s*Archivos:\s*/i, '').trim();
                   if (inlineRest) {
-                    const inlineFileRegex = /\[`?([^`\]\s]+)`?\]/g;
+                    const inlineFileRegex = /\[`?([^`\]]+)`?\]/g;
                     let fm;
                     while ((fm = inlineFileRegex.exec(inlineRest)) !== null) {
                       const cleanPath = fm[1].replace(/\\/g, '/');
@@ -753,7 +753,7 @@ try {
                   }
                   inArchivos = true;
                 } else if (inArchivos) {
-                  const fileMatch = trimmed.match(/^-?\s*\[`?([^`\]\s]+)`?\]/);
+                  const fileMatch = trimmed.match(/^-?\s*\[`?([^`\]]+)`?\]/);
                   if (fileMatch) {
                     const cleanPath = fileMatch[1].replace(/\\/g, '/');
                     activeTaskArchivos.add(cleanPath);
@@ -846,15 +846,30 @@ try {
             file.includes('sync_manifest.json') ||
             file.endsWith('tareas_pendientes.md') ||
             file.endsWith('bitacora_cambios.md') ||
-            file.includes('scratch/')
+            file.includes('scratch/') ||
+            file.endsWith('notification_config.json') ||
+            file.includes('/.tmp/') ||
+            file.includes('\\.tmp\\') ||
+            file.includes('.firebase/') ||
+            file.endsWith('.cache')
           ) {
             return;
           }
 
           // Verificar si la ruta del archivo modificado coincide con alguna declarada en la tarea
           let isRegistered = false;
+          const fileLower = file.toLowerCase();
+          // Si git reporta un directorio completo (untracked dir termina en '/'),
+          // basta con que algún archivo registrado empiece con ese prefijo de directorio
+          const isDir = fileLower.endsWith('/');
           for (const registeredPath of activeTaskArchivos) {
-            if (file.toLowerCase() === registeredPath.toLowerCase() || file.toLowerCase().endsWith(registeredPath.toLowerCase())) {
+            const regLower = registeredPath.toLowerCase();
+            if (
+              fileLower === regLower ||
+              fileLower.endsWith(regLower) ||
+              (isDir && regLower.startsWith(fileLower)) ||
+              (!isDir && regLower.endsWith(fileLower))
+            ) {
               isRegistered = true;
               break;
             }
@@ -890,7 +905,23 @@ try {
     console.error(' ❌ LA VERIFICACIÓN DE INTEGRIDAD FALLÓ.');
     console.error(' Corrige los errores descritos arriba para poder construir la app.');
     console.error('==================================================');
-    process.exit(1);
+
+    // Alerta DevOps: Fallo de Integridad (Build)
+    const payload = {
+      clientId: 'dev-dashboard',
+      componentName: 'verify_library_integrity.cjs',
+      errorMessage: 'Fallo de verificación de integridad en prebuild del dashboard.',
+      stackTrace: 'El linter local detectó desalineación en el roadmap, enlaces rotos, componentes huérfanos o violación del estándar.',
+      severity: 'high'
+    };
+
+    fetch('http://localhost:5050/api/notify/error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(() => process.exit(1))
+      .catch(() => process.exit(1));
   } else {
     console.log('\n==================================================');
     console.log('  ✅ INTEGRIDAD DE LA BIBLIOTECA AL 100% OK.');
@@ -900,5 +931,21 @@ try {
 
 } catch (error) {
   console.error('[Error] Error grave al validar la integridad de la biblioteca:', error);
-  process.exit(1);
+
+  // Alerta DevOps: Excepción en verificación
+  const payload = {
+    clientId: 'dev-dashboard',
+    componentName: 'verify_library_integrity.cjs',
+    errorMessage: `Excepción grave en verificación: ${error.message}`,
+    stackTrace: error.stack || 'Error de compilación o ejecución del script.',
+    severity: 'critical'
+  };
+
+  fetch('http://localhost:5050/api/notify/error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(() => process.exit(1))
+    .catch(() => process.exit(1));
 }
