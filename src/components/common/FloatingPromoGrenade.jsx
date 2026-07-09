@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bomb, X, Tag, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -74,71 +75,142 @@ export default function FloatingPromoGrenade({
       {/* 2. MODAL GLASSMORPHIC DE REVELACIÓN (Las promociones del cliente) */}
       <AnimatePresence>
         {phase === 'revealed' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            {/* Tap-shield para cerrar al hacer clic afuera */}
-            <div className="absolute inset-0 z-40" onClick={handleClose}></div>
-            
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-              className="relative z-50 w-full max-w-sm p-6 overflow-hidden rounded-[var(--radius-base)] bg-[var(--color-surface)] shadow-soft-2xl border border-[var(--color-border)] flex flex-col"
-            >
-              {/* Brillo holográfico interno (Efecto Premium) */}
-              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-[var(--color-primary)]/15 to-transparent -z-10 pointer-events-none"></div>
+          typeof window !== 'undefined' && document.body ? (
+            createPortal(
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                {/* Tap-shield para cerrar al hacer clic afuera */}
+                <div className="absolute inset-0 z-40" onClick={handleClose}></div>
+                
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0, y: 30 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+                  className="relative z-50 w-full max-w-sm p-6 overflow-hidden rounded-[var(--radius-base)] bg-[var(--color-surface)] shadow-soft-2xl border border-[var(--color-border)] flex flex-col"
+                >
+                  {/* Brillo holográfico interno (Efecto Premium) */}
+                  <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-[var(--color-primary)]/15 to-transparent -z-10 pointer-events-none"></div>
 
-              <button
-                onClick={handleClose}
-                aria-label="Cerrar promociones"
-                className="absolute top-4 right-4 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-[var(--color-surface-2)] rounded-full transition-colors active:scale-95"
-              >
-                <X size={18} />
-              </button>
+                  <button
+                    onClick={handleClose}
+                    aria-label="Cerrar promociones"
+                    className="absolute top-4 right-4 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-[var(--color-surface-2)] rounded-full transition-colors active:scale-95"
+                  >
+                    <X size={18} />
+                  </button>
 
-              <div className="flex flex-col items-center mb-6 text-center mt-2">
-                <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
-                  <Sparkles size={24} strokeWidth={2.5} />
-                </div>
-                <h3 className="text-xl font-display font-bold text-[var(--color-text)] leading-tight">
-                  ¡Boom! Promociones Desbloqueadas
-                </h3>
-                <p className="text-sm text-[var(--color-text-muted)] mt-1.5">
-                  Aprovecha estas ofertas exclusivas diseñadas para ti.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 overflow-y-auto scrollbar-thin max-h-[50vh] pb-2">
-                {promotions.length > 0 ? (
-                  promotions.map((promo, index) => (
-                    <motion.div
-                      key={promo.id || index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-3.5 border rounded-xl border-[var(--color-border)] bg-[var(--color-surface-2)]/60 hover:border-[var(--color-primary)]/40 transition-colors"
-                    >
-                      <div className="flex flex-col min-w-0 pr-2">
-                        <span className="font-medium text-[var(--color-text)] text-sm truncate">
-                          {promo.title}
-                        </span>
-                        <span className="text-xs text-[var(--color-primary)] flex items-center gap-1 mt-1 font-semibold">
-                          <Tag size={12} /> {promo.code}
-                        </span>
-                      </div>
-                      <button className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-white transition-all rounded-lg bg-[var(--color-primary)] active:scale-95 shadow-soft-sm">
-                        Aplicar
-                      </button>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">
-                    No hay promociones activas en este momento.
+                  <div className="flex flex-col items-center mb-6 text-center mt-2">
+                    <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+                      <Sparkles size={24} strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-xl font-display font-bold text-[var(--color-text)] leading-tight">
+                      ¡Boom! Promociones Desbloqueadas
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1.5">
+                      Aprovecha estas ofertas exclusivas diseñadas para ti.
+                    </p>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
+
+                  <div className="flex flex-col gap-3 overflow-y-auto scrollbar-thin max-h-[50vh] pb-2">
+                    {promotions.length > 0 ? (
+                      promotions.map((promo, index) => (
+                        <motion.div
+                          key={promo.id || index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-center justify-between p-3.5 border rounded-xl border-[var(--color-border)] bg-[var(--color-surface-2)]/60 hover:border-[var(--color-primary)]/40 transition-colors"
+                        >
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="font-medium text-[var(--color-text)] text-sm truncate">
+                              {promo.title}
+                            </span>
+                            <span className="text-xs text-[var(--color-primary)] flex items-center gap-1 mt-1 font-semibold">
+                              <Tag size={12} /> {promo.code}
+                            </span>
+                          </div>
+                          <button className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-white transition-all rounded-lg bg-[var(--color-primary)] active:scale-95 shadow-soft-sm">
+                            Aplicar
+                          </button>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">
+                        No hay promociones activas en este momento.
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>,
+              document.body
+            )
+          ) : (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+              {/* Tap-shield para cerrar al hacer clic afuera */}
+              <div className="absolute inset-0 z-40" onClick={handleClose}></div>
+              
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0, y: 30 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+                className="relative z-50 w-full max-w-sm p-6 overflow-hidden rounded-[var(--radius-base)] bg-[var(--color-surface)] shadow-soft-2xl border border-[var(--color-border)] flex flex-col"
+              >
+                {/* Brillo holográfico interno (Efecto Premium) */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-[var(--color-primary)]/15 to-transparent -z-10 pointer-events-none"></div>
+
+                <button
+                  onClick={handleClose}
+                  aria-label="Cerrar promociones"
+                  className="absolute top-4 right-4 p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] bg-[var(--color-surface-2)] rounded-full transition-colors active:scale-95"
+                >
+                  <X size={18} />
+                </button>
+
+                <div className="flex flex-col items-center mb-6 text-center mt-2">
+                  <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
+                    <Sparkles size={24} strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-[var(--color-text)] leading-tight">
+                    ¡Boom! Promociones Desbloqueadas
+                  </h3>
+                  <p className="text-sm text-[var(--color-text-muted)] mt-1.5">
+                    Aprovecha estas ofertas exclusivas diseñadas para ti.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 overflow-y-auto scrollbar-thin max-h-[50vh] pb-2">
+                  {promotions.length > 0 ? (
+                    promotions.map((promo, index) => (
+                      <motion.div
+                        key={promo.id || index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center justify-between p-3.5 border rounded-xl border-[var(--color-border)] bg-[var(--color-surface-2)]/60 hover:border-[var(--color-primary)]/40 transition-colors"
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="font-medium text-[var(--color-text)] text-sm truncate">
+                            {promo.title}
+                          </span>
+                          <span className="text-xs text-[var(--color-primary)] flex items-center gap-1 mt-1 font-semibold">
+                            <Tag size={12} /> {promo.code}
+                          </span>
+                        </div>
+                        <button className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-white transition-all rounded-lg bg-[var(--color-primary)] active:scale-95 shadow-soft-sm">
+                          Aplicar
+                        </button>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-sm text-[var(--color-text-muted)]">
+                      No hay promociones activas en este momento.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )
         )}
       </AnimatePresence>
     </>
