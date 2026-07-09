@@ -157,6 +157,9 @@ const COMPONENT_META = {
 
 // Mapa: nombre en minúsculas → clave de playground
 export const COMPONENT_SANDBOX_MAP = {
+  'animatednavbarmobile': 'AnimatedNavbarMobile',
+  'animated_navbar_mobile': 'AnimatedNavbarMobile',
+  'barra_navegacion_animada_movil': 'AnimatedNavbarMobile',
   // --- FASE 1: Componentes Atómicos Premium ---
   'pin_code_input': 'PinCodeInput',
   'pincodeinput': 'PinCodeInput',
