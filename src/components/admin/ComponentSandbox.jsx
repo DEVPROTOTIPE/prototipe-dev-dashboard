@@ -160,6 +160,9 @@ export const COMPONENT_SANDBOX_MAP = {
   'animatednavbarmobile': 'AnimatedNavbarMobile',
   'animated_navbar_mobile': 'AnimatedNavbarMobile',
   'barra_navegacion_animada_movil': 'AnimatedNavbarMobile',
+  'floatingpromogrenade': 'FloatingPromoGrenade',
+  'floating_promo_grenade': 'FloatingPromoGrenade',
+  'granada_promocional_flotante': 'FloatingPromoGrenade',
   // --- FASE 1: Componentes Atómicos Premium ---
   'pin_code_input': 'PinCodeInput',
   'pincodeinput': 'PinCodeInput',
