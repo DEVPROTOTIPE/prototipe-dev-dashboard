@@ -111,8 +111,10 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
       if (data.error) throw new Error(data.error);
 
       const currentHistory = healthData[clientId]?.history || [];
-      const updatedHistory = [data.responseTimeMs, ...currentHistory].slice(0, 10);
-      const fullData = { ...data, history: updatedHistory, lastCheck: new Date().toISOString() };
+      const now = new Date().toISOString();
+      const newEntry = { responseTimeMs: data.responseTimeMs, timestamp: now };
+      const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
+      const fullData = { ...data, history: updatedHistory, lastCheck: now };
 
       setHealthData(prev => ({ ...prev, [clientId]: fullData }));
 
@@ -137,11 +139,13 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
 
       setHealthData(prevHealth => {
         const updatedHealth = { ...prevHealth };
+        const now = new Date().toISOString();
         for (const clientResult of data) {
           const cId = clientResult.id;
           const currentHistory = prevHealth[cId]?.history || [];
-          const updatedHistory = [clientResult.responseTimeMs, ...currentHistory].slice(0, 10);
-          const fullData = { ...clientResult, history: updatedHistory };
+          const newEntry = { responseTimeMs: clientResult.responseTimeMs, timestamp: now };
+          const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
+          const fullData = { ...clientResult, history: updatedHistory, lastCheck: now };
           updatedHealth[cId] = fullData;
           if (dbInstance) {
             const docRef = doc(dbInstance, 'health_checks', cId);
@@ -320,20 +324,34 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
                       <div className="space-y-1">
                         <span className="text-[8px] uppercase font-bold text-slate-500 tracking-wider">Tiempos Históricos (ms)</span>
                         <div className="flex gap-1.5 items-end h-8 bg-[var(--color-surface)]/20 p-1.5 rounded-xl border border-[var(--color-border)]/50">
-                          {statusData.history.map((t, idx) => {
-                            const heightPercent = Math.min((t / 2500) * 100, 100);
-                            return (
-                              <div
-                                key={idx}
-                                className="flex-1 rounded-sm min-h-[2px] transition-all hover:opacity-80"
-                                style={{
-                                  height: `${heightPercent}%`,
-                                  backgroundColor: t < 1500 ? '#34d399' : t < 3000 ? '#fbbf24' : '#f87171'
-                                }}
-                                title={`${t} ms`}
-                              />
-                            );
-                          })}
+                           {statusData.history.map((item, idx) => {
+                             const timeVal = typeof item === 'object' && item !== null ? item.responseTimeMs : item;
+                             const timestampVal = typeof item === 'object' && item !== null ? item.timestamp : null;
+                             const heightPercent = Math.min((timeVal / 2500) * 100, 100);
+                             const formattedTime = timestampVal 
+                               ? new Date(timestampVal).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) 
+                               : '';
+                             const tooltipText = `${timeVal} ms${formattedTime ? ` · ${formattedTime}` : ''}`;
+
+                             return (
+                               <div key={idx} className="relative group flex-1 h-full flex items-end cursor-pointer">
+                                 <div
+                                   className="w-full rounded-sm min-h-[2px] transition-all group-hover:opacity-80"
+                                   style={{
+                                     height: `${heightPercent}%`,
+                                     backgroundColor: timeVal < 1500 ? '#34d399' : timeVal < 3000 ? '#fbbf24' : '#f87171'
+                                   }}
+                                 />
+                                 {/* Custom Premium Tooltip */}
+                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-30">
+                                   <div className="bg-slate-900 border border-slate-700/80 text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-xl whitespace-nowrap">
+                                     {tooltipText}
+                                   </div>
+                                   <div className="w-1 h-1 bg-slate-900 border-r border-b border-slate-700/80 rotate-45 -mt-0.5" />
+                                 </div>
+                               </div>
+                             );
+                           })}
                         </div>
                       </div>
                     )}
