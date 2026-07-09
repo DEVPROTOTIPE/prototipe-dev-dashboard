@@ -51,7 +51,7 @@ export default function FloatingPromoGrenade({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-              className="relative z-50 w-full max-w-sm p-6 overflow-hidden rounded-[var(--radius-base)] bg-[var(--color-surface)] shadow-soft-2xl border border-[var(--color-border)] flex flex-col"
+              className="relative z-50 w-full max-w-sm p-6 overflow-hidden rounded-3xl bg-[var(--color-surface)] shadow-soft-2xl border border-[var(--color-border)] flex flex-col"
             >
               {/* Brillo holográfico interno (Efecto Premium) */}
               <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-[var(--color-primary)]/15 to-transparent -z-10 pointer-events-none"></div>
