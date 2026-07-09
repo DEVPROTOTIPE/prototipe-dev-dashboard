@@ -73,6 +73,26 @@ service cloud.firestore {
     match /configuracion_sistema/{document} {
       allow read, write: if request.auth != null;
     }
+
+    // ─── Sesiones de Descubrimiento (Briefing Studio) ─────────────────────────────────
+    match /briefings/{briefingId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ─── Propuestas y Cotizaciones ───────────────────────────────────────────────────
+    match /cotizaciones/{quoteId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ─── Configuración de Tableros y Tarifas ──────────────────────────────────────────
+    match /dashboard_config/{configId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ─── Historial y Estado de Salud de Instancias (Health Checks) ───────────────────
+    match /health_checks/{checkId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
 
