@@ -20,7 +20,14 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
   const [clientes, setClientes] = useState([]);
   const [healthData, setHealthData] = useState({});
   const [checking, setChecking] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    return localStorage.getItem('health_monitor_auto_refresh') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('health_monitor_auto_refresh', autoRefresh);
+  }, [autoRefresh]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
