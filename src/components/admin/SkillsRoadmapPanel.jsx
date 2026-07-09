@@ -399,6 +399,29 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
     }
   };
 
+  const handleLinkMissingCommits = async () => {
+    if (commitDrifts.length === 0) return;
+    const taskIds = commitDrifts.map(d => d.id);
+
+    try {
+      const res = await fetch(`${CLI_URL}/api/git/link-tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskIds })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (showToast) showToast(data.message, { type: 'success' });
+        handleVerifyRoadmapDrifts();
+      } else {
+        throw new Error(data.error || 'Error al vincular tareas a Git.');
+      }
+    } catch (err) {
+      console.error(err);
+      if (showToast) showToast(`Fallo al vincular tareas: ${err.message}`, { type: 'error' });
+    }
+  };
+
   const handlePruneDrifts = async () => {
     const notFoundDrifts = codeDrifts.filter(d => d.type === 'FILE_NOT_FOUND');
     if (notFoundDrifts.length === 0) return;
@@ -1295,8 +1318,16 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
                                   Trazabilidad de Git: se contrastan los últimos 15 commits en la rama de desarrollo con las tareas de la hoja de ruta.
                                 </p>
                                 {totalCommitDrifts > 0 && (
-                                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg p-2.5 text-[10px] leading-snug">
-                                    ⚠️ {totalCommitDrifts} tareas completadas recientes carecen de commits vinculados en el historial Git inmediato (últimos 15 commits).
+                                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg p-2.5 text-[10px] leading-snug flex items-center justify-between gap-3">
+                                    <div className="flex-1">
+                                      ⚠️ {totalCommitDrifts} tareas completadas recientes carecen de commits vinculados en el historial Git inmediato (últimos 15 commits).
+                                    </div>
+                                    <button
+                                      onClick={handleLinkMissingCommits}
+                                      className="px-2.5 py-1 rounded-md text-[9px] font-black bg-amber-600 hover:bg-amber-500 !text-white border border-amber-500 transition-colors shrink-0 cursor-pointer shadow-sm"
+                                    >
+                                      🔗 Vincular Todo
+                                    </button>
                                   </div>
                                 )}
                               </div>
