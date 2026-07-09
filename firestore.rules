@@ -68,6 +68,11 @@ service cloud.firestore {
     match /whatsappTemplates/{templateId} {
       allow read, write: if request.auth != null;
     }
+
+    // ─── Configuración global del sistema de monitoreo y alertas ──────────────────────
+    match /configuracion_sistema/{document} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
 
