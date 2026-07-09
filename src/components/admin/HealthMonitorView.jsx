@@ -9,7 +9,8 @@ import {
   Globe, 
   Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from 'lucide-react';
 import { doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { CLI_URL } from '../../config';
@@ -30,6 +31,147 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Estados de configuración de alertas omnicanal
+  const [config, setConfig] = useState({
+    telegramToken: '',
+    telegramChatId: '',
+    discordWebhookUrl: '',
+    alertsEnabled: false
+  });
+  const [localConfig, setLocalConfig] = useState({
+    telegramToken: '',
+    telegramChatId: '',
+    discordWebhookUrl: '',
+    alertsEnabled: false
+  });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
+
+  // Escuchar configuración de alertas en tiempo real
+  useEffect(() => {
+    if (!dbInstance) return;
+    const docRef = doc(dbInstance, 'configuracion_sistema', 'monitoreo');
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setConfig({
+          telegramToken: data.telegramToken || '',
+          telegramChatId: data.telegramChatId || '',
+          discordWebhookUrl: data.discordWebhookUrl || '',
+          alertsEnabled: !!data.alertsEnabled
+        });
+      }
+    }, (err) => {
+      console.warn("Error al escuchar configuracion de monitoreo:", err);
+    });
+    return () => unsubscribe();
+  }, [dbInstance]);
+
+  const handleOpenModal = () => {
+    setLocalConfig({ ...config });
+    setModalOpen(true);
+  };
+
+  const handleSaveConfig = async (newConfig) => {
+    if (!dbInstance) return;
+    setSavingConfig(true);
+    try {
+      const docRef = doc(dbInstance, 'configuracion_sistema', 'monitoreo');
+      await setDoc(docRef, {
+        ...newConfig,
+        actualizadoEn: serverTimestamp()
+      });
+      showToast('Configuración de alertas guardada exitosamente ✓', { type: 'success' });
+      setModalOpen(false);
+    } catch (err) {
+      showToast(`Error al guardar configuración: ${err.message}`, { type: 'error' });
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  // Función de despacho de alertas (Telegram y Discord)
+  const dispatchAlert = async (type, clientName, clientUrl, details, currentConfig) => {
+    const { telegramToken, telegramChatId, discordWebhookUrl, alertsEnabled } = currentConfig;
+    if (!alertsEnabled) return;
+
+    // Telegram: formato HTML
+    let tgMessage = '';
+    if (type === 'down') {
+      tgMessage = `🔴 <b>SaaS Down:</b> ${clientName} (${clientUrl}) está caído.\n\n<b>Detalles:</b> ${details}`;
+    } else if (type === 'up') {
+      tgMessage = `🟢 <b>SaaS Up:</b> ${clientName} (${clientUrl}) se ha recuperado.\n\n<b>Detalles:</b> ${details}`;
+    } else if (type === 'test') {
+      tgMessage = `🔔 <b>Alerta de Prueba:</b> El sistema de notificaciones de Central PROTOTIPE está activo.`;
+    }
+
+    // Discord: formato Markdown
+    let dsMessage = '';
+    if (type === 'down') {
+      dsMessage = `🔴 **SaaS Down:** **${clientName}** (${clientUrl}) está caído.\n\n**Detalles:** ${details}`;
+    } else if (type === 'up') {
+      dsMessage = `🟢 **SaaS Up:** **${clientName}** (${clientUrl}) se ha recuperado.\n\n**Detalles:** ${details}`;
+    } else if (type === 'test') {
+      dsMessage = `🔔 **Alerta de Prueba:** El sistema de notificaciones de Central PROTOTIPE está activo.`;
+    }
+
+    const promises = [];
+
+    // Telegram Dispatch
+    if (telegramToken && telegramChatId) {
+      const telegramUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+      promises.push(
+        fetch(telegramUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: telegramChatId,
+            text: tgMessage,
+            parse_mode: 'HTML'
+          })
+        }).then(async r => {
+          if (!r.ok) {
+            const errData = await r.json();
+            throw new Error(errData.description || 'Error de API Telegram');
+          }
+        })
+      );
+    }
+
+    // Discord Dispatch
+    if (discordWebhookUrl) {
+      promises.push(
+        fetch(discordWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: dsMessage
+          })
+        }).then(async r => {
+          if (!r.ok) {
+            throw new Error(`Error de API Discord Status: ${r.status}`);
+          }
+        })
+      );
+    }
+
+    await Promise.all(promises);
+  };
+
+  const handleTestAlert = async (testConfig) => {
+    setTestingAlert(true);
+    try {
+      // Forzar temporalmente alertsEnabled a true para que la prueba funcione aunque esté apagado globalmente en la UI
+      await dispatchAlert('test', 'Test SaaS', 'https://test.web.app', 'Prueba de alerta', { ...testConfig, alertsEnabled: true });
+      showToast('Alerta de prueba enviada exitosamente ✓', { type: 'success' });
+    } catch (err) {
+      showToast(`Fallo al enviar alerta de prueba: ${err.message}`, { type: 'error' });
+    } finally {
+      setTestingAlert(false);
+    }
+  };
 
   // Escuchar la lista de clientes
   useEffect(() => {
@@ -110,6 +252,18 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
+      const prevStatus = healthData[clientId]?.status;
+      const newStatus = data.status;
+      let alertType = null;
+      let alertDetails = '';
+      if (newStatus === 'red' && prevStatus !== 'red' && prevStatus !== undefined) {
+        alertType = 'down';
+        alertDetails = `HTTP Status: ${data.httpStatus || 'N/A'}. Latencia: ${data.responseTimeMs}ms.`;
+      } else if (newStatus === 'green' && prevStatus === 'red') {
+        alertType = 'up';
+        alertDetails = `Latencia actual: ${data.responseTimeMs}ms.`;
+      }
+
       const currentHistory = healthData[clientId]?.history || [];
       const now = new Date().toISOString();
       const newEntry = { responseTimeMs: data.responseTimeMs, timestamp: now };
@@ -123,6 +277,15 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
         await setDoc(docRef, { ...fullData, actualizadoEn: serverTimestamp() });
       }
       showToast(`Estado verificado para ${clientId} ✓`, { type: 'success' });
+
+      // Despachar alerta fuera de los actualizadores de estado de React
+      if (alertType) {
+        const clientInfo = clientes.find(c => c.id === clientId);
+        const clientName = clientInfo ? clientInfo.nombre : clientId;
+        dispatchAlert(alertType, clientName, url, alertDetails, config).catch(err => {
+          console.error(`Error al notificar alerta para ${clientId}:`, err);
+        });
+      }
     } catch (err) {
       showToast(`Fallo en check de ${clientId}: ${err.message}`, { type: 'error' });
     }
@@ -137,34 +300,64 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setHealthData(prevHealth => {
-        const updatedHealth = { ...prevHealth };
-        const now = new Date().toISOString();
-        for (const clientResult of data) {
-          const cId = clientResult.id;
-          const currentHistory = prevHealth[cId]?.history || [];
-          const newEntry = { responseTimeMs: clientResult.responseTimeMs, timestamp: now };
-          const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
-          const fullData = { ...clientResult, history: updatedHistory, lastCheck: now };
-          updatedHealth[cId] = fullData;
-          if (dbInstance) {
-            const docRef = doc(dbInstance, 'health_checks', cId);
-            setDoc(docRef, { ...fullData, actualizadoEn: serverTimestamp() }).catch(err => {
-              console.warn(`Error guardando check de salud en DB para ${cId}:`, err);
-            });
+      const alertsToSend = [];
+      const updatedHealth = { ...healthData };
+      const now = new Date().toISOString();
+
+      for (const clientResult of data) {
+        const cId = clientResult.id;
+        const prevStatus = healthData[cId]?.status;
+        const newStatus = clientResult.status;
+
+        let alertType = null;
+        let alertDetails = '';
+
+        if (newStatus === 'red' && prevStatus !== 'red' && prevStatus !== undefined) {
+          alertType = 'down';
+          alertDetails = `HTTP Status: ${clientResult.httpStatus || 'N/A'}. Latencia: ${clientResult.responseTimeMs}ms.`;
+        } else if (newStatus === 'green' && prevStatus === 'red') {
+          alertType = 'up';
+          alertDetails = `Latencia actual: ${clientResult.responseTimeMs}ms.`;
+        }
+
+        if (alertType) {
+          const clientInfo = clientes.find(c => c.id === cId);
+          if (clientInfo) {
+            alertsToSend.push({ type: alertType, name: clientInfo.nombre, url: clientInfo.url, details: alertDetails });
           }
         }
-        return updatedHealth;
-      });
+
+        const currentHistory = healthData[cId]?.history || [];
+        const newEntry = { responseTimeMs: clientResult.responseTimeMs, timestamp: now };
+        const updatedHistory = [newEntry, ...currentHistory].slice(0, 10);
+        const fullData = { ...clientResult, history: updatedHistory, lastCheck: now };
+        updatedHealth[cId] = fullData;
+
+        if (dbInstance) {
+          const docRef = doc(dbInstance, 'health_checks', cId);
+          setDoc(docRef, { ...fullData, actualizadoEn: serverTimestamp() }).catch(err => {
+            console.warn(`Error guardando check de salud en DB para ${cId}:`, err);
+          });
+        }
+      }
+
+      setHealthData(updatedHealth);
       showToast('Monitoreo general de salud completado ✓', { type: 'success' });
+
+      // Despachar alertas fuera del ciclo de renderizado
+      if (alertsToSend.length > 0) {
+        alertsToSend.forEach(alertItem => {
+          dispatchAlert(alertItem.type, alertItem.name, alertItem.url, alertItem.details, config).catch(err => {
+            console.error(`Error enviando notificacion para ${alertItem.name}:`, err);
+          });
+        });
+      }
     } catch (err) {
       showToast(`Error de conexión con Bridge CLI: ${err.message}`, { type: 'error' });
     } finally {
       setChecking(false);
     }
-  };
-
-  const greenCount = clientes.filter(c => healthData[c.id]?.status === 'green').length;
+  };  const greenCount = clientes.filter(c => healthData[c.id]?.status === 'green').length;
   const redCount   = clientes.filter(c => healthData[c.id] && healthData[c.id].status !== 'green' && healthData[c.id].status !== 'yellow').length;
   const yellowCount= clientes.filter(c => healthData[c.id]?.status === 'yellow').length;
 
@@ -211,6 +404,14 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
           >
             <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
             Verificar Todo
+          </button>
+
+          <button
+            onClick={handleOpenModal}
+            className="p-2 bg-[var(--color-surface-2)] hover:bg-slate-800 border border-[var(--color-border)] rounded-xl text-[var(--color-text)] transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+            title="Configurar Alertas Omnicanal"
+          >
+            <Settings size={15} />
           </button>
         </div>
       </div>
@@ -414,6 +615,120 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
             >
               <ChevronRight size={13} />
             </button>
+          </div>
+        </div>
+      )}
+      {/* Modal de Configuración de Alertas */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-surface-2)]/30">
+              <div className="flex items-center gap-2.5">
+                <Settings className="text-indigo-400 w-5 h-5" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--color-text)]">Ajustes de Alertas</h3>
+              </div>
+              <button 
+                onClick={() => setModalOpen(false)}
+                className="text-slate-500 hover:text-[var(--color-text)] transition-colors text-xs font-bold w-6 h-6 rounded-lg hover:bg-[var(--color-surface-2)] flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5 flex-1 overflow-y-auto max-h-[70vh]">
+              {/* Activación Global */}
+              <div className="flex items-center justify-between p-3 bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase font-black text-[var(--color-text)] tracking-wider">Habilitar Alertas</span>
+                  <p className="text-[9px] text-[var(--color-text-muted)]">Enviar notificaciones activas por cambios de estado.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLocalConfig(prev => ({ ...prev, alertsEnabled: !prev.alertsEnabled }))}
+                  className={`w-8 h-4.5 rounded-full p-0.5 transition-all cursor-pointer ${localConfig.alertsEnabled ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${localConfig.alertsEnabled ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Sección Telegram */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--color-border)]/50">
+                  <span className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Telegram Bot</span>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 block mb-1">BOT TOKEN</label>
+                    <input
+                      type="text"
+                      value={localConfig.telegramToken}
+                      onChange={e => setLocalConfig(prev => ({ ...prev, telegramToken: e.target.value }))}
+                      placeholder="Ej: 123456789:ABCdefGhIJKlmNoPQRsT"
+                      className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs focus:border-indigo-500 outline-none text-[var(--color-text)] placeholder:text-slate-600 transition-all font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 block mb-1">CHAT ID</label>
+                    <input
+                      type="text"
+                      value={localConfig.telegramChatId}
+                      onChange={e => setLocalConfig(prev => ({ ...prev, telegramChatId: e.target.value }))}
+                      placeholder="Ej: -100123456789 o 987654321"
+                      className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs focus:border-indigo-500 outline-none text-[var(--color-text)] placeholder:text-slate-600 transition-all font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección Discord */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-1.5 pb-1 border-b border-[var(--color-border)]/50">
+                  <span className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Discord Webhook</span>
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-slate-500 block mb-1">WEBHOOK URL</label>
+                  <input
+                    type="text"
+                    value={localConfig.discordWebhookUrl}
+                    onChange={e => setLocalConfig(prev => ({ ...prev, discordWebhookUrl: e.target.value }))}
+                    placeholder="Ej: https://discord.com/api/webhooks/..."
+                    className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs focus:border-indigo-500 outline-none text-[var(--color-text)] placeholder:text-slate-600 transition-all font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surface-2)]/30 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => handleTestAlert(localConfig)}
+                disabled={testingAlert || (!localConfig.telegramToken && !localConfig.discordWebhookUrl)}
+                className="px-3.5 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] text-slate-350 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                {testingAlert ? 'Enviando...' : 'Probar Conexión'}
+              </button>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-3.5 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveConfig(localConfig)}
+                  disabled={savingConfig}
+                  className="px-4 py-2 bg-indigo-650 hover:bg-indigo-600 disabled:opacity-40 rounded-xl text-xs font-bold text-white transition-all active:scale-95 cursor-pointer shadow-lg shadow-indigo-600/10"
+                >
+                  {savingConfig ? 'Guardando...' : 'Guardar Ajustes'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
