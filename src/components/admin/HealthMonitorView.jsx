@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   HeartPulse, 
   RefreshCw, 
@@ -60,14 +60,24 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
     });
   }, [dbInstance, clientes]);
 
+  const checkAllRef = useRef(null);
+  useEffect(() => {
+    checkAllRef.current = handleCheckAll;
+  });
+
   // Auto-refresh timer
   useEffect(() => {
-    let interval = null;
-    if (autoRefresh) {
-      interval = setInterval(() => { handleCheckAll(); }, 30 * 60 * 1000);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [autoRefresh, clientes]);
+    if (!autoRefresh) return;
+    
+    // Ejecutar inmediatamente al activar
+    checkAllRef.current?.();
+
+    const interval = setInterval(() => {
+      checkAllRef.current?.();
+    }, 30 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   // Filtrado + paginación derivados
   const filteredClientes = useMemo(() => {
@@ -118,19 +128,23 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      const updatedHealth = { ...healthData };
-      for (const clientResult of data) {
-        const cId = clientResult.id;
-        const currentHistory = healthData[cId]?.history || [];
-        const updatedHistory = [clientResult.responseTimeMs, ...currentHistory].slice(0, 10);
-        const fullData = { ...clientResult, history: updatedHistory };
-        updatedHealth[cId] = fullData;
-        if (dbInstance) {
-          const docRef = doc(dbInstance, 'health_checks', cId);
-          await setDoc(docRef, { ...fullData, actualizadoEn: serverTimestamp() });
+      setHealthData(prevHealth => {
+        const updatedHealth = { ...prevHealth };
+        for (const clientResult of data) {
+          const cId = clientResult.id;
+          const currentHistory = prevHealth[cId]?.history || [];
+          const updatedHistory = [clientResult.responseTimeMs, ...currentHistory].slice(0, 10);
+          const fullData = { ...clientResult, history: updatedHistory };
+          updatedHealth[cId] = fullData;
+          if (dbInstance) {
+            const docRef = doc(dbInstance, 'health_checks', cId);
+            setDoc(docRef, { ...fullData, actualizadoEn: serverTimestamp() }).catch(err => {
+              console.warn(`Error guardando check de salud en DB para ${cId}:`, err);
+            });
+          }
         }
-      }
-      setHealthData(updatedHealth);
+        return updatedHealth;
+      });
       showToast('Monitoreo general de salud completado ✓', { type: 'success' });
     } catch (err) {
       showToast(`Error de conexión con Bridge CLI: ${err.message}`, { type: 'error' });
