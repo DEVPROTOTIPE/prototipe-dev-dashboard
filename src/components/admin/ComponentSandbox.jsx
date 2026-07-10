@@ -163,6 +163,9 @@ export const COMPONENT_SANDBOX_MAP = {
   'floatingpromogrenade': 'FloatingPromoGrenade',
   'floating_promo_grenade': 'FloatingPromoGrenade',
   'granada_promocional_flotante': 'FloatingPromoGrenade',
+  'interactivefortunecookie': 'InteractiveFortuneCookie',
+  'interactive_fortune_cookie': 'InteractiveFortuneCookie',
+  'galleta_fortuna_interactiva': 'InteractiveFortuneCookie',
   // --- FASE 1: Componentes Atómicos Premium ---
   'pin_code_input': 'PinCodeInput',
   'pincodeinput': 'PinCodeInput',
