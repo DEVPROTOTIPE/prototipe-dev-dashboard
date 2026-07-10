@@ -66,7 +66,7 @@ export default function InteractiveFortuneCookie({
         )}
       </AnimatePresence>
 
-      {/* LA GALLETA DE LA FORTUNA (Compuesta por 2 mitades SVG) */}
+      {/* LA GALLETA DE LA FORTUNA (Compuesta por 2 mitades SVG con degradados realistas) */}
       <AnimatePresence>
         {!isBroken && (
           <motion.button
@@ -82,38 +82,50 @@ export default function InteractiveFortuneCookie({
             transition={{ 
               y: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
             }}
-            className="relative z-20 flex items-center justify-center w-48 h-48 cursor-pointer group active:scale-95 transition-transform duration-200 outline-none"
+            className="relative z-20 flex items-center justify-center w-56 h-56 cursor-pointer group active:scale-95 transition-transform duration-200 outline-none"
           >
             {/* Halo interactivo al hover */}
             <div className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 bg-[var(--color-primary)]/20 blur-2xl group-hover:opacity-100 -z-10"></div>
 
-            {/* Mitad Izquierda */}
-            <motion.div
-              exit={{ x: -60, y: 20, rotate: -45, opacity: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="absolute drop-shadow-xl text-[var(--color-primary)]"
-            >
-              <svg viewBox="0 0 100 100" className="w-32 h-32">
-                <path 
-                  d="M 50 15 C 20 15 10 40 10 65 C 10 85 30 95 50 95 C 65 95 70 80 50 55 C 35 35 50 15 50 15 Z" 
-                  fill="currentColor" 
-                />
-              </svg>
-            </motion.div>
+            <svg viewBox="0 0 100 100" className="w-40 h-40 drop-shadow-2xl overflow-visible">
+              <defs>
+                {/* Degradado para la mitad izquierda (dorado cálido tostado con brillo) */}
+                <linearGradient id="cookieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffd899" />
+                  <stop offset="40%" stopColor="#f3b05a" />
+                  <stop offset="80%" stopColor="#d58936" />
+                  <stop offset="100%" stopColor="#a05c1b" />
+                </linearGradient>
+                {/* Degradado para la mitad derecha (un poco más oscuro para dar sombra de volumen) */}
+                <linearGradient id="cookieGradDark" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#f3b05a" />
+                  <stop offset="50%" stopColor="#d58936" />
+                  <stop offset="100%" stopColor="#804710" />
+                </linearGradient>
+              </defs>
 
-            {/* Mitad Derecha */}
-            <motion.div
-              exit={{ x: 60, y: 20, rotate: 45, opacity: 0 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="absolute drop-shadow-xl text-[var(--color-primary)] brightness-90"
-            >
-              <svg viewBox="0 0 100 100" className="w-32 h-32">
+              {/* Mitad Izquierda de la Galleta */}
+              <motion.g
+                exit={{ x: -25, y: 15, rotate: -25, opacity: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              >
                 <path 
-                  d="M 50 15 C 80 15 90 40 90 65 C 90 85 70 95 50 95 C 35 95 30 80 50 55 C 65 35 50 15 50 15 Z" 
-                  fill="currentColor" 
+                  d="M 50,15 C 28,15 10,25 5,48 C -1,73 14,90 35,90 C 38,90 40,85 41,80 C 42,75 35,68 30,52 C 24,35 45,20 50,15 Z" 
+                  fill="url(#cookieGrad)" 
                 />
-              </svg>
-            </motion.div>
+              </motion.g>
+
+              {/* Mitad Derecha de la Galleta */}
+              <motion.g
+                exit={{ x: 25, y: 15, rotate: 25, opacity: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              >
+                <path 
+                  d="M 50,15 C 72,15 90,25 95,48 C 101,73 86,90 65,90 C 62,90 60,85 59,80 C 58,75 65,68 70,52 C 76,35 55,20 50,15 Z" 
+                  fill="url(#cookieGradDark)" 
+                />
+              </motion.g>
+            </svg>
 
             {/* Micro-icono flotante central */}
             <div className="absolute flex items-center justify-center w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm shadow-soft-sm text-white">
