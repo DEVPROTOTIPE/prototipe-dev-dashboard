@@ -77,30 +77,7 @@ export default function InteractiveFortuneCookie({
       {/* CONTENEDOR DE LA GALLETA (Permanece montado para dar soporte a la animación de separación de las mitades) */}
       <div className="relative z-20 flex items-center justify-center w-64 h-64">
         
-        {/* TIRA DE PAPEL DE LA FORTUNA (Pista visual icónica que asoma antes de romperse) */}
-        {!isBroken && (
-          <motion.div
-            initial={{ opacity: 0, y: 15, rotate: -12 }}
-            animate={isBreaking 
-              ? { y: -25, rotate: -20, opacity: 0.8 } 
-              : { 
-                  opacity: 1, 
-                  y: [0, -4, 0],
-                  rotate: [-12, -15, -12]
-                }
-            }
-            transition={isBreaking 
-              ? { duration: 0.4, ease: 'easeOut' }
-              : { 
-                  y: { repeat: Infinity, duration: 3, ease: 'easeInOut' },
-                  rotate: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
-                }
-            }
-            className="absolute top-10 z-10 px-2.5 py-1 bg-white border border-gray-200 shadow-soft-sm rounded text-[8px] font-bold text-blue-600 tracking-widest uppercase pointer-events-none"
-          >
-            Lucky 🍀
-          </motion.div>
-        )}
+
 
         <motion.button
           onClick={handleBreak}
@@ -128,7 +105,8 @@ export default function InteractiveFortuneCookie({
             <div className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 bg-[var(--color-primary)]/15 blur-2xl group-hover:opacity-100 -z-10"></div>
           )}
 
-          <svg viewBox="0 0 100 100" className="w-48 h-48 drop-shadow-2xl overflow-visible">
+          {/* SVG rotado 180 grados para situar el lomo continuo abajo y las puntas/hendidura arriba */}
+          <svg viewBox="0 0 100 100" className="w-48 h-48 drop-shadow-2xl overflow-visible rotate-180">
             <defs>
               {/* Degradado para el cuerpo de la galleta (dorado cálido tostado con brillo) */}
               <linearGradient id="cookieBody" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -148,15 +126,15 @@ export default function InteractiveFortuneCookie({
               </linearGradient>
             </defs>
 
-            {/* Mitad Izquierda de la Galleta */}
+            {/* Mitad Izquierda de la Galleta (Animación adaptada a la inversión local de ejes por rotate-180) */}
             <motion.g
               animate={isBroken 
-                ? { x: -85, y: 40, rotate: -45, opacity: 0 } 
+                ? { x: 85, y: -40, rotate: 45, opacity: 0 } 
                 : { x: 0, y: 0, rotate: 0, opacity: 1 }
               }
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Cuerpo Principal (Curvatura continua arriba, pata croissant abajo) */}
+              {/* Cuerpo Principal (Curvatura continua abajo localmente, pata croissant arriba localmente) */}
               <path 
                 d="M 50,18 C 35,18 10,25 8,48 C 6,70 12,80 22,80 C 32,80 44,70 50,52 Z" 
                 fill="url(#cookieBody)" 
@@ -174,10 +152,10 @@ export default function InteractiveFortuneCookie({
               />
             </motion.g>
 
-            {/* Mitad Derecha de la Galleta */}
+            {/* Mitad Derecha de la Galleta (Animación adaptada) */}
             <motion.g
               animate={isBroken 
-                ? { x: 85, y: 40, rotate: 45, opacity: 0 } 
+                ? { x: -85, y: -40, rotate: -45, opacity: 0 } 
                 : { x: 0, y: 0, rotate: 0, opacity: 1 }
               }
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
