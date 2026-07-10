@@ -166,6 +166,17 @@ export const COMPONENT_SANDBOX_MAP = {
   'interactivefortunecookie': 'InteractiveFortuneCookie',
   'interactive_fortune_cookie': 'InteractiveFortuneCookie',
   'galleta_fortuna_interactiva': 'InteractiveFortuneCookie',
+  'interactivefortune_wheel': 'InteractiveFortuneWheel',
+  'interactive_fortune_wheel': 'InteractiveFortuneWheel',
+  'interactivefortunewheel': 'InteractiveFortuneWheel',
+  'ruleta_fortuna_premios_premium': 'InteractiveFortuneWheel',
+  'catalogbanner': 'CatalogBanner',
+  'catalog_banner': 'CatalogBanner',
+  'carrusel_anuncios_promocionales': 'CatalogBanner',
+  'premiumnotificationcenter': 'PremiumNotificationCenter',
+  'premium_notification_center': 'PremiumNotificationCenter',
+  'notificationhistorytray': 'PremiumNotificationCenter',
+  'notification_history_tray': 'PremiumNotificationCenter',
   // --- FASE 1: Componentes Atómicos Premium ---
   'pin_code_input': 'PinCodeInput',
   'pincodeinput': 'PinCodeInput',
@@ -625,6 +636,14 @@ export const COMPONENT_SANDBOX_MAP = {
   'login_page': 'login_page',
   'pagina_login': 'login_page',
   'página de login híbrida': 'login_page',
+  'hybridloginpage': 'login_page',
+  'hybrid_login_page': 'login_page',
+  'phoneidloginpage': 'phone_id_login_page',
+  'phone_id_login_page': 'phone_id_login_page',
+  'welcomepage': 'WelcomePage',
+  'welcome_page': 'WelcomePage',
+  'premiumwelcomesplash': 'WelcomePage',
+  'premium_welcome_splash': 'WelcomePage',
   'order_tracking': 'order_tracking',
   'seguimiento_pedido': 'order_tracking',
   'seguimiento de pedido público': 'order_tracking',
@@ -1067,6 +1086,7 @@ export function getSandboxKey(name = '', technicalName = '') {
     if (str.includes('glow') || str.includes('fondo luces') || str.includes('luces orgán') || str.includes('ambient')) return 'interactive_ambient_glow';
     if (str.includes('empty') || str.includes('vacio') || str.includes('vacío')) return 'empty_state';
     if (str.includes('rifa') || str.includes('boleta') || str.includes('ticket') || str.includes('numberselector')) return 'selector_boletas_rifas';
+    if (str.includes('interactivefortune') || str.includes('interactive_fortune') || str.includes('fortunewheel') || str.includes('fortune_wheel') || (str.includes('fortuna') && str.includes('premium')) || (str.includes('ruleta') && str.includes('interactiv'))) return 'interactive_fortune_wheel';
     if (str.includes('ruleta') || str.includes('fortuna') || str.includes('suerte') || str.includes('wheel')) return 'ruleta_suerte';
     if (str.includes('agenda') || str.includes('reserva') || str.includes('cita') || str.includes('calendario')) return 'reservas_agenda';
     if (str.includes('notif') || str.includes('toast') || str.includes('campana') || str.includes('bandeja') || str.includes('bell') || str.includes('tray')) return 'sistema_notificaciones';

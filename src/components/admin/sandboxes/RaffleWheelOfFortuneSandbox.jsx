@@ -1,45 +1,55 @@
 import React, { useState } from 'react';
-import SandboxLayout from './SandboxLayout';
+import { SandboxLayout } from './SandboxLayout';
+import RaffleWheelOfFortune from '../../common/RaffleWheelOfFortune';
 
 export default function RaffleWheelOfFortuneSandbox() {
-  const [theme, setTheme] = useState('dark');
+  const [prizesText, setPrizesText] = useState(
+    '10% OFF, Bebida Gratis, Postre Gratis, Café Gratis, Reintenta, Descuento $5k'
+  );
+  const [duration, setDuration] = useState(5000);
+  const [spinsCount, setSpinsCount] = useState(6);
+  const [lastWin, setLastWin] = useState(null);
+
+  const controls = [
+    {
+      type: 'text',
+      label: 'Premios (separados por coma)',
+      value: prizesText,
+      onChange: (val) => setPrizesText(val),
+    },
+    {
+      type: 'number',
+      label: 'Duración del giro (ms)',
+      value: duration,
+      onChange: (val) => setDuration(Number(val)),
+    },
+    {
+      type: 'number',
+      label: 'Número de vueltas',
+      value: spinsCount,
+      onChange: (val) => setSpinsCount(Number(val)),
+    },
+  ];
 
   return (
     <SandboxLayout
-      title="Ruleta de la Fortuna de Premios (RaffleWheelOfFortune) (RaffleWheelOfFortune)"
-      description="Playground interactivo para simular el comportamiento del componente."
-      controls={
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)]">Tema del Componente</label>
-            <div className="flex gap-2">
-              {['light', 'dark'].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTheme(t)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                    theme === t
-                      ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
-                      : 'border-[var(--color-border)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-muted)]'
-                  }`}
-                >
-                  {t.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      }
+      title="RaffleWheelOfFortune"
+      description="Ruleta de premios SVG con aro dorado metálico, bombillos LED parpadeantes y generación automática de cupones. Parametrizable vía texto CSV de premios."
+      controls={controls}
     >
-      <div className={`p-8 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] flex items-center justify-center min-h-[220px]`}>
-        <div className="text-center space-y-2">
-          <p className="text-xs text-[var(--color-text-muted)] font-mono">
-            [ Componente RaffleWheelOfFortune Scaffolded ]
-          </p>
-          <p className="text-[11px] text-[var(--color-text-muted)]">
-            Personaliza este Sandbox importando tu componente y vinculando sus propiedades.
-          </p>
-        </div>
+      <div className="flex flex-col items-center gap-4 w-full">
+        <RaffleWheelOfFortune
+          prizesText={prizesText}
+          duration={duration}
+          spinsCount={spinsCount}
+          onWin={(prize, code) => setLastWin({ prize, code })}
+        />
+        {lastWin && (
+          <div className="px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-400">
+            🏆 Ganaste: <strong>{lastWin.prize}</strong>
+            {lastWin.code && <span className="ml-2 font-mono opacity-70">({lastWin.code})</span>}
+          </div>
+        )}
       </div>
     </SandboxLayout>
   );
