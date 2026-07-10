@@ -9,39 +9,47 @@ export default function InteractiveFortuneCookie({
   author = "PROTOTIPE Ecosistema"
 }) {
   const [isBroken, setIsBroken] = useState(false);
+  const [isBreaking, setIsBreaking] = useState(false);
 
   const handleBreak = () => {
-    if (isBroken) return;
+    if (isBroken || isBreaking) return;
     
-    // Ráfaga de confeti premium sincronizada con la ruptura (colores dorados de galleta)
-    const colors = ['#f59e0b', '#fcd34d', '#ffffff'];
-    confetti({
-      particleCount: 100,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: colors,
-      disableForReducedMotion: true,
-      zIndex: 50
-    });
+    setIsBreaking(true);
+    
+    // Pequeño retardo de vibración/shake antes de la ruptura física
+    setTimeout(() => {
+      // Ráfaga de confeti premium con tonos dorados y crema (masa de galleta)
+      const colors = ['#f59e0b', '#fcd34d', '#ffe4b5', '#ffffff'];
+      confetti({
+        particleCount: 80,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: colors,
+        disableForReducedMotion: true,
+        zIndex: 50
+      });
 
-    setIsBroken(true);
+      setIsBroken(true);
+      setIsBreaking(false);
+    }, 450); // Tiempo del efecto shake/temblor
   };
 
   const handleReset = () => {
     setIsBroken(false);
+    setIsBreaking(false);
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center w-full min-h-[320px] p-8 overflow-visible">
+    <div className="relative flex flex-col items-center justify-center w-full min-h-[340px] p-8 overflow-visible select-none">
       
-      {/* EL PAPEL DE LA FORTUNA (Emerge elásticamente al romperse) */}
+      {/* EL PAPEL DE LA FORTUNA (Emerge elásticamente desde el centro al romperse) */}
       <AnimatePresence>
         {isBroken && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.4, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.3, y: 60, rotate: -5 }}
+            animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            transition={{ type: 'spring', damping: 15, stiffness: 200, delay: 0.2 }}
+            transition={{ type: 'spring', damping: 14, stiffness: 180, delay: 0.25 }}
             className="absolute z-30 flex flex-col items-center w-full max-w-sm p-6 mx-auto bg-[var(--color-surface)] border border-[var(--color-border)] shadow-soft-2xl rounded-3xl backdrop-blur-md"
           >
             <Quote className="w-8 h-8 mb-3 text-[var(--color-primary)]/40" />
@@ -66,23 +74,29 @@ export default function InteractiveFortuneCookie({
         )}
       </AnimatePresence>
 
-      {/* CONTENEDOR DE LA GALLETA (Permanece montado para ejecutar la animación de apertura en sus mitades) */}
-      <div className="relative z-20 flex items-center justify-center w-56 h-56 select-none">
+      {/* CONTENEDOR DE LA GALLETA (Permanece montado para dar soporte a la animación de separación de las mitades) */}
+      <div className="relative z-20 flex items-center justify-center w-64 h-64">
         
-        {/* PEQUEÑO PAPELITO QUE ASOMA ANTES DE ROMPERSE (Clave cognitiva para identificar la galleta de la fortuna) */}
+        {/* TIRA DE PAPEL DE LA FORTUNA (Pista visual icónica que asoma antes de romperse) */}
         {!isBroken && (
           <motion.div
-            initial={{ opacity: 0, y: 10, rotate: -5 }}
-            animate={{ 
-              opacity: 1, 
-              y: [0, -4, 0],
-              rotate: [-5, -8, -5]
-            }}
-            transition={{ 
-              y: { repeat: Infinity, duration: 3, ease: 'easeInOut' },
-              rotate: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
-            }}
-            className="absolute top-12 z-10 px-2.5 py-1 bg-white border border-gray-200 shadow-sm rounded text-[8px] font-bold text-blue-600 tracking-widest uppercase pointer-events-none"
+            initial={{ opacity: 0, y: 15, rotate: -12 }}
+            animate={isBreaking 
+              ? { y: -25, rotate: -20, opacity: 0.8 } 
+              : { 
+                  opacity: 1, 
+                  y: [0, -4, 0],
+                  rotate: [-12, -15, -12]
+                }
+            }
+            transition={isBreaking 
+              ? { duration: 0.4, ease: 'easeOut' }
+              : { 
+                  y: { repeat: Infinity, duration: 3, ease: 'easeInOut' },
+                  rotate: { repeat: Infinity, duration: 3, ease: 'easeInOut' }
+                }
+            }
+            className="absolute top-10 z-10 px-2.5 py-1 bg-white border border-gray-200 shadow-soft-sm rounded text-[8px] font-bold text-blue-600 tracking-widest uppercase pointer-events-none"
           >
             Lucky 🍀
           </motion.div>
@@ -91,22 +105,35 @@ export default function InteractiveFortuneCookie({
         <motion.button
           onClick={handleBreak}
           aria-label="Romper galleta de la fortuna"
-          animate={isBroken ? { scale: 0.9 } : { y: [0, -8, 0] }}
-          transition={isBroken ? { duration: 0.2 } : { repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+          animate={isBreaking 
+            ? { 
+                rotate: [0, -6, 6, -6, 6, 0], 
+                scale: 0.95 
+              } 
+            : isBroken 
+              ? { scale: 0.9 }
+              : { y: [0, -8, 0] }
+          }
+          transition={isBreaking 
+            ? { duration: 0.45, ease: 'easeInOut' } 
+            : isBroken 
+              ? { duration: 0.2 } 
+              : { repeat: Infinity, duration: 3, ease: 'easeInOut' }
+          }
           className="relative w-full h-full flex items-center justify-center cursor-pointer group active:scale-95 transition-transform duration-200 outline-none"
-          disabled={isBroken}
+          disabled={isBroken || isBreaking}
         >
           {/* Halo interactivo al hover */}
-          {!isBroken && (
+          {!isBroken && !isBreaking && (
             <div className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 bg-[var(--color-primary)]/15 blur-2xl group-hover:opacity-100 -z-10"></div>
           )}
 
-          <svg viewBox="0 0 100 100" className="w-44 h-44 drop-shadow-2xl overflow-visible">
+          <svg viewBox="0 0 100 100" className="w-48 h-48 drop-shadow-2xl overflow-visible">
             <defs>
               {/* Degradado para el cuerpo de la galleta (dorado cálido tostado con brillo) */}
               <linearGradient id="cookieBody" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffe4b5" />
-                <stop offset="60%" stopColor="#e5a95e" />
+                <stop offset="0%" stopColor="#ffebb3" />
+                <stop offset="50%" stopColor="#e5a95e" />
                 <stop offset="100%" stopColor="#b3732d" />
               </linearGradient>
               {/* Degradado para las sombras de los pliegues y arrugas */}
@@ -116,61 +143,67 @@ export default function InteractiveFortuneCookie({
               </linearGradient>
               {/* Degradado para los brillos de relieve superior */}
               <linearGradient id="cookieHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.75" />
                 <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </linearGradient>
             </defs>
 
             {/* Mitad Izquierda de la Galleta */}
             <motion.g
-              animate={isBroken ? { x: -70, y: 35, rotate: -40, opacity: 0 } : { x: 0, y: 0, rotate: 0, opacity: 1 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              animate={isBroken 
+                ? { x: -85, y: 40, rotate: -45, opacity: 0 } 
+                : { x: 0, y: 0, rotate: 0, opacity: 1 }
+              }
+              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Cuerpo Principal (Curvatura alargada de media luna) */}
+              {/* Cuerpo Principal (Curvatura continua arriba, pata croissant abajo) */}
               <path 
-                d="M 50,22 C 35,22 15,25 8,45 C 0,70 15,85 30,85 C 38,85 45,70 50,55 Z" 
+                d="M 50,18 C 35,18 10,25 8,48 C 6,70 12,80 22,80 C 32,80 44,70 50,52 Z" 
                 fill="url(#cookieBody)" 
               />
               {/* Pliegue de Sombra Interior */}
               <path 
-                d="M 50,55 C 45,65 38,75 30,85 C 35,80 43,70 45,60 Z" 
+                d="M 50,52 C 44,70 32,80 22,80 C 30,78 40,68 44,58 Z" 
                 fill="url(#cookieShadow)" 
                 opacity="0.85"
               />
-              {/* Brillo en el borde superior */}
+              {/* Brillo en el lomo superior */}
               <path 
-                d="M 50,22 C 38,15 20,22 13,38 C 22,28 38,22 50,22 Z" 
+                d="M 50,18 C 38,18 20,25 14,40 C 22,30 38,22 50,18 Z" 
                 fill="url(#cookieHighlight)" 
               />
             </motion.g>
 
             {/* Mitad Derecha de la Galleta */}
             <motion.g
-              animate={isBroken ? { x: 70, y: 35, rotate: 40, opacity: 0 } : { x: 0, y: 0, rotate: 0, opacity: 1 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              animate={isBroken 
+                ? { x: 85, y: 40, rotate: 45, opacity: 0 } 
+                : { x: 0, y: 0, rotate: 0, opacity: 1 }
+              }
+              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Cuerpo Principal */}
+              {/* Cuerpo Principal (Simétrico) */}
               <path 
-                d="M 50,22 C 65,22 85,25 92,45 C 100,70 85,85 70,85 C 62,85 55,70 50,55 Z" 
+                d="M 50,18 C 65,18 90,25 92,48 C 94,70 88,80 78,80 C 68,80 56,70 50,52 Z" 
                 fill="url(#cookieBody)" 
                 className="brightness-95"
               />
               {/* Pliegue de Sombra Interior */}
               <path 
-                d="M 50,55 C 55,65 62,75 70,85 C 65,80 57,70 55,60 Z" 
+                d="M 50,52 C 56,70 68,80 78,80 C 70,78 60,68 56,58 Z" 
                 fill="url(#cookieShadow)" 
                 opacity="0.95"
               />
-              {/* Brillo en el borde superior */}
+              {/* Brillo en el lomo superior */}
               <path 
-                d="M 50,22 C 62,15 80,22 87,38 C 78,28 62,22 50,22 Z" 
+                d="M 50,18 C 62,18 80,25 86,40 C 78,30 62,22 50,18 Z" 
                 fill="url(#cookieHighlight)" 
               />
             </motion.g>
           </svg>
 
           {/* Micro-icono flotante central (Solo visible en estado cerrado) */}
-          {!isBroken && (
+          {!isBroken && !isBreaking && (
             <div className="absolute flex items-center justify-center w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm shadow-soft-sm text-white transition-opacity group-hover:scale-110">
               <Sparkles size={16} />
             </div>
