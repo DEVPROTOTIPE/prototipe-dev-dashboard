@@ -66,7 +66,7 @@ export default function InteractiveFortuneCookie({
         )}
       </AnimatePresence>
 
-      {/* LA GALLETA DE LA FORTUNA (Compuesta por 2 mitades SVG con degradados realistas) */}
+      {/* LA GALLETA DE LA FORTUNA (Compuesta por 2 mitades SVG realistas con pliegues tridimensionales) */}
       <AnimatePresence>
         {!isBroken && (
           <motion.button
@@ -87,42 +87,70 @@ export default function InteractiveFortuneCookie({
             {/* Halo interactivo al hover */}
             <div className="absolute inset-0 transition-opacity duration-300 rounded-full opacity-0 bg-[var(--color-primary)]/20 blur-2xl group-hover:opacity-100 -z-10"></div>
 
-            <svg viewBox="0 0 100 100" className="w-40 h-40 drop-shadow-2xl overflow-visible">
+            <svg viewBox="0 0 100 100" className="w-44 h-44 drop-shadow-2xl overflow-visible">
               <defs>
-                {/* Degradado para la mitad izquierda (dorado cálido tostado con brillo) */}
-                <linearGradient id="cookieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#ffd899" />
-                  <stop offset="40%" stopColor="#f3b05a" />
-                  <stop offset="80%" stopColor="#d58936" />
-                  <stop offset="100%" stopColor="#a05c1b" />
+                {/* Degradado para el cuerpo de la galleta (dorado cálido tostado con brillo) */}
+                <linearGradient id="cookieBody" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#ffe4b5" />
+                  <stop offset="60%" stopColor="#e5a95e" />
+                  <stop offset="100%" stopColor="#b3732d" />
                 </linearGradient>
-                {/* Degradado para la mitad derecha (un poco más oscuro para dar sombra de volumen) */}
-                <linearGradient id="cookieGradDark" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f3b05a" />
-                  <stop offset="50%" stopColor="#d58936" />
-                  <stop offset="100%" stopColor="#804710" />
+                {/* Degradado para las sombras de los pliegues y arrugas */}
+                <linearGradient id="cookieShadow" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#a06020" />
+                  <stop offset="100%" stopColor="#5d350b" />
+                </linearGradient>
+                {/* Degradado para los brillos de relieve superior */}
+                <linearGradient id="cookieHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
                 </linearGradient>
               </defs>
 
               {/* Mitad Izquierda de la Galleta */}
               <motion.g
-                exit={{ x: -25, y: 15, rotate: -25, opacity: 0 }}
+                exit={{ x: -35, y: 15, rotate: -30, opacity: 0 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
               >
+                {/* Cuerpo Principal */}
                 <path 
-                  d="M 50,15 C 28,15 10,25 5,48 C -1,73 14,90 35,90 C 38,90 40,85 41,80 C 42,75 35,68 30,52 C 24,35 45,20 50,15 Z" 
-                  fill="url(#cookieGrad)" 
+                  d="M 50,30 C 35,15 10,25 10,52 C 10,72 25,82 35,82 C 42,82 48,70 50,60 Z" 
+                  fill="url(#cookieBody)" 
+                />
+                {/* Pliegue de Sombra Interior (Doble característico) */}
+                <path 
+                  d="M 50,60 C 48,70 42,82 35,82 C 39,78 43,68 43,58 Z" 
+                  fill="url(#cookieShadow)" 
+                  opacity="0.85"
+                />
+                {/* Brillo en el borde superior para volumen */}
+                <path 
+                  d="M 50,30 C 38,18 20,25 15,42 C 22,32 38,25 50,30 Z" 
+                  fill="url(#cookieHighlight)" 
                 />
               </motion.g>
 
               {/* Mitad Derecha de la Galleta */}
               <motion.g
-                exit={{ x: 25, y: 15, rotate: 25, opacity: 0 }}
+                exit={{ x: 35, y: 15, rotate: 30, opacity: 0 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
               >
+                {/* Cuerpo Principal (Un poco más oscuro para profundidad general) */}
                 <path 
-                  d="M 50,15 C 72,15 90,25 95,48 C 101,73 86,90 65,90 C 62,90 60,85 59,80 C 58,75 65,68 70,52 C 76,35 55,20 50,15 Z" 
-                  fill="url(#cookieGradDark)" 
+                  d="M 50,30 C 65,15 90,25 90,52 C 90,72 75,82 65,82 C 58,82 52,70 50,60 Z" 
+                  fill="url(#cookieBody)" 
+                  className="brightness-95"
+                />
+                {/* Pliegue de Sombra Interior */}
+                <path 
+                  d="M 50,60 C 52,70 58,82 65,82 C 61,78 57,68 57,58 Z" 
+                  fill="url(#cookieShadow)" 
+                  opacity="0.95"
+                />
+                {/* Brillo en el borde superior */}
+                <path 
+                  d="M 50,30 C 62,18 80,25 85,42 C 78,32 62,25 50,30 Z" 
+                  fill="url(#cookieHighlight)" 
                 />
               </motion.g>
             </svg>
