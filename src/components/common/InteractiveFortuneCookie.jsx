@@ -77,8 +77,6 @@ export default function InteractiveFortuneCookie({
       {/* CONTENEDOR DE LA GALLETA (Permanece montado para dar soporte a la animación de separación de las mitades) */}
       <div className="relative z-20 flex items-center justify-center w-64 h-64">
         
-
-
         <motion.button
           onClick={handleBreak}
           aria-label="Romper galleta de la fortuna"
@@ -134,14 +132,14 @@ export default function InteractiveFortuneCookie({
               }
               transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Cuerpo Principal (Curvatura continua abajo localmente, pata croissant arriba localmente) */}
+              {/* Cuerpo Principal (Curvatura continua abajo localmente, puntas afiladas arriba localmente) */}
               <path 
-                d="M 50,18 C 35,18 10,25 8,48 C 6,70 12,80 22,80 C 32,80 44,70 50,52 Z" 
+                d="M 50,18 C 35,18 12,22 6,44 C 1,63 12,81 24,84 C 28,80 41,68 50,52 Z" 
                 fill="url(#cookieBody)" 
               />
               {/* Pliegue de Sombra Interior */}
               <path 
-                d="M 50,52 C 44,70 32,80 22,80 C 30,78 40,68 44,58 Z" 
+                d="M 50,52 C 43,65 30,78 24,84 C 28,80 41,68 44,58 Z" 
                 fill="url(#cookieShadow)" 
                 opacity="0.85"
               />
@@ -162,13 +160,13 @@ export default function InteractiveFortuneCookie({
             >
               {/* Cuerpo Principal (Simétrico) */}
               <path 
-                d="M 50,18 C 65,18 90,25 92,48 C 94,70 88,80 78,80 C 68,80 56,70 50,52 Z" 
+                d="M 50,18 C 65,18 88,22 94,44 C 99,63 88,81 76,84 C 72,80 59,68 50,52 Z" 
                 fill="url(#cookieBody)" 
                 className="brightness-95"
               />
               {/* Pliegue de Sombra Interior */}
               <path 
-                d="M 50,52 C 56,70 68,80 78,80 C 70,78 60,68 56,58 Z" 
+                d="M 50,52 C 57,65 70,78 76,84 C 72,80 59,68 56,58 Z" 
                 fill="url(#cookieShadow)" 
                 opacity="0.95"
               />
