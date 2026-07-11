@@ -72,11 +72,16 @@ import HealthRadar from './components/admin/HealthRadar'
 import CoreSyncPanel from './components/admin/CoreSyncPanel'
 import SkillsRoadmapPanel from './components/admin/SkillsRoadmapPanel'
 import BriefingStudioView from './components/admin/BriefingStudioView'
+import FeatureMarketplaceView from './components/admin/FeatureMarketplaceView'
+import VersionManagerView from './components/admin/VersionManagerView'
+import SaaSOperationsView from './components/admin/SaaSOperationsView'
 import CotizadorView from './components/admin/CotizadorView'
 import FeatureFlagManager from './components/admin/FeatureFlagManager'
 import HealthMonitorView from './components/admin/HealthMonitorView'
 import NichesManagerPanel from './components/admin/NichesManagerPanel'
 import BrandingEffectsPanel from './components/admin/BrandingEffectsPanel'
+import ClientLifecyclePanel from './components/admin/ClientLifecyclePanel'
+import SaaSMetricsService from './services/SaaSMetricsService'
 import CustomSelect from './components/ui/CustomSelect'
 import html2canvas from 'html2canvas'
 import { initializeApp, getApps, getApp } from 'firebase/app'
@@ -2438,6 +2443,12 @@ export default function App() {
   })
   const [hoveredGroup, setHoveredGroup] = useState(null)
   const [allClientesControl, setAllClientesControl] = useState([])
+  const [globalSaaSConfig, setGlobalSaaSConfig] = useState({
+    infrastructureCostPerTenant: 15.00,
+    licensingFeesBase: 5.00,
+    defaultCommissionRate: 0.10,
+    usdToCopRate: 4000
+  })
 
   const clientesSaas = useMemo(() => {
     return allClientesControl.filter(c => {
@@ -4544,6 +4555,7 @@ export default function App() {
 
     let unsubDocs = null
     let unsubClientes = null
+    let unsubSaaS = null
     let unsubTokens = null
     let unsubFailures = null
     let unsubWaTemplates = null
@@ -4552,6 +4564,10 @@ export default function App() {
       if (typeof unsubDocs === 'function') {
         unsubDocs()
         unsubDocs = null
+      }
+      if (typeof unsubSaaS === 'function') {
+        unsubSaaS()
+        unsubSaaS = null
       }
       if (typeof unsubClientes === 'function') {
         unsubClientes()
@@ -4619,6 +4635,23 @@ export default function App() {
             isClientesInitialLoad = false
           }, (error) => {
             console.warn("Fallo al escuchar clientes_control:", error)
+          })
+
+          // Escuchar configuración SaaS global en Firestore
+          const docRefSaaS = doc(dbInstance, 'configuracion_sistema', 'saas')
+          unsubSaaS = onSnapshot(docRefSaaS, (docSnap) => {
+            if (docSnap.exists()) {
+              setGlobalSaaSConfig(docSnap.data())
+            } else {
+              setDoc(docRefSaaS, {
+                infrastructureCostPerTenant: 15.00,
+                licensingFeesBase: 5.00,
+                defaultCommissionRate: 0.10,
+                usdToCopRate: 4000
+              }).catch(err => console.warn("Error al inicializar configuracion_sistema/saas:", err))
+            }
+          }, (error) => {
+            console.warn("Fallo al escuchar configuracion_sistema/saas:", error)
           })
 
           // Escuchar tokens de telemetría en tiempo real
@@ -5586,6 +5619,32 @@ export default function App() {
     }
   }
 
+  // Guardar configuración SaaS global (Fase 9.4)
+  const handleSaveGlobalSaaSConfig = async (newConfig) => {
+    addLog("Actualizando configuración SaaS global en el sistema...", "info")
+    if (isSimulated) {
+      setGlobalSaaSConfig(newConfig)
+      addLog("[Sandbox] Configuración SaaS global guardada en memoria local.", "success")
+      showToast('Configuración SaaS global guardada (Sandbox)', { type: 'success' })
+      return
+    }
+
+    const centralApp = getCentralApp()
+    if (!centralApp) return
+    const dbInstance = getFirestore(centralApp)
+
+    try {
+      const docRefSaaS = doc(dbInstance, 'configuracion_sistema', 'saas')
+      await setDoc(docRefSaaS, newConfig)
+      addLog("[Firestore] Configuración SaaS global guardada en Firestore central.", "success")
+      showToast('Configuración SaaS global guardada en Firestore', { type: 'success' })
+    } catch (err) {
+      console.error("Error al guardar configuración global:", err)
+      addLog(`Error al guardar configuración global: ${err.message}`, "error")
+      showToast(`Error al guardar configuración: ${err.message}`, { type: 'error' })
+    }
+  }
+
   const loadDriftData = async (clientId) => {
     setDriftLoading(true)
     setDriftData(null)
@@ -6379,21 +6438,18 @@ export default function App() {
   }, [filteredPeriodReports, searchQuery, statusFilter])
 
   // Métricas memoizadas
-  const totalComision = useMemo(() => {
-    return filteredPeriodReports.reduce((sum, r) => sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0), 0)
-  }, [filteredPeriodReports])
+  // Métricas unificadas y desacopladas mediante SaaSMetricsService
+  const saasMetrics = useMemo(() => {
+    return SaaSMetricsService.calculateMetrics(clientesSaas, filteredPeriodReports, allClientesControl)
+  }, [clientesSaas, filteredPeriodReports, allClientesControl])
 
-  const totalCobrado = useMemo(() => {
-    return filteredPeriodReports.reduce((sum, r) => (r.estadoPago || 'pendiente').toLowerCase() === 'pagado' ? sum + (r.comisionValor || 0) - (r.comisionesDeducidas || 0) : sum, 0)
-  }, [filteredPeriodReports])
-
-  const totalPendiente = useMemo(() => {
-    return totalComision - totalCobrado
-  }, [totalComision, totalCobrado])
-
-  const clientesActivos = useMemo(() => {
-    return new Set(filteredPeriodReports.map(r => r.clientId)).size
-  }, [filteredPeriodReports])
+  const totalComision = saasMetrics.totalComision
+  const totalCobrado = saasMetrics.totalCobrado
+  const totalPendiente = saasMetrics.totalPendiente
+  const clientesActivos = saasMetrics.activeClientsCount
+  const mrrSaas = saasMetrics.mrr
+  const arrSaas = saasMetrics.arr
+  const churnRateSaas = saasMetrics.churnRate
 
   // Clientes ordenados por mayor comisión acumulada para el gráfico
   const clientAggregated = useMemo(() => {
@@ -10370,6 +10426,7 @@ export default function App() {
         { id: 'coresync', label: 'Sincronización Masiva', icon: RefreshCw },
         { id: 'flags', label: 'Feature Flags', icon: ToggleLeft },
         { id: 'niches', label: 'Gestión de Nichos', icon: Store },
+        { id: 'marketplace', label: 'Feature Marketplace', icon: Store },
         { id: 'library', label: 'Biblioteca', icon: BookOpen }
       ]
     },
@@ -10381,6 +10438,8 @@ export default function App() {
         { id: 'health', label: 'Health Monitor', icon: HeartPulse },
         { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, badgeKey: 'activeFailures' },
         { id: 'skills', label: 'Salud y Roadmap', icon: Activity },
+        { id: 'operations', label: 'Operaciones SaaS', icon: Activity },
+        { id: 'versions', label: 'Gestión de Versiones', icon: GitCommit },
         { id: 'git', label: 'Control Git', icon: GitCommit },
         { id: 'e2e', label: 'Tests E2E', icon: FlaskConical }
       ]
@@ -10403,10 +10462,13 @@ export default function App() {
     { id: 'flags', label: 'Feature Flags', icon: ToggleLeft, shortLabel: 'Flags' },
     { id: 'health', label: 'Health Monitor', icon: HeartPulse, shortLabel: 'Health' },
     { id: 'errors', label: 'Consola de Errores', icon: AlertTriangle, shortLabel: 'Monitoreo', badgeKey: 'activeFailures' },
+    { id: 'operations', label: 'Operaciones SaaS', icon: Activity, shortLabel: 'Operaciones' },
+    { id: 'versions', label: 'Gestión de Versiones', icon: GitCommit, shortLabel: 'Versiones' },
     { id: 'git', label: 'Control Git', icon: GitCommit, shortLabel: 'Git' },
     { id: 'e2e', label: 'Tests E2E', icon: FlaskConical, shortLabel: 'E2E' },
     { id: 'cores', label: 'Plantillas Core', icon: Layers, shortLabel: 'Cores' },
     { id: 'coresync', label: 'Sincronización Masiva', icon: RefreshCw, shortLabel: 'Sync Masivo' },
+    { id: 'marketplace', label: 'Feature Marketplace', icon: Store, shortLabel: 'Marketplace' },
   ]
 
 
@@ -11059,28 +11121,64 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Métricas - Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: 'Comisión Acumulada', val: totalComision, icon: TrendingUp, col: 'from-violet-500/20 to-violet-500/5 dark:from-violet-500/10 dark:to-violet-500/2', iconCol: 'text-violet-650 dark:text-violet-400', type: 'comision' },
-                  { label: 'Cobrado', val: totalCobrado, icon: CheckCircle, col: 'from-emerald-500/20 to-emerald-500/5 dark:from-emerald-500/10 dark:to-emerald-500/2', iconCol: 'text-emerald-600 dark:text-emerald-400', type: 'cobrado' },
-                  { label: 'Por Recaudar', val: totalPendiente, icon: Clock, col: 'from-amber-500/20 to-amber-500/5 dark:from-amber-500/10 dark:to-amber-500/2', iconCol: 'text-amber-600 dark:text-amber-400', type: 'pendiente' },
-                  { label: 'Clientes Activos', val: clientesActivos, icon: Users, col: 'from-cyan-500/20 to-cyan-500/5 dark:from-cyan-500/10 dark:to-cyan-500/2', iconCol: 'text-cyan-600 dark:text-cyan-400', isNumber: true, type: 'clientes' }
-                ].map((card, idx) => (
-                  <div key={idx} onClick={() => card.type === 'clientes' ? setActiveTab('crm') : card.type === 'pendiente' ? setActiveTab('recaudo') : card.type === 'cobrado' ? setActiveTab('cobros') : card.type === 'comision' ? setActiveTab('comisiones') : setActiveMetricModal(card.type)}
-                    className={`p-5 bg-gradient-to-br ${card.col} bg-[var(--color-surface)] rounded-2xl flex flex-col gap-2 shadow-sm relative overflow-hidden group active:scale-[0.98] cursor-pointer border border-[var(--color-border)] hover-glow-card`}>
-                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-tight">{card.label}</span>
-                      <div className={`p-1.5 rounded-lg bg-[var(--color-bg)] ${card.iconCol}`}>
-                        <card.icon size={14} />
+              {/* BLOQUE 1: DESEMPEÑO COMERCIAL & SAAS */}
+              <div className="space-y-3">
+                <h2 className="text-[10px] font-black uppercase tracking-wider text-[var(--color-primary)] flex items-center gap-1.5 pl-1">
+                  <TrendingUp size={12} />
+                  Desempeño Comercial y Métricas SaaS
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Comisión Acumulada', val: totalComision, icon: TrendingUp, col: 'from-violet-500/20 to-violet-500/5 dark:from-violet-500/10 dark:to-violet-500/2', iconCol: 'text-violet-650 dark:text-violet-400', type: 'comision' },
+                    { label: 'Ingreso Fijo Mensual (MRR)', val: mrrSaas, icon: CreditCard, col: 'from-emerald-500/20 to-emerald-500/5 dark:from-emerald-500/10 dark:to-emerald-500/2', iconCol: 'text-emerald-600 dark:text-emerald-400', type: 'mrr' },
+                    { label: 'Ingreso Anual Proyectado (ARR)', val: arrSaas, icon: DollarSign || TrendingUp, col: 'from-cyan-500/20 to-cyan-500/5 dark:from-cyan-500/10 dark:to-cyan-500/2', iconCol: 'text-cyan-600 dark:text-cyan-400', type: 'arr' },
+                    { label: 'Tasa de Cancelación (Churn)', val: `${churnRateSaas}%`, icon: AlertCircle, col: 'from-rose-500/20 to-rose-500/5 dark:from-rose-500/10 dark:to-rose-500/2', iconCol: 'text-rose-600 dark:text-rose-400', isNumber: true, type: 'churn' }
+                  ].map((card, idx) => (
+                    <div key={idx} onClick={() => card.type === 'comision' ? setActiveTab('comisiones') : card.type === 'mrr' ? setActiveTab('billing') : card.type === 'arr' ? setActiveTab('billing') : null}
+                      className={`p-5 bg-gradient-to-br ${card.col} bg-[var(--color-surface)] rounded-2xl flex flex-col gap-2 shadow-sm relative overflow-hidden group active:scale-[0.98] cursor-pointer border border-[var(--color-border)] hover-glow-card`}>
+                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-tight">{card.label}</span>
+                        <div className={`p-1.5 rounded-lg bg-[var(--color-bg)] ${card.iconCol}`}>
+                          <card.icon size={14} />
+                        </div>
                       </div>
+                      <p className="text-2xl font-extrabold mt-2 tracking-tight text-[var(--color-text)]">
+                        {card.isNumber ? card.val : `$${card.val.toLocaleString('es-CO')}`}
+                      </p>
                     </div>
-                    <p className="text-2xl font-extrabold mt-2 tracking-tight text-[var(--color-text)]">
-                      {card.isNumber ? card.val : `$${card.val.toLocaleString('es-CO')}`}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* BLOQUE 2: SALUD DEL SISTEMA & ESTADO TÉCNICO */}
+              <div className="space-y-3 pt-2">
+                <h2 className="text-[10px] font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5 pl-1">
+                  <Activity size={12} />
+                  Salud del Ecosistema y Telemetría Técnica
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Clientes Activos', val: clientesActivos, icon: Users, col: 'from-cyan-500/20 to-cyan-500/5 dark:from-cyan-500/10 dark:to-cyan-500/2', iconCol: 'text-cyan-600 dark:text-cyan-400', isNumber: true, type: 'clientes' },
+                    { label: 'Desviaciones Git (Drift)', val: globalDrift.filter(d => d.parityPercent < 100).length, icon: RefreshCw, col: 'from-amber-500/20 to-amber-500/5 dark:from-amber-500/10 dark:to-amber-500/2', iconCol: 'text-amber-600 dark:text-amber-400', isNumber: true, type: 'drift' },
+                    { label: 'Errores Activos', val: failures.filter(f => !f.resolved).length, icon: AlertCircle, col: 'from-rose-500/20 to-rose-500/5 dark:from-rose-500/10 dark:to-rose-500/2', iconCol: 'text-rose-600 dark:text-rose-400', isNumber: true, type: 'errors' },
+                    { label: 'Desajuste de Reglas', val: firebaseRulesDrift.some(d => d.firestore.drift || d.storage.drift) ? '⚠️ Si' : '✅ Al día', icon: ShieldAlert || AlertCircle, col: 'from-indigo-500/20 to-indigo-500/5 dark:from-indigo-500/10 dark:to-indigo-500/2', iconCol: 'text-indigo-650 dark:text-indigo-400', isNumber: true, type: 'rules' }
+                  ].map((card, idx) => (
+                    <div key={idx} onClick={() => card.type === 'clientes' ? setActiveTab('crm') : card.type === 'drift' ? setActiveTab('crm') : card.type === 'errors' ? setActiveTab('errors') : null}
+                      className={`p-5 bg-gradient-to-br ${card.col} bg-[var(--color-surface)] rounded-2xl flex flex-col gap-2 shadow-sm relative overflow-hidden group active:scale-[0.98] cursor-pointer border border-[var(--color-border)] hover-glow-card`}>
+                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-extrabold text-[var(--color-text-muted)] uppercase tracking-widest leading-tight">{card.label}</span>
+                        <div className={`p-1.5 rounded-lg bg-[var(--color-bg)] ${card.iconCol}`}>
+                          <card.icon size={14} />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-extrabold mt-2 tracking-tight text-[var(--color-text)]">
+                        {card.isNumber ? card.val : `$${card.val.toLocaleString('es-CO')}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* SECTION 1: METRICS & HEALTH RADAR (ROW 1) */}
@@ -13425,6 +13523,25 @@ export default function App() {
             />
           )}
 
+          {/* ===== TAB: FEATURE MARKETPLACE / REGISTRY ===== */}
+          {activeTab === 'marketplace' && (
+            <FeatureMarketplaceView clientesSaas={clientesSaas} />
+          )}
+
+          {/* ===== TAB: GESTIÓN DE VERSIONES Y ACTUALIZACIONES ===== */}
+          {activeTab === 'versions' && (
+            <VersionManagerView clientesSaas={clientesSaas} />
+          )}
+
+          {/* ===== TAB: SAAS OPERATIONS DASHBOARD ===== */}
+          {activeTab === 'operations' && (
+            <SaaSOperationsView 
+              clientesSaas={clientesSaas} 
+              globalSaaSConfig={globalSaaSConfig}
+              onSaveGlobalSaaSConfig={handleSaveGlobalSaaSConfig}
+            />
+          )}
+
           {/* ===== TAB: CONTROL GIT ===== */}
           {activeTab === 'git' && (
             <GitBackupPanel showToast={showToast} showAlert={showAlert} showConfirm={showConfirm} />
@@ -14230,640 +14347,36 @@ export default function App() {
         </div>
       </nav>
 
-
       {/* Modal de Detalle y Gestión de Cliente (CRM) */}
       {activeMetricModal === 'clientes' && selectedCrmClientId && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
-          <div className="relative w-full max-w-2xl bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-2xl animate-scale-up space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-              <h3 className="font-black text-sm uppercase text-indigo-500 tracking-wider flex items-center gap-2">
-                <Users size={16} />
-                {isCrmClientCore ? `Gestionar Ecosistema Core: ${selectedCrmClientId}` : `Gestionar Cliente: ${selectedCrmClientId}`}
-              </h3>
-              <button 
-                onClick={() => {
-                  setActiveMetricModal(null)
-                  setSelectedCrmClientId(null)
-                }}
-                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Selector de Pestañas CRM */}
-            {!isCrmClientCore && (
-              <div className="flex border-b border-[var(--color-border)] pb-0.5 mb-2">
-                <button
-                  onClick={() => setCrmTab('config')}
-                  className={`flex-1 pb-2 text-[10px] font-black uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
-                    crmTab === 'config'
-                      ? 'border-indigo-500 text-indigo-400'
-                      : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Configuración Operativa
-                </button>
-                <button
-                  onClick={() => {
-                    setCrmTab('drift');
-                    loadDriftData(selectedCrmClientId);
-                  }}
-                  className={`flex-1 pb-2 text-[10px] font-black uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
-                    crmTab === 'drift'
-                      ? 'border-indigo-500 text-indigo-400'
-                      : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                  }`}
-                >
-                  Sincronización Core (Drift)
-                </button>
-              </div>
-            )}
-
-            {crmTab === 'config' ? (
-              <>
-                <div className="space-y-4">
-                  {/* Nicho de Mercado */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Nicho de Mercado / Vertical de Negocio</label>
-                    <CustomSelect 
-                      value={editNiche} 
-                      onChange={(val) => setEditNiche(val)}
-                      options={[
-                        { value: "retail_clothing", label: "🛍️ Ropa y Retail Tradicional (retail_clothing)" },
-                        { value: "technical_services", label: "⚙️ Tornerías y Mecanizado de Precisión (technical_services)" },
-                        { value: "refrigeration_ac", label: "❄️ Refrigeración y Climatización (refrigeration_ac)" },
-                        { value: "contractors", label: "📐 Contratistas y Construcción (contractors)" },
-                        { value: "machinery_rental", label: "🚜 Alquiler de Maquinaria y Equipos (machinery_rental)" },
-                        { value: "carpentry", label: "🪚 Carpinterías y Muebles (carpentry)" },
-                        { value: "laundry", label: "🧺 Lavanderías y Tintorerías (laundry)" },
-                        { value: "furniture_repair", label: "🛋️ Restauración y Tapicería de Muebles (furniture_repair)" },
-                        { value: "wellness_podology", label: "💆 Estética, Podología y Bienestar (wellness_podology)" },
-                        { value: "grocery_food", label: "🍎 Minimarkets y Alimentos (grocery_food)" },
-                        { value: "insumos-agricolas", label: "🚜 Insumos y Repuestos Agrícolas (insumos-agricolas)" },
-                        { value: "alimentos-artesanales", label: "🎂 Alimentos Artesanales y Repostería (alimentos-artesanales)" },
-                        { value: "ferreteria-rural", label: "🛠️ Ferretería y Construcción Rural (ferreteria-rural)" },
-                        { value: "repuestos-motos", label: "🏍️ Repuestos y Accesorios de Motos (repuestos-motos)" },
-                        { value: "distribuidoras-beauty", label: "💅 Suministros de Belleza Profesional (distribuidoras-beauty)" },
-                        { value: "petshops-locales", label: "🐶 Alimentos y Accesorios para Mascotas (petshops-locales)" },
-                        { value: "repuestos-lineablanca", label: "⚙️ Repuestos de Electrodomésticos (repuestos-lineablanca)" },
-                        { value: "moda-local-calzado", label: "👞 Calzado y Confección Local (moda-local-calzado)" },
-                        { value: "alimentacion-saludable", label: "🥗 Alimentación Orgánica y Saludable (alimentacion-saludable)" },
-                        { value: "home-office-ergonomia", label: "💻 Equipamiento Home Office (home-office-ergonomia)" },
-                        { value: "licores-cocteleria", label: "🍹 Bodega de Licores y Coctelería (licores-cocteleria)" },
-                        { value: "coleccionismo-geek", label: "🧸 Artículos Geek y Coleccionismo (coleccionismo-geek)" },
-                        { value: "distribucion-horeca", label: "📦 Insumos Horeca B2B (distribucion-horeca)" }
-                      ]}
-                    />
-                  </div>
-
-                  {/* Modo de Facturación */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Modelo de Cobro Base</label>
-                    <CustomSelect
-                      value={editBillingMode}
-                      onChange={(val) => setEditBillingMode(val)}
-                      options={[
-                        { value: "percentage", label: "Porcentaje sobre Ventas (%)" },
-                        { value: "fixed_per_service", label: "Monto Fijo por Servicio" },
-                        { value: "flat_monthly", label: "Pago Mensual Fijo" }
-                      ]}
-                    />
-                  </div>
-
-                  {editBillingMode === 'percentage' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tasa de Comisión (%)</label>
-                      <input 
-                        type="number" 
-                        value={editComisionPorcentaje} 
-                        onChange={(e) => setEditComisionPorcentaje(parseFloat(e.target.value) || 0)}
-                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                        step="0.1"
-                      />
-                    </div>
-                  )}
-
-                  {editBillingMode === 'fixed_per_service' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Monto Fijo por Servicio ($ COP)</label>
-                      <input 
-                        type="number" 
-                        value={editMontoFijoServicio} 
-                        onChange={(e) => setEditMontoFijoServicio(parseInt(e.target.value) || 0)}
-                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                      />
-                    </div>
-                  )}
-
-                  {editBillingMode === 'flat_monthly' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Pago Mensual Fijo ($ COP)</label>
-                      <input 
-                        type="number" 
-                        value={editPagoMensualFijo} 
-                        onChange={(e) => setEditPagoMensualFijo(parseInt(e.target.value) || 0)}
-                        className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo de Setup Inicial ($ COP)</label>
-                    <input 
-                      type="number" 
-                      value={editSetupFee} 
-                      onChange={(e) => setEditSetupFee(parseInt(e.target.value) || 0)}
-                      className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                    />
-                  </div>
-
-                  {/* Facturación Electrónica DIAN */}
-                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={editEnableDianBilling} 
-                        onChange={(e) => setEditEnableDianBilling(e.target.checked)}
-                        className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                      />
-                      Habilitar Facturación Electrónica DIAN Directa
-                    </label>
-
-                    {editEnableDianBilling && (
-                      <div className="space-y-1.5 animate-fade-in pl-6 border-l border-indigo-500/20">
-                        <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Costo por Documento DIAN ($ COP)</label>
-                        <input 
-                          type="number" 
-                          value={editCostoPorFacturaDian}
-                          onChange={(e) => setEditCostoPorFacturaDian(parseFloat(e.target.value) || 0)}
-                          className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs w-full max-w-[200px] text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {/* Modo Mantenimiento Programado */}
-                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <label className="text-xs font-black text-[var(--color-text)] flex items-center gap-1.5 select-none">
-                          <span className={`w-2.5 h-2.5 rounded-full ${crmMaintenanceMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></span>
-                          Modo Mantenimiento Programado
-                        </label>
-                        <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
-                          Bloquea temporalmente el acceso a la aplicación para los usuarios y muestra la pantalla premium de mejoras.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isTogglingMaintenance}
-                        onClick={() => handleToggleCrmMaintenance(!crmMaintenanceMode)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer disabled:opacity-50 border-none ${
-                          crmMaintenanceMode 
-                            ? 'bg-amber-500 hover:bg-amber-600 !text-white' 
-                            : 'bg-[var(--color-surface-3)] hover:bg-[var(--color-border)] text-[var(--color-text)]'
-                        }`}
-                      >
-                        {isTogglingMaintenance ? 'Procesando...' : (crmMaintenanceMode ? '⚠️ Activo (Bloqueada)' : 'Desactivado')}
-                      </button>
-                    </div>
-                  </div>
-                  {/* Desactivación / Suspensión de Cuenta (Bloqueo Total) */}
-                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={editDeactivated} 
-                        onChange={(e) => setEditDeactivated(e.target.checked)}
-                        className="w-4 h-4 rounded accent-red-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                      />
-                      <span className={`w-2 h-2 rounded-full ${editDeactivated ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
-                      Suspender / Desactivar Cuenta (Bloqueo Total)
-                    </label>
-
-                    {editDeactivated && (
-                      <div className="space-y-2 animate-fade-in pl-6 border-l border-red-500/20">
-                        <label className="text-[10px] font-bold text-red-400 block">Motivo de Suspensión Personalizado</label>
-                        <textarea 
-                          value={editDeactivationReason} 
-                          onChange={(e) => setEditDeactivationReason(e.target.value)}
-                          placeholder="Ingresa el motivo de la suspensión, ej: Tu cuenta ha sido suspendida temporalmente por falta de pago..."
-                          className="bg-[var(--color-surface-2)]/30 border border-red-500/20 rounded-xl px-3 py-2 text-xs w-full h-20 text-[var(--color-text)] outline-none focus:border-red-500 resize-none font-sans"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Alerta Remota / Bloqueo del Sistema */}
-                  <div className="p-4 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl space-y-3">
-                    <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={editAlertActive} 
-                        onChange={(e) => setEditAlertActive(e.target.checked)}
-                        className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                      />
-                      Habilitar Alerta Remota / Bloqueo Administrativo
-                    </label>
-
-                    {editAlertActive && (
-                      <div className="space-y-3 animate-fade-in pl-6 border-l border-indigo-500/20">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Tipo de Alerta</label>
-                          <CustomSelect
-                            value={editAlertType}
-                            onChange={(val) => setEditAlertType(val)}
-                            options={[
-                              { value: "info", label: "Información (Azul)" },
-                              { value: "warning", label: "Advertencia (Naranja)" },
-                              { value: "error", label: "Error / Bloqueante (Rojo)" }
-                            ]}
-                          />
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Título de la Alerta</label>
-                          <input 
-                            type="text" 
-                            value={editAlertTitle} 
-                            onChange={(e) => setEditAlertTitle(e.target.value)}
-                            placeholder="Ej: Prueba de Enlace de Telemetría"
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none focus:border-indigo-500"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] block">Mensaje de la Alerta</label>
-                          <textarea 
-                            value={editAlertMessage} 
-                            onChange={(e) => setEditAlertMessage(e.target.value)}
-                            placeholder="Mensaje de advertencia o bloqueo..."
-                            className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full h-20 text-[var(--color-text)] outline-none focus:border-indigo-500 resize-none"
-                          />
-                        </div>
-
-                        <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-[var(--color-text-muted)] select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={editAlertDismissible} 
-                            onChange={(e) => setEditAlertDismissible(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded accent-indigo-600 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
-                          />
-                          Permitir al usuario cerrar el aviso (Dismissible)
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Acciones de desarrollo exclusivas para Cores */}
-                {isCrmClientCore && (
-                  <div className="p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-2xl space-y-3 mt-4">
-                    <label className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-wider block">Herramientas Operativas Core</label>
-                    <p className="text-[10px] text-[var(--color-text-muted)]">
-                      Acciones para diagnosticar y preparar el entorno de este Core antes del sharding.
-                    </p>
-                    
-                    <div className="flex items-center gap-2.5 pt-1">
-                      <button 
-                        onClick={() => handleRunBuildAudit(selectedCrmClientId)}
-                        disabled={buildAuditing}
-                        className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {buildAuditing ? <RefreshCw size={11} className="animate-spin" /> : <Activity size={11} />}
-                        Auditar Build
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleSetupCors(selectedCrmClientId)}
-                        disabled={settingUpCors}
-                        className="px-3.5 py-2 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {settingUpCors ? <RefreshCw size={11} className="animate-spin" /> : <Lock size={11} />}
-                        CORS Storage
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
-                  <button 
-                    onClick={() => {
-                      setActiveMetricModal(null)
-                      setSelectedCrmClientId(null)
-                    }}
-                    className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={handleSaveCrmConfig}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all"
-                  >
-                    Guardar Configuración
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Panel de Sincronización Core (Drift) */}
-                <div className="space-y-4">
-                  {driftLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-2">
-                      <RefreshCw size={24} className="animate-spin text-indigo-500" />
-                      <span className="text-xs text-[var(--color-text-muted)]">Analizando desviación respecto al Core...</span>
-                    </div>
-                  ) : driftData ? (
-                    <div className="space-y-4">
-                      {/* Resumen de paridad y consistencia */}
-                      <div className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-black text-[var(--color-text)]">Índice de Paridad de Código</p>
-                            <p className="text-[10px] text-[var(--color-text-muted)]">Core de Referencia: <span className="font-mono font-bold text-indigo-400">{driftData.coreId}</span></p>
-                          </div>
-                          <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                            driftData.parityPercent >= 90 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          }`}>
-                            {driftData.parityPercent}% Sincronizado
-                          </span>
-                        </div>
-
-                        {driftData.consistencyScore !== undefined && (
-                          <div className="pt-2 border-t border-[var(--color-border)]/50 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-[var(--color-text-muted)]">Puntaje de Consistencia del Core:</span>
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
-                              driftData.consistencyScore >= 80 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                              driftData.consistencyScore >= 50 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                              'bg-red-500/10 text-red-400 border-red-500/20'
-                            }`}>
-                              {driftData.consistencyScore}/100
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Acciones Rápidas del Cliente */}
-                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const filesMap = {};
-                            driftData.differences.forEach(diff => {
-                              filesMap[diff.file] = !isFileSensitive(diff.file);
-                            });
-                            setBulkSyncFiles(filesMap);
-                            setIsBulkSyncModalOpen(true);
-                          }}
-                          disabled={driftData.differences.length === 0}
-                          className="py-2 bg-indigo-650/10 hover:bg-indigo-650/20 border border-indigo-500/25 text-indigo-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
-                          title="Sincronizar lote con Core"
-                        >
-                          <RefreshCw size={11} className="animate-pulse" />
-                          Lote Core
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleGitDiscard(selectedCrmClientId.toLowerCase(), null, true)}
-                          disabled={driftData.differences.length === 0 || gitDiscardingFile === 'all'}
-                          className="py-2 bg-red-650/10 hover:bg-red-650/20 border border-red-500/25 text-red-500 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98]"
-                          title="Descartar todas las modificaciones de Git"
-                        >
-                          <RotateCcw size={11} className={gitDiscardingFile === 'all' ? 'animate-spin' : ''} />
-                          Limpiar Git
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeployClient(selectedCrmClientId, false)}
-                          className="py-2 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/25 text-emerald-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98]"
-                        >
-                          <Activity size={11} />
-                          Deploy Host
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRunBuildAudit(selectedCrmClientId)}
-                          disabled={buildAuditing}
-                          className="py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/25 text-amber-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-40"
-                          title="Ejecutar compilación Vite de prueba"
-                        >
-                          {buildAuditing ? <RefreshCw size={11} className="animate-spin" /> : <Activity size={11} />}
-                          Auditar Build
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSetupCors(selectedCrmClientId)}
-                          disabled={settingUpCors}
-                          className="py-2 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/25 text-purple-400 text-[9px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-40"
-                          title="Configurar políticas CORS de Firebase Storage"
-                        >
-                          {settingUpCors ? <RefreshCw size={11} className="animate-spin" /> : <Lock size={11} />}
-                          CORS Storage
-                        </button>
-                      </div>
-
-                      {/* Log de Compilación (si se auditó) */}
-                      {buildAuditResult && (
-                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resultado de Compilación Vite</p>
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
-                              buildAuditResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}>
-                              {buildAuditResult.status === 'success' ? 'COMPILADO' : 'ERRÓNEO'}
-                            </span>
-                          </div>
-                          <pre className="text-[9px] font-mono text-slate-300 overflow-x-auto max-h-36 bg-slate-950 p-3 rounded-lg border border-slate-800/60 whitespace-pre-wrap">
-                            {buildAuditResult.output}
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* Log de Configuración CORS */}
-                      {corsAuditResult && (
-                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resultado de Configuración CORS</p>
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
-                              corsAuditResult.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}>
-                              {corsAuditResult.status === 'success' ? 'CONFIGURADO' : 'ERRÓNEO'}
-                            </span>
-                          </div>
-                          <pre className="text-[9px] font-mono text-slate-300 overflow-x-auto max-h-36 bg-slate-950 p-3 rounded-lg border border-slate-800/60 whitespace-pre-wrap">
-                            {corsAuditResult.output}
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* Desviación de Dependencias (NPM Drift) */}
-                      {driftData.dependencyDetails && (
-                        <div className="p-3 bg-[var(--color-surface-2)]/20 border border-[var(--color-border)]/60 rounded-xl space-y-2.5">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-[var(--color-text-muted)]">Desviación de Dependencias (NPM Drift)</p>
-                          
-                          {driftData.dependencyDetails.missingDeps?.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-[9px] font-bold text-amber-400">⚠️ Faltan en el Cliente (Requeridas por el Core):</p>
-                              <div className="flex flex-wrap gap-1">
-                                {driftData.dependencyDetails.missingDeps.map(dep => (
-                                  <span key={dep} className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-mono rounded border border-amber-500/20">{dep}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {driftData.dependencyDetails.mismatchDeps?.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-[9px] font-bold text-amber-400">✏️ Versiones Desalineadas:</p>
-                              <div className="grid grid-cols-1 gap-1">
-                                {driftData.dependencyDetails.mismatchDeps.map(dep => (
-                                  <div key={dep.name} className="flex items-center justify-between text-[9px] font-mono px-2 py-1 bg-slate-950/40 rounded border border-slate-850">
-                                    <span className="text-[var(--color-text-muted)]">{dep.name}</span>
-                                    <span className="text-amber-400">{dep.clientVersion} <span className="text-slate-500 font-sans">vs</span> {dep.coreVersion} (Core)</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {driftData.dependencyDetails.addedDeps?.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-[9px] font-bold text-indigo-400">📦 Agregadas por el Cliente:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {driftData.dependencyDetails.addedDeps.map(dep => (
-                                  <span key={dep} className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 text-[9px] font-mono rounded border border-indigo-500/20">{dep}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {!driftData.dependenciesOutOfSync ? (
-                            <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                              <CheckCircle size={11} /> Dependencias 100% alineadas con el Core.
-                            </p>
-                          ) : (
-                            <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border)]/40 mt-1">
-                              <button
-                                type="button"
-                                onClick={() => handleSyncFile(selectedCrmClientId, 'package.json')}
-                                disabled={syncingFile['package.json']}
-                                className="h-6 px-2.5 bg-indigo-650/10 hover:bg-indigo-650/20 border border-indigo-500/25 text-indigo-400 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer flex items-center gap-1 active:scale-[0.98] disabled:opacity-50"
-                                title="Fusionar dependencias y scripts de Core en package.json del cliente"
-                              >
-                                {syncingFile['package.json'] ? (
-                                  <RefreshCw size={9} className="animate-spin" />
-                                ) : (
-                                  <RefreshCw size={9} />
-                                )}
-                                Alinear package.json
-                              </button>
-                              
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setTerminalDrawer({
-                                    open: true,
-                                    clientId: selectedCrmClientId.toLowerCase(),
-                                    title: `Instalar Dependencias - ${selectedCrmClientId.toUpperCase()}`,
-                                    type: 'npm',
-                                  })
-                                }
-                                className="h-6 px-2.5 bg-emerald-650/10 hover:bg-emerald-650/20 border border-emerald-500/25 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer flex items-center gap-1 active:scale-[0.98]"
-                                title="Correr npm install en el cliente"
-                              >
-                                <Activity size={9} />
-                                Instalar NPM
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Lista de desviaciones */}
-                      <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-                        {driftData.differences.length === 0 ? (
-                          <div className="text-center py-10 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                            <p className="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5">
-                              <CheckCircle size={14} />
-                              ¡Código 100% Alineado!
-                            </p>
-                            <p className="text-[10px] text-emerald-300/60 mt-1">Esta instancia de cliente no presenta desviaciones físicas con el Core.</p>
-                          </div>
-                        ) : (
-                          driftData.differences.map((diff, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-[var(--color-surface-2)]/10 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-surface-2)]/20 transition-all">
-                              <div className="space-y-0.5">
-                                <p className="text-[11px] font-mono font-bold text-[var(--color-text)] break-all">{diff.file}</p>
-                                <p className="text-[9px] text-[var(--color-text-muted)]">
-                                  {diff.status === 'missing_in_client' ? '⚠️ Archivo ausente en cliente' : '✏️ Archivo modificado/desviado'}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {diff.status === 'modified' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleGitDiff(selectedCrmClientId.toLowerCase(), diff.file)}
-                                      className="h-6 px-1.5 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 border border-slate-700"
-                                      title="Comparar cambios contra Git HEAD"
-                                    >
-                                      <Eye size={10} />
-                                      Git Diff
-                                    </button>
-                                    <button
-                                      onClick={() => handleGitDiscard(selectedCrmClientId.toLowerCase(), diff.file)}
-                                      disabled={gitDiscardingFile === diff.file}
-                                      className="h-6 px-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-500 rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 disabled:opacity-40 border border-red-500/10"
-                                      title="Descartar cambios en este archivo"
-                                    >
-                                      <RotateCcw size={10} className={gitDiscardingFile === diff.file ? 'animate-spin' : ''} />
-                                      Deshacer
-                                    </button>
-                                  </>
-                                )}
-                                {diff.status === 'modified' && (
-                                  <button
-                                    onClick={() => setActiveDiffFile(diff)}
-                                    className="h-6 px-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-lg text-[9px] font-bold cursor-pointer"
-                                    title="Comparar contra plantilla Core"
-                                  >
-                                    Diff Core
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleSyncFile(selectedCrmClientId, diff.file)}
-                                  disabled={syncingFile[diff.file]}
-                                  className="h-6 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-bold cursor-pointer flex items-center gap-1 disabled:opacity-40"
-                                >
-                                  {syncingFile[diff.file] ? <RefreshCw size={8} className="animate-spin" /> : <RefreshCw size={8} />}
-                                  Sincronizar
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[var(--color-text-muted)] italic text-center py-6">Selecciona cargar desviación para comparar archivos.</p>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
-                  <button 
-                    onClick={() => {
-                      setActiveMetricModal(null)
-                      setSelectedCrmClientId(null)
-                    }}
-                    className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text)] rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    Cerrar CRM
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <ClientLifecyclePanel 
+          clientId={selectedCrmClientId}
+          clientData={clientesSaas.find(c => c.id.toLowerCase() === selectedCrmClientId.toLowerCase()) || {}}
+          onClose={() => {
+            setActiveMetricModal(null);
+            setSelectedCrmClientId(null);
+          }}
+          onSave={handleSaveCrmConfig}
+          showToast={(msg, opts) => showToast(msg, opts)}
+          isCrmClientCore={isCrmClientCore}
+          driftData={driftData}
+          driftLoading={driftLoading}
+          onLoadDriftData={loadDriftData}
+          onSyncFile={handleSyncFile}
+          onGitDiscard={handleGitDiscard}
+          onDeployClient={handleDeployClient}
+          onRunBuildAudit={handleRunBuildAudit}
+          onSetupCors={handleSetupCors}
+          buildAuditing={buildAuditing}
+          buildAuditResult={buildAuditResult}
+          settingUpCors={settingUpCors}
+          corsAuditResult={corsAuditResult}
+          syncingFile={syncingFile}
+          gitDiscardingFile={gitDiscardingFile}
+          setActiveDiffFile={setActiveDiffFile}
+          setBulkSyncFiles={setBulkSyncFiles}
+          setIsBulkSyncModalOpen={setIsBulkSyncModalOpen}
+        />
       )}
 
 

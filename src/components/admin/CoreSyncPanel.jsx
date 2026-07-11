@@ -629,7 +629,7 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
                     Ningún cliente coincide con los filtros aplicados.
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[320px] min-h-[70px] overflow-y-auto pr-1 block w-full">
                     {filteredClients.map(client => {
                       const isChecked = selectedClients.includes(client.folderName)
                       const status    = clientStatuses[client.folderName]
@@ -638,10 +638,10 @@ export default function CoreSyncPanel({ showToast, registeredClientIds = [], onR
                         <div
                           key={client.folderName}
                           onClick={() => syncState !== 'running' && toggleClient(client.folderName)}
-                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
                             isChecked
-                              ? 'bg-violet-500/5 border-violet-500/20 hover:bg-violet-500/10'
-                              : 'bg-[var(--color-surface-2)]/10 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/20'
+                              ? 'bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20'
+                              : 'bg-[var(--color-surface-2)]/20 border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/30'
                           } ${syncState === 'running' ? 'cursor-default opacity-90' : 'cursor-pointer'}`}
                         >
                           <div className="flex items-center gap-2.5">
