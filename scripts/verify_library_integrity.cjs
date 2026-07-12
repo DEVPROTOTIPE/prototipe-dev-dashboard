@@ -626,6 +626,12 @@ try {
         const backupChanged = backupHash !== storedHash;
 
         if (activeChanged && backupChanged) {
+          if (activeHash === backupHash) {
+            manifest.skills[skillName] = { sha256: activeHash, syncedAt: now };
+            actions.push({ skill: skillName, action: 'resolve_identical_sync' });
+            console.log(`🔒 Manifiesto actualizado para: ${skillName} (Contenido idéntico)`);
+            continue;
+          }
           conflicts.push({
             skill: skillName,
             type: 'THREE_WAY_CONFLICT',
@@ -658,7 +664,7 @@ try {
 
       // Contar categorías para el reporte
       const noopCount = actions.filter(a => a.action === 'noop').length;
-      const activeToBackupCount = actions.filter(a => a.action === 'active -> backup' || a.action === 'bootstrap active -> backup').length;
+      const activeToBackupCount = actions.filter(a => a.action === 'active -> backup' || a.action === 'bootstrap active -> backup' || a.action === 'resolve_identical_sync').length;
       const backupToActiveCount = actions.filter(a => a.action === 'backup -> active' || a.action === 'bootstrap backup -> active').length;
       const initialSyncCount = actions.filter(a => a.action.startsWith('initial sync')).length;
       const deleteReviewCount = conflicts.filter(c => c.type === 'DELETE_REVIEW').length;
@@ -729,7 +735,7 @@ try {
           const titleText = match[2];
           if (!isCompleted) {
             // Es la tarea activa!
-            const idRegex = /(?:(CORE|CLI|DASH|TPL|PLT|INST|DOC|LND|BIZ|HOTFIX|CLIENTE|E2E)-([A-Z0-9_-]+))/i;
+            const idRegex = /(?:(CORE|CLI|BUG|DASH|TPL|PLT|INST|DOC|LND|BIZ|HOTFIX|CLIENTE|E2E)-([A-Z0-9_-]+))/i;
             const idMatch = titleText.match(idRegex);
             if (idMatch) {
               activeTaskId = `${idMatch[1].toUpperCase()}-${idMatch[2].toUpperCase()}`;
