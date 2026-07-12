@@ -178,18 +178,18 @@ export default function ProgramadorRutasDomicilioSandbox() {
         </div>
 
         {/* Simulador Radar de Ruta */}
-        <div className="relative h-20 rounded-xl bg-slate-900 border border-[var(--color-border)] flex items-center px-6 overflow-hidden select-none">
+        <div className="relative h-20 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] flex items-center px-6 overflow-hidden select-none">
           <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#334155_1px,transparent_1px)] bg-[size:15px_15px]" />
           
           <div className="flex items-center justify-between w-full relative z-10">
             <div className="flex flex-col">
               <span className="text-[14px]">🏬</span>
-              <span className="text-[8px] text-slate-400 font-bold mt-1">TIENDA</span>
+              <span className="text-[8px] text-[var(--color-text-muted)] font-bold mt-1">TIENDA</span>
             </div>
 
             {/* Repartidor en Ruta */}
             <div className="flex-1 px-4 relative">
-              <div className="h-0.5 border-t-2 border-dashed border-slate-700 w-full" />
+              <div className="h-0.5 border-t-2 border-dashed border-[var(--color-border)] w-full" />
               {estadoRuta === 'en_ruta' && (
                 <div 
                   className="absolute -top-3.5 text-lg transition-all duration-300"
@@ -202,7 +202,7 @@ export default function ProgramadorRutasDomicilioSandbox() {
 
             <div className="flex flex-col items-end">
               <span className="text-[14px]">🏠</span>
-              <span className="text-[8px] text-slate-400 font-bold mt-1">CLIENTE</span>
+              <span className="text-[8px] text-[var(--color-text-muted)] font-bold mt-1">CLIENTE</span>
             </div>
           </div>
 

@@ -142,7 +142,7 @@ export default function LeafletMapPickerSandbox() {
         <div 
           ref={containerRef}
           onClick={handleMapClick}
-          className="relative h-60 rounded-xl bg-slate-900 border border-[var(--color-border)] overflow-hidden cursor-crosshair select-none"
+          className="relative h-60 rounded-xl bg-[var(--color-surface-2)] border border-[var(--color-border)] overflow-hidden cursor-crosshair select-none"
         >
           {/* Cuadrícula de Calles Simula Mapa Satelital */}
           <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#334155_1px,transparent_1px),linear-gradient(to_bottom,#334155_1px,transparent_1px)] bg-[size:30px_30px]" />
@@ -157,7 +157,7 @@ export default function LeafletMapPickerSandbox() {
             style={getPinPosition()}
           >
             {/* Etiqueta flotante */}
-            <div className="bg-slate-950/90 text-[10px] text-white px-2 py-0.5 rounded border border-indigo-500/30 whitespace-nowrap mb-1 font-bold">
+            <div className="bg-[var(--color-surface-3)]/95 text-[10px] text-[var(--color-text)] px-2 py-0.5 rounded border border-indigo-500/30 whitespace-nowrap mb-1 font-bold">
               {markerIcons[markerType]} {markerType.toUpperCase()}
             </div>
             {/* Pin animado */}
@@ -167,7 +167,7 @@ export default function LeafletMapPickerSandbox() {
           </div>
 
           {/* Indicador de coordenadas en esquina */}
-          <div className="absolute bottom-3 left-3 bg-slate-950/80 border border-[var(--color-border)] rounded px-2.5 py-1 text-[9px] font-mono text-slate-300">
+          <div className="absolute bottom-3 left-3 bg-[var(--color-surface-3)]/90 border border-[var(--color-border)] rounded px-2.5 py-1 text-[9px] font-mono text-[var(--color-text-muted)]">
             Lat: {lat.toFixed(5)} | Lng: {lng.toFixed(5)} | Zoom: {zoom}
           </div>
         </div>

@@ -62,8 +62,10 @@ import {
   ClipboardList,
   ToggleLeft,
   HeartPulse,
-  Store
+  Store,
+  Flame
 } from 'lucide-react'
+import FirebaseAccountsModal from './components/admin/FirebaseAccountsModal'
 import GitBackupPanel from './components/admin/GitBackupPanel'
 import RecaudoPanel from './components/admin/RecaudoPanel'
 import CobrosPanel from './components/admin/CobrosPanel'
@@ -81,8 +83,10 @@ import HealthMonitorView from './components/admin/HealthMonitorView'
 import NichesManagerPanel from './components/admin/NichesManagerPanel'
 import BrandingEffectsPanel from './components/admin/BrandingEffectsPanel'
 import ClientLifecyclePanel from './components/admin/ClientLifecyclePanel'
+import ProvisioningProgressModal from './components/admin/ProvisioningProgressModal'
 import SaaSMetricsService from './services/SaaSMetricsService'
 import CustomSelect from './components/ui/CustomSelect'
+import { GithubIcon } from './components/ui/BrandIcons'
 import html2canvas from 'html2canvas'
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { 
@@ -2590,6 +2594,58 @@ export default function App() {
 
   // Onboarding & Branding premium states
   const [isOnboardingActive, setIsOnboardingActive] = useState(false)
+  const [pendingOnboardingResult, setPendingOnboardingResult] = useState(null)
+
+  const handleCloseProvisioningModal = () => {
+    if (pendingOnboardingResult) {
+      setOnboardingData(pendingOnboardingResult);
+      setIsOnboardingActive(false);
+      setPendingOnboardingResult(null);
+      setNewClientName('');
+      localStorage.removeItem('prototipe_wizard_draft');
+      setFbApiKey('');
+      setFbAuthDomain('');
+      setFbProjectId('');
+      setFbStorageBucket('');
+      setFbMessagingSenderId('');
+      setFbAppId('');
+      setFbVapidKey('');
+      setCustomRequirements('');
+      setSeoDescription('');
+      setSeoKeywords('');
+      setRecommendationsSearchQuery('');
+    }
+    setIsProvisioning(false);
+    setIsRegistering(false);
+  };
+
+  // Transición automática a la ventana de resumen de credenciales tras 1.5 segundos de completarse con éxito
+  useEffect(() => {
+    if (pendingOnboardingResult) {
+      const timer = setTimeout(() => {
+        setOnboardingData(pendingOnboardingResult);
+        setIsOnboardingActive(false);
+        setPendingOnboardingResult(null);
+        setNewClientName('');
+        localStorage.removeItem('prototipe_wizard_draft');
+        setFbApiKey('');
+        setFbAuthDomain('');
+        setFbProjectId('');
+        setFbStorageBucket('');
+        setFbMessagingSenderId('');
+        setFbAppId('');
+        setFbVapidKey('');
+        setCustomRequirements('');
+        setSeoDescription('');
+        setSeoKeywords('');
+        setRecommendationsSearchQuery('');
+        setIsProvisioning(false);
+        setIsRegistering(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingOnboardingResult]);
+
   const [isBriefingSelectModalOpen, setIsBriefingSelectModalOpen] = useState(false)
   const [briefingSessions, setBriefingSessions] = useState([])
   const [loadingBriefings, setLoadingBriefings] = useState(false)
@@ -2816,6 +2872,17 @@ export default function App() {
   const [codeSnippet, setCodeSnippet] = useState(null)
   const [loadingCode, setLoadingCode] = useState(false)
   const [codeError, setCodeError] = useState(null)
+
+  // Lógica de cálculo de estado de progreso de aprovisionamiento
+  const hasProvisioningError = Array.isArray(provisioningLogs) && provisioningLogs.some(log => 
+    typeof log === 'string' && 
+    (log.includes('❌') || log.toLowerCase().includes('[cli error]') || log.toLowerCase().includes('[cli api error]') || log.toLowerCase().includes('build failed') || log.toLowerCase().includes('failed to deploy') || log.toLowerCase().includes('conexion sse perdida') || log.toLowerCase().includes('falló con código 1'))
+  );
+  const hasProvisioningSuccess = Array.isArray(provisioningLogs) && provisioningLogs.some(log => 
+    typeof log === 'string' && 
+    (log.includes('¡TODAS LAS PRUEBAS PASARON AL 100%!') || log.includes('Aprovisionamiento físico completado.'))
+  );
+  const isProgressActive = isRegistering || (isProvisioning && !hasProvisioningError && !hasProvisioningSuccess);
 
   // Estados Interactivos del Ecosistema PROTOTIPE
   const [crmSubTab, setCrmSubTab] = useState('directorio') // 'directorio' | 'paridad' | 'firebase-rules'
@@ -3223,6 +3290,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isFirebaseAccountsModalOpen, setIsFirebaseAccountsModalOpen] = useState(false)
   const [livePreviewComponent, setLivePreviewComponent] = useState(null)
 
   // --- Estados y Lógica para Configuración de Alertas Omnicanal ---
@@ -8563,6 +8631,7 @@ export default function App() {
                     }
                     const dbInstance = getFirestore(centralApp)
 
+                    let sseOpened = false
                     try {
                       let promptResult = ''
 
@@ -8595,6 +8664,7 @@ export default function App() {
                       ])
 
                       // 2. Abrir canal de eventos SSE
+                      sseOpened = true
                       await new Promise((resolve, reject) => {
                         const eventSource = new EventSource(`${CLI_URL}/api/create-project/stream?taskId=${taskId}`)
                         
@@ -8674,6 +8744,7 @@ export default function App() {
                                   radiusBase,
                                   googleFont
                                 },
+                                github: data.data.github || null,
                                 flags: {
                                   enableGithub,
                                   enableFirebaseDeploy,
@@ -8734,10 +8805,13 @@ export default function App() {
                             } else if (data.type === 'error') {
                               eventSource.close()
                               setProvisioningLogs(prev => [...prev, `[CLI API Error] ❌ Error: ${data.message || 'Error en el motor de aprovisionamiento del CLI.'}`])
+                              showToast(`Error al registrar cliente: ${data.message || 'Error en el motor de aprovisionamiento del CLI.'}`, { type: 'error' })
                               reject(new Error(data.message || 'Error en el motor de aprovisionamiento del CLI.'))
                             }
                           } catch (parseErr) {
-                            console.error('Error parseando evento SSE:', parseErr)
+                            console.error('Error parseando o procesando evento SSE:', parseErr)
+                            eventSource.close()
+                            reject(parseErr)
                           }
                         }
 
@@ -8747,8 +8821,8 @@ export default function App() {
                         }
                       })
 
-                      // Configurar la UI de onboarding con los datos del nuevo cliente
-                      setOnboardingData({
+                      // Configurar el resultado de onboarding pendiente
+                      setPendingOnboardingResult({
                         clientId,
                         token: telemetryToken,
                         comisionPorcentaje,
@@ -8757,27 +8831,14 @@ export default function App() {
                         adminEmail: `admin@${clientId}.com`,
                         adminPassword: 'Admin2026!'
                       })
-                      setIsOnboardingActive(false)
-                      setNewClientName('')
-                      localStorage.removeItem('prototipe_wizard_draft')
-                      setFbApiKey('')
-                      setFbAuthDomain('')
-                      setFbProjectId('')
-                      setFbStorageBucket('')
-                      setFbMessagingSenderId('')
-                      setFbAppId('')
-                      setFbVapidKey('')
-                      setCustomRequirements('')
-                      setSeoDescription('')
-                      setSeoKeywords('')
-                      setRecommendationsSearchQuery('')
                     } catch (err) {
                       console.error(err)
                       addLog(`Error registrando cliente: ${err.message}`, "error")
+                      setProvisioningLogs(prev => [...prev, `[CLI Error] ❌ Error: ${err.message}`])
                       showToast(`Error al registrar cliente: ${err.message}`, { type: 'error' })
+                      setIsProvisioning(false)
                     } finally {
                       setIsRegistering(false)
-                      setIsProvisioning(false)
                     }
                   }}
                   className={`px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center gap-1.5 ${(isRegistering || isProvisioning || !newClientName.trim()) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -10384,6 +10445,18 @@ export default function App() {
             </div>
           </div>
         )}
+        {/* Modal de Progreso de Aprovisionamiento Premium */}
+        <ProvisioningProgressModal
+          isProvisioning={isProvisioning}
+          isRegistering={isRegistering}
+          isCompleted={!!pendingOnboardingResult}
+          logs={provisioningLogs}
+          stageLabel={provisioningStageLabel}
+          clientId={(newClientName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}
+          clientName={newClientName || ''}
+          onClose={handleCloseProvisioningModal}
+          onOpenAccountsManager={() => setIsFirebaseAccountsModalOpen(true)}
+        />
       </div>
     )
   }
@@ -12017,6 +12090,21 @@ export default function App() {
                                 Instalar Deps
                               </button>
                             )}
+                            {(() => {
+                              const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
+                              const githubUrl = cfg.github?.url || (cfg.flags?.enableGithub !== false ? `https://github.com/DEVPROTOTIPE/app-${client.name.toLowerCase()}` : null);
+                              if (githubUrl) {
+                                return (
+                                  <a href={githubUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex-1 sm:flex-initial px-3 py-1.5 bg-[#24292e]/80 hover:bg-[#24292e] hover:text-white text-slate-100 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 border border-slate-700/50 hover:border-slate-600 min-w-[80px] sm:min-w-0"
+                                    title="Ir al repositorio en GitHub">
+                                    <GithubIcon className="w-3.5 h-3.5" />
+                                    GitHub
+                                  </a>
+                                );
+                              }
+                              return null;
+                            })()}
                             <button onClick={() => handleRequestClientTelemetry(client.name)}
                               className="flex-1 sm:flex-initial px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-650 dark:text-emerald-400 rounded-xl text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all active:scale-95 border border-emerald-500/10 hover:border-emerald-500/30 min-w-[130px] sm:min-w-0">
                               <Activity size={11} className="animate-pulse" />
@@ -14709,96 +14797,6 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
       )}
 
 
-
-      {/* Overlay de Carga de Aprovisionamiento con Consola de Logs Interactiva */}
-      {isProvisioning && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4 sm:p-6">
-          <div className="bg-slate-900/85 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-2xl w-full space-y-6 shadow-2xl backdrop-blur-xl">
-            
-            {/* Cabecera del Estado */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-slate-800 pb-4">
-              <div className="relative w-12 h-12 flex-shrink-0">
-                <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20" />
-                <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin" />
-              </div>
-              <div className="text-center sm:text-left space-y-1">
-                <h4 className="text-sm font-extrabold text-slate-100 uppercase tracking-wider">Aprovisionando Entorno de Cliente</h4>
-                {provisioningStageLabel ? (
-                  <p className="text-xs font-bold text-indigo-400">
-                    {provisioningStageLabel}
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    Iniciando aprovisionamiento...
-                  </p>
-                )}
-              </div>
-              <div className="sm:ml-auto text-center sm:text-right">
-                <span className="text-[10px] text-slate-500 font-mono">
-                  PROCESANDO TAREA ACTIVA
-                </span>
-              </div>
-            </div>
-
-            {/* Consola de Terminal de Logs */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/85" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/85" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/85" />
-                  <span className="text-[10px] font-mono text-slate-400 ml-2 font-bold">consola_provision_cli.sh</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-500 bg-slate-950/60 px-2 py-0.5 rounded border border-slate-800">
-                  {provisioningLogs.length} líneas
-                </span>
-              </div>
-              
-              <div 
-                ref={(el) => {
-                  if (el) {
-                    el.scrollTop = el.scrollHeight;
-                  }
-                }}
-                className="h-64 overflow-y-auto font-mono text-[10px] text-left text-indigo-300 bg-slate-950/70 p-4 border border-slate-800/80 rounded-2xl space-y-1.5 scrollbar-thin scrollbar-thumb-slate-850 scrollbar-track-transparent select-text"
-              >
-                {provisioningLogs.length === 0 ? (
-                  <div className="text-slate-600 italic">Esperando primeras líneas del servidor local...</div>
-                ) : (
-                  provisioningLogs.map((logLine, idx) => {
-                    let lineClass = "text-slate-300";
-                    if (logLine.includes("✅") || logLine.includes("éxito") || logLine.includes("exitoso") || logLine.includes("correctamente")) {
-                      lineClass = "text-emerald-400 font-semibold";
-                    } else if (logLine.includes("❌") || logLine.includes("falló") || logLine.includes("Error")) {
-                      lineClass = "text-rose-400 font-semibold";
-                    } else if (logLine.includes("⚠️") || logLine.includes("Warning") || logLine.includes("advertencia")) {
-                      lineClass = "text-amber-400";
-                    } else if (logLine.startsWith("[Firebase") || logLine.startsWith("[CLI API]")) {
-                      lineClass = "text-indigo-400";
-                    } else if (logLine.startsWith("-") || logLine.startsWith("i ")) {
-                      lineClass = "text-slate-400";
-                    }
-                    return (
-                      <div key={idx} className={`${lineClass} break-all whitespace-pre-wrap leading-relaxed`}>
-                        <span className="text-slate-600 mr-2 select-none">$</span>
-                        {logLine}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Footer Informativo */}
-            <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/60 pt-3">
-              <span>PROTOTIPE CLI ENGINE v3.0</span>
-              <span>Evita cerrar esta pestaña durante la instalación</span>
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* Modal de Detalle de Perfil */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
@@ -14899,6 +14897,18 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
               </button>
             </div>
 
+            {/* Acción de Cuentas de Firebase */}
+            <button 
+              onClick={() => {
+                setIsProfileModalOpen(false)
+                setIsFirebaseAccountsModalOpen(true)
+              }}
+              className="w-full py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 text-orange-400 text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md mb-2"
+            >
+              <Flame size={13} className="text-orange-400" />
+              Cuentas Firebase (Rotación)
+            </button>
+
             {/* Acción de Ajustes / Configuración */}
             <button 
               onClick={() => {
@@ -14925,6 +14935,13 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
           </div>
         </div>
       )}
+
+      {/* Modal de Gestión de Cuentas Firebase */}
+      <FirebaseAccountsModal 
+        isOpen={isFirebaseAccountsModalOpen}
+        onClose={() => setIsFirebaseAccountsModalOpen(false)}
+        cliUrl={CLI_URL}
+      />
 
       {/* Drawer Lateral de Diagnóstico Inteligente */}
       {selectedDiagnosticError && (
@@ -16293,6 +16310,19 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
           </div>
         </div>
       )}
+
+      {/* Modal de Progreso de Aprovisionamiento Premium */}
+      <ProvisioningProgressModal
+        isProvisioning={isProvisioning}
+        isRegistering={isRegistering}
+        isCompleted={!!pendingOnboardingResult}
+        logs={provisioningLogs}
+        stageLabel={provisioningStageLabel}
+        clientId={(newClientName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}
+        clientName={newClientName || ''}
+        onClose={handleCloseProvisioningModal}
+        onOpenAccountsManager={() => setIsFirebaseAccountsModalOpen(true)}
+      />
 
       {/* Toast de Notificaciones */}
       <GuidedToast 

@@ -1076,6 +1076,12 @@ export const COMPONENT_SANDBOX_MAP = {
   'sparkline': 'ProtoCharts',
   'area chart': 'ProtoCharts',
   'bar chart svg': 'ProtoCharts',
+
+  // --- Hub de Iconos Atómicos de Marca ---
+  'brandicons': 'BrandIcons',
+  'brand_icons': 'BrandIcons',
+  'iconos_marca': 'BrandIcons',
+  'hub de iconos de marca': 'BrandIcons'
 };
 
 export function getSandboxKey(name = '', technicalName = '') {
