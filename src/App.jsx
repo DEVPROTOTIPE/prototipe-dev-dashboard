@@ -12092,7 +12092,15 @@ export default function App() {
                             )}
                             {(() => {
                               const cfg = clientesSaas.find(c => c.id.toLowerCase() === client.name.toLowerCase()) || {};
-                              const githubUrl = cfg.github?.url || (cfg.flags?.enableGithub !== false ? `https://github.com/DEVPROTOTIPE/app-${client.name.toLowerCase()}` : null);
+                              const githubUrl = cfg.github?.url || (() => {
+                                if (cfg.flags?.enableGithub === false) return null;
+                                const template = cfg.template || '';
+                                if (!template || template === 'template-core-seed') {
+                                  return `https://github.com/DEVPROTOTIPE/app-${client.name.toLowerCase()}`;
+                                }
+                                const coreType = template.replace('template-', '');
+                                return `https://github.com/DEVPROTOTIPE/prototipe-core-${coreType}/tree/cliente/${client.name.toLowerCase()}`;
+                              })();
                               if (githubUrl) {
                                 return (
                                   <a href={githubUrl} target="_blank" rel="noopener noreferrer"
