@@ -111,6 +111,7 @@ import {
   signInWithPopup
 } from 'firebase/auth'
 import useCopyToClipboard from './hooks/useCopyToClipboard'
+import { buildProvisioningPayload } from './utils/provisioningPayload'
 import { exportCommissionReceiptPDF, exportConsolidatedReconciliationPDF, exportClientsDirectoryPDF, exportGeneralMetricsPDF, exportClientDetailPDF } from './services/pdfService'
 import { 
   ResponsiveContainer, 
@@ -8410,7 +8411,7 @@ export default function App() {
 
                     addLog(`Registrando nuevo cliente: ${clientId} (${billingMode})`, "info")
 
-                    const cliPayload = {
+                    const rawPayload = {
                       template: selectedTemplate,
                       projectName: newClientName.trim(),
                       targetPath,
@@ -8490,6 +8491,8 @@ export default function App() {
                         enableDianBilling
                       }
                     }
+
+                    const cliPayload = buildProvisioningPayload(rawPayload)
 
                     if (isSimulated) {
                       const d = new Date()
