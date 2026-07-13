@@ -18,7 +18,7 @@ const CORE_FLAGS = [
   { id: 'couponsEnabled', label: 'Cupones de Descuento', desc: 'Sistema de cupones de descuento con confeti animado y validaciones' },
   { id: 'claimsEnabled', label: 'Garantías y Reclamaciones', desc: 'Habilita bandeja técnica para reportar daños y productos defectuosos' },
   { id: 'wholesaleEnabled', label: 'Precios de Mayoreo', desc: 'Descuentos automáticos al sobrepasar topes de cantidad por artículo' },
-  { id: 'deliveryEnabled', label: 'Seguimiento de Domicilios', desc: 'Stepper dinámico de 4 estados con geolocalización de mensajeros' },
+  { id: 'deliveryEnabled', label: 'Gestión de Empleados & Domicilios', desc: 'Habilita la creación de empleados, accesos QR a portales de trabajo (caja, bodega, mensajería) y seguimiento de entregas' },
   { id: 'commissionsEnabled', label: 'Comisiones por Vendedor', desc: 'Cálculo comisional automático por cada ticket de venta concretado' },
   { id: 'enableDianBilling', label: 'Facturación DIAN', desc: 'Módulo de conexión directa para reportes fiscales en caliente' },
   { id: 'reservasEnabled', label: 'Citas y Reservas', desc: 'Agenda interactiva con bloqueo de franjas horarias y asignación de técnicos' },
@@ -71,13 +71,21 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
         list.push({ id: doc.id, ...doc.data() });
       });
       setClientes(list);
-      // Pre-seleccionar el primero si no hay ninguno seleccionado
-      if (list.length > 0 && !selectedClientId) {
+      
+      // Sincronizar reactivamente las flags si ya hay un cliente seleccionado
+      if (selectedClientId) {
+        const currentClient = list.find(c => c.id === selectedClientId);
+        if (currentClient) {
+          setClientFlags(currentClient.flags || {});
+          setHistoryList(currentClient.flagHistory || []);
+        }
+      } else if (list.length > 0) {
+        // Pre-seleccionar el primero si no hay ninguno seleccionado
         handleSelectClient(list[0].id, list);
       }
     });
     return () => unsubscribe();
-  }, [dbInstance]);
+  }, [dbInstance, selectedClientId]);
 
   const handleSelectClient = async (clientId, list = clientes) => {
     setSelectedClientId(clientId);
@@ -145,6 +153,8 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
   const handleBulkAction = async (actionType) => {
     const activeCore = selectedClientData?.template || 'ventas';
     const activeFlags = coresMetadata[activeCore]?.manifest?.featureFlags || CORE_FLAGS;
+    
+    const updatedFlags = { ...clientFlags };
     activeFlags.forEach(flag => {
       updatedFlags[flag.id] = actionType === 'enable';
     });

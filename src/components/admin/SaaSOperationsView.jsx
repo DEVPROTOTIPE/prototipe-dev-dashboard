@@ -18,6 +18,7 @@ import SAAS_CONFIG from '../../config/saas_config';
 import AlertEngine from '../../services/AlertEngine';
 import SaaSMetricsService from '../../services/SaaSMetricsService';
 import CustomSelect from '../ui/CustomSelect';
+import { CLI_URL } from '../../config';
 
 export function SaaSOperationsView({ clientesSaas = [], globalSaaSConfig = {}, onSaveGlobalSaaSConfig }) {
   const [loading, setLoading] = useState(false);
@@ -83,25 +84,25 @@ export function SaaSOperationsView({ clientesSaas = [], globalSaaSConfig = {}, o
     setLoading(true);
     try {
       // 1. Obtener adopción de features
-      const adoptRes = await fetch('http://localhost:3000/api/project/telemetry/adoption');
-      const adoptData = await adoptRes.json();
-      if (adoptData.success) {
-        setAdoptionStats(adoptData.stats);
-      }
+      try {
+        const adoptRes = await fetch(`${CLI_URL}/api/project/telemetry/adoption`);
+        const adoptData = await adoptRes.json();
+        if (adoptData.success) setAdoptionStats(adoptData.stats);
+      } catch (_) { /* Bridge no disponible — telemetría de adopción omitida */ }
 
       // 2. Obtener pings HTTP en vivo
-      const pingRes = await fetch('http://localhost:3000/api/project/telemetry/pings');
-      const pingData = await pingRes.json();
-      if (pingData.success) {
-        setPingStats(pingData.pings);
-      }
+      try {
+        const pingRes = await fetch(`${CLI_URL}/api/project/telemetry/pings`);
+        const pingData = await pingRes.json();
+        if (pingData.success) setPingStats(pingData.pings);
+      } catch (_) { /* Bridge no disponible — pings omitidos */ }
 
       // 3. Obtener logs locales de telemetría
-      const logsRes = await fetch('http://localhost:3000/api/project/telemetry/logs');
-      const logsData = await logsRes.json();
-      if (logsData.success) {
-        setTelemetryLogs(logsData.logs);
-      }
+      try {
+        const logsRes = await fetch(`${CLI_URL}/api/project/telemetry/logs`);
+        const logsData = await logsRes.json();
+        if (logsData.success) setTelemetryLogs(logsData.logs);
+      } catch (_) { /* Bridge no disponible — logs omitidos */ }
     } catch (err) {
       console.error('Error al recuperar telemetría:', err);
     } finally {

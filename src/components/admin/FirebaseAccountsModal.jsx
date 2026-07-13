@@ -176,7 +176,7 @@ export default function FirebaseAccountsModal({ isOpen, onClose, cliUrl = '' }) 
   const projectPercentage = Math.min(100, Math.round((projectCount / sparkLimit) * 100));
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
       <div className="w-full max-w-lg bg-slate-900/60 border border-slate-800/80 rounded-3xl shadow-2xl backdrop-blur-xl relative z-10 flex flex-col max-h-[85vh] premium-glass-panel overflow-hidden">
         
         {/* Estilo local para pulse */}

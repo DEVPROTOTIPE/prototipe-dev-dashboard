@@ -10,7 +10,8 @@ import {
   Sparkles,
   Check,
   Flame,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 
 const STAGES = [
@@ -39,11 +40,36 @@ export default function ProvisioningProgressModal({
   clientName = '',
   isRegistering = false,
   isCompleted = false,
-  onOpenAccountsManager
+  onOpenAccountsManager,
+  isAuthActivationRequired = false,
+  authProjectId = '',
+  onResumeAuth
 }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState('stages'); // 'stages' | 'console'
+  const [isResumingAuth, setIsResumingAuth] = useState(false);
   const terminalEndRef = useRef(null);
+
+  const handleDownloadLog = () => {
+    if (!logs || logs.length === 0) return;
+    const textContent = logs.map(line => {
+      if (typeof line !== 'string') return '';
+      return line.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, ''); // Limpiar códigos de escape ANSI
+    }).join('\n');
+    
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const cleanClientName = (clientName || clientId || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `log-aprovisionamiento-${cleanClientName}-${dateStr}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Analizar logs para determinar el paso actual
   const getActiveStepIndex = () => {
@@ -89,6 +115,11 @@ export default function ProvisioningProgressModal({
     // Ignorar específicamente parámetros de configuración, flags e inicializadores de loglevel comunes
     if (text.includes('--loglevel=error')) return false;
     
+    // Ignorar advertencias/limitaciones de configuración en la nube (no impiden el build físico local)
+    if (text.includes('configuration_not_found') || text.includes('billing_not_enabled') || text.includes('failed_precondition')) {
+      return false;
+    }
+    
     // Si contiene marcas explícitas de fallo fatal del Bridge/CLI
     if (text.includes('❌') || text.includes('[cli api error]') || text.includes('[cli error]') || text.includes('failed to deploy') || text.includes('build failed')) {
       return true;
@@ -100,7 +131,9 @@ export default function ProvisioningProgressModal({
                          !text.includes('ignorar') && 
                          !text.includes('warn') &&
                          !text.includes('info') &&
-                         !text.includes('debug');
+                         !text.includes('debug') &&
+                         !text.includes('configuration_not_found') &&
+                         !text.includes('billing_not_enabled');
                          
     return hasErrorWord;
   });
@@ -412,7 +445,7 @@ export default function ProvisioningProgressModal({
 
               {/* VISTA 2: CONSOLA DE CÓDIGO */}
               {activeTab === 'console' && (
-                <div className="h-full bg-slate-950/70 border border-slate-850 p-4 font-mono text-[9px] rounded-2xl overflow-y-auto space-y-2 select-text scrollbar-premium">
+                <div className="h-full bg-slate-950/90 border border-[var(--color-border)]/50 p-4 font-mono text-[9px] rounded-xl overflow-y-auto space-y-2 select-text scrollbar-premium">
                   {logs.length === 0 ? (
                     <div className="text-slate-600 italic">Esperando logs de compilación del CLI...</div>
                   ) : (
@@ -454,6 +487,53 @@ export default function ProvisioningProgressModal({
                 </div>
               )}
 
+              {/* Tarjeta de Activación de Firebase Auth (Spark Plan Pausa) */}
+              {isAuthActivationRequired && (
+                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4.5 space-y-4 shadow-[0_0_30px_rgba(99,102,241,0.15)] select-none">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">
+                        Activación de Firebase Auth Requerida
+                      </h4>
+                      <p className="text-[10px] text-slate-300 leading-relaxed">
+                        Google requiere la inicialización física del servicio de Autenticación para proyectos nuevos en el plan Spark (gratuito). Por favor, abre la consola del proyecto, presiona el botón <span className="font-bold text-indigo-300">"Comenzar"</span> (Get Started) y regresa para continuar.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                    <a
+                      href={`https://console.firebase.google.com/project/${authProjectId}/authentication`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-center text-xs font-black tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-[0.98] select-none cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                      1. Ir a Consola Firebase
+                    </a>
+                    <button
+                      onClick={async () => {
+                        if (isResumingAuth) return;
+                        setIsResumingAuth(true);
+                        if (onResumeAuth) {
+                          await onResumeAuth();
+                        }
+                        setIsResumingAuth(false);
+                      }}
+                      disabled={isResumingAuth}
+                      className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                    >
+                      {isResumingAuth ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
+                      2. Ya lo he habilitado, continuar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Barra de progreso e información de porcentaje */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-mono tracking-wider">
@@ -470,38 +550,52 @@ export default function ProvisioningProgressModal({
                 </div>
               </div>
 
-              {/* Botón de Cierre / Continuar al finalizar */}
+              {/* Botón de Cierre / Continuar al finalizar / Descargar Logs */}
               {(hasFinishedSuccess || isError || !isRegistering) && (
-                <div className="flex justify-end gap-2.5 animate-fade-in pt-1">
-                  {hasFinishedSuccess && (
-                    <button
-                      onClick={onClose}
-                      className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-extrabold cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-200 animate-pulse" />
-                      Completado / Ir a Onboarding
-                    </button>
-                  )}
-                   {(isError || (!hasFinishedSuccess && !isRegistering)) && (
-                    <div className="flex gap-2">
-                      {isError && onOpenAccountsManager && (
-                        <button
-                          onClick={onOpenAccountsManager}
-                          className="px-5 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                        >
-                          <Flame className="w-3.5 h-3.5 text-orange-400 animate-pulse" />
-                          Gestionar Firebase
-                        </button>
-                      )}
+                <div className="flex justify-between items-center gap-4 animate-fade-in pt-1">
+                  <div>
+                    {logs && logs.length > 0 && (
+                      <button
+                        onClick={handleDownloadLog}
+                        className="px-4.5 py-2.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-indigo-400 hover:text-indigo-300 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 shadow-inner"
+                        title="Descargar registro completo en un archivo .txt"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Descargar Registro (Log)
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2.5">
+                    {hasFinishedSuccess && (
                       <button
                         onClick={onClose}
-                        className="px-6 py-2.5 bg-rose-950/20 border border-rose-500/30 hover:border-rose-500/50 hover:bg-rose-900/10 text-rose-300 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.1)] hover:scale-105 active:scale-95"
+                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl text-xs font-extrabold cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
                       >
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-                        Cerrar y Revisar Logs
+                        <Sparkles className="w-3.5 h-3.5 text-amber-200 animate-pulse" />
+                        Completado / Ir a Onboarding
                       </button>
-                    </div>
-                  )}
+                    )}
+                    {(isError || (!hasFinishedSuccess && !isRegistering)) && (
+                      <div className="flex gap-2">
+                        {isError && onOpenAccountsManager && (
+                          <button
+                            onClick={onOpenAccountsManager}
+                            className="px-5 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                          >
+                            <Flame className="w-3.5 h-3.5 text-orange-400 animate-pulse" />
+                            Gestionar Firebase
+                          </button>
+                        )}
+                        <button
+                          onClick={onClose}
+                          className="px-6 py-2.5 bg-rose-950/20 border border-rose-500/30 hover:border-rose-500/50 hover:bg-rose-900/10 text-rose-300 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(244,63,94,0.1)] hover:scale-105 active:scale-95"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                          Cerrar y Revisar Logs
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

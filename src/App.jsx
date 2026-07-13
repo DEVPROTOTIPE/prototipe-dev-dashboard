@@ -84,6 +84,7 @@ import NichesManagerPanel from './components/admin/NichesManagerPanel'
 import BrandingEffectsPanel from './components/admin/BrandingEffectsPanel'
 import ClientLifecyclePanel from './components/admin/ClientLifecyclePanel'
 import ProvisioningProgressModal from './components/admin/ProvisioningProgressModal'
+import ProvisioningQueueModal from './components/admin/ProvisioningQueueModal'
 import SaaSMetricsService from './services/SaaSMetricsService'
 import CustomSelect from './components/ui/CustomSelect'
 import { GithubIcon } from './components/ui/BrandIcons'
@@ -2467,6 +2468,7 @@ export default function App() {
   const [onboardingData, setOnboardingData] = useState(null)
 
   // Estados para el aprovisionamiento de nuevo cliente
+  const [seedDatabase, setSeedDatabase] = useState(true)
   const [billingMode, setBillingMode] = useState('percentage')
   const [comisionPorcentaje, setComisionPorcentaje] = useState(1.5)
   const [montoFijoServicio, setMontoFijoServicio] = useState(500)
@@ -2537,6 +2539,7 @@ export default function App() {
   const [settingUpCors, setSettingUpCors] = useState(false)
   const [corsAuditResult, setCorsAuditResult] = useState(null)
   const [activeDiffFile, setActiveDiffFile] = useState(null)
+  const [diffLoading, setDiffLoading] = useState(false)
   const [syncingFile, setSyncingFile] = useState({})
   const [editComisionPorcentaje, setEditComisionPorcentaje] = useState(1.5)
   const [editMontoFijoServicio, setEditMontoFijoServicio] = useState(500)
@@ -2567,6 +2570,10 @@ export default function App() {
   const [fbMessagingSenderId, setFbMessagingSenderId] = useState('')
   const [fbAppId, setFbAppId] = useState('')
   const [targetPath, setTargetPath] = useState('')
+  const [instancesCategories, setInstancesCategories] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [templates, setTemplates] = useState([
     { id: 'template-core-seed', name: 'Crear desde cero' }
   ])
@@ -2595,13 +2602,42 @@ export default function App() {
   // Onboarding & Branding premium states
   const [isOnboardingActive, setIsOnboardingActive] = useState(false)
   const [pendingOnboardingResult, setPendingOnboardingResult] = useState(null)
+  const [isAuthActivationRequired, setIsAuthActivationRequired] = useState(false)
+  const [authProjectId, setAuthProjectId] = useState('')
+  const [authTaskId, setAuthTaskId] = useState('')
+
+  const handleResumeAuthProvisioning = async () => {
+    try {
+      addLog(`[CLI API] Enviando señal de reanudación al Bridge CLI...`, "info");
+      setProvisioningLogs(prev => [...prev, `[CLI API] ⏳ Reanudando aprovisionamiento tras activación manual...`]);
+      const res = await fetch(`${CLI_URL}/api/create-project/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ taskId: authTaskId })
+      });
+      if (res.ok) {
+        setIsAuthActivationRequired(false);
+      } else {
+        const err = await res.json();
+        showToast(`Error al reanudar aprovisionamiento: ${err.error}`, { type: 'error' });
+      }
+    } catch (err) {
+      showToast(`Error de conexión al reanudar: ${err.message}`, { type: 'error' });
+    }
+  };
 
   const handleCloseProvisioningModal = () => {
+    setIsAuthActivationRequired(false);
+    setAuthProjectId('');
+    setAuthTaskId('');
     if (pendingOnboardingResult) {
       setOnboardingData(pendingOnboardingResult);
       setIsOnboardingActive(false);
       setPendingOnboardingResult(null);
       setNewClientName('');
+      setSeedDatabase(true);
       localStorage.removeItem('prototipe_wizard_draft');
       setFbApiKey('');
       setFbAuthDomain('');
@@ -2618,33 +2654,6 @@ export default function App() {
     setIsProvisioning(false);
     setIsRegistering(false);
   };
-
-  // Transición automática a la ventana de resumen de credenciales tras 1.5 segundos de completarse con éxito
-  useEffect(() => {
-    if (pendingOnboardingResult) {
-      const timer = setTimeout(() => {
-        setOnboardingData(pendingOnboardingResult);
-        setIsOnboardingActive(false);
-        setPendingOnboardingResult(null);
-        setNewClientName('');
-        localStorage.removeItem('prototipe_wizard_draft');
-        setFbApiKey('');
-        setFbAuthDomain('');
-        setFbProjectId('');
-        setFbStorageBucket('');
-        setFbMessagingSenderId('');
-        setFbAppId('');
-        setFbVapidKey('');
-        setCustomRequirements('');
-        setSeoDescription('');
-        setSeoKeywords('');
-        setRecommendationsSearchQuery('');
-        setIsProvisioning(false);
-        setIsRegistering(false);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [pendingOnboardingResult]);
 
   const [isBriefingSelectModalOpen, setIsBriefingSelectModalOpen] = useState(false)
   const [briefingSessions, setBriefingSessions] = useState([])
@@ -3291,6 +3300,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isFirebaseAccountsModalOpen, setIsFirebaseAccountsModalOpen] = useState(false)
+  const [isProvisioningQueueModalOpen, setIsProvisioningQueueModalOpen] = useState(false)
   const [livePreviewComponent, setLivePreviewComponent] = useState(null)
 
   // --- Estados y Lógica para Configuración de Alertas Omnicanal ---
@@ -4129,6 +4139,7 @@ export default function App() {
         if (draft.tilt3d !== undefined) setTilt3d(draft.tilt3d)
         if (draft.enableGithub !== undefined) setEnableGithub(draft.enableGithub)
         if (draft.enableFirebaseDeploy !== undefined) setEnableFirebaseDeploy(draft.enableFirebaseDeploy)
+        if (draft.seedDatabase !== undefined) setSeedDatabase(draft.seedDatabase)
         if (draft.enablePwa !== undefined) setEnablePwa(draft.enablePwa)
         if (draft.enablePush !== undefined) setEnablePush(draft.enablePush)
         if (draft.enableBilling !== undefined) setEnableBilling(draft.enableBilling)
@@ -4254,6 +4265,7 @@ export default function App() {
       tilt3d,
       enableGithub,
       enableFirebaseDeploy,
+      seedDatabase,
       enablePwa,
       enablePush,
       enableBilling,
@@ -4280,13 +4292,292 @@ export default function App() {
     bgParticlesSize, bgParticlesColor, bgParticlesOpacity, bgParticlesDirection,
     bgParticlesShape, bgParticlesIcon, bgOrbsCount, bgOrbsOpacity,
     borderBeam, tilt3d,
-    enableGithub, enableFirebaseDeploy, enablePwa, enablePush, enableBilling,
+    enableGithub, enableFirebaseDeploy, seedDatabase, enablePwa, enablePush, enableBilling,
     seoDescription, seoKeywords, selectedRecomendations
   ])
+  const fetchCategories = () => {
+    fetch(`${CLI_URL}/api/project/instances-categories`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.categories)) {
+          setInstancesCategories(data.categories)
+        }
+      })
+      .catch(err => {
+        console.warn("No se pudo cargar categorías de instancias del Bridge CLI:", err)
+      })
+  }
 
+  const handleCreateCategory = (name) => {
+    if (!name || !name.trim()) return
+    setIsCreatingCategory(true)
+    fetch(`${CLI_URL}/api/project/instances-categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryName: name })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.categories)) {
+          setInstancesCategories(data.categories)
+          setSelectedCategory(name.trim().replace(/[^a-zA-Z0-9-_]/g, ''))
+          setNewCategoryName('')
+          showToast('Categoría creada exitosamente', { type: 'success' })
+        } else if (data.error) {
+          showToast(data.error, { type: 'error' })
+        }
+      })
+      .catch(err => {
+        console.error("Error al crear categoría:", err)
+        showToast("Error al conectar con el servidor CLI", { type: 'error' })
+      })
+      .finally(() => {
+        setIsCreatingCategory(false)
+      })
+  }
 
+  const reconnectProvisioning = async (taskId, payload) => {
+    try {
+      setIsProvisioning(true);
+      setProvisioningLogs([`[Reconexión] ⏳ Verificando estado del aprovisionamiento activo en segundo plano...`]);
+
+      const statusRes = await fetch(`${CLI_URL}/api/create-project/status?taskId=${taskId}`);
+      if (!statusRes.ok) {
+        throw new Error('Error al consultar estado de la tarea en el Bridge CLI');
+      }
+
+      const statusData = await statusRes.json();
+      if (!statusData.active) {
+        console.warn(`[Reconexión] La tarea ${taskId} ya no se encuentra activa en el Bridge CLI.`);
+        localStorage.removeItem('activeProvisioningTaskId');
+        localStorage.removeItem('activeProvisioningClientPayload');
+        setIsProvisioning(false);
+        return;
+      }
+
+      addLog(`[Reconexión] Aprovisionamiento en curso detectado en backend. Restableciendo panel...`, 'info');
+      
+      // Restaurar estados en App.jsx a partir del payload persistido
+      setNewClientName(payload.newClientName || '');
+      setNiche(payload.niche || '');
+      setBillingMode(payload.billingMode || 'flat_monthly');
+      setComisionPorcentaje(payload.comisionPorcentaje || 0);
+      setMontoFijoServicio(payload.montoFijoServicio || 0);
+      setPagoMensualFijo(payload.pagoMensualFijo || 0);
+      setSetupFee(payload.setupFee || 0);
+      setEnableDianBilling(payload.enableDianBilling || false);
+      setCostoPorFacturaDian(payload.costoPorFacturaDian || 0);
+      setTargetPath(payload.targetPath || '');
+      setSelectedTemplate(payload.selectedTemplate || 'template-core-seed');
+      setCustomRequirements(payload.customRequirements || '');
+      setAdminEmail(payload.adminEmail || '');
+      setCustomPort(payload.customPort || '');
+      setWhatsappAdmin(payload.whatsappAdmin || '');
+      setStoreAddress(payload.storeAddress || '');
+      setFbApiKey(payload.fbApiKey || '');
+      setFbAuthDomain(payload.fbAuthDomain || '');
+      setFbProjectId(payload.fbProjectId || '');
+      setFbStorageBucket(payload.fbStorageBucket || '');
+      setFbMessagingSenderId(payload.fbMessagingSenderId || '');
+      setFbAppId(payload.fbAppId || '');
+      setFbVapidKey(payload.fbVapidKey || '');
+      setPrimaryColor(payload.primaryColor || '');
+      setSecondaryColor(payload.secondaryColor || '');
+      setBgColor(payload.bgColor || '');
+      setTextColor(payload.textColor || '');
+      setSurfaceColor(payload.surfaceColor || '');
+      setSurface2Color(payload.surface2Color || '');
+      setBorderColor(payload.borderColor || '');
+      setTextMutedColor(payload.textMutedColor || '');
+      setRadiusBase(payload.radiusBase || '');
+      setGoogleFont(payload.googleFont || '');
+      setEnableGithub(payload.enableGithub || false);
+      setEnableFirebaseDeploy(payload.enableFirebaseDeploy || false);
+      setEnablePwa(payload.enablePwa || false);
+      setEnablePush(payload.enablePush || false);
+      setEnableBilling(payload.enableBilling || false);
+      
+      // Restaurar logs históricos del Bridge CLI
+      if (Array.isArray(statusData.logs)) {
+        setProvisioningLogs(statusData.logs);
+      }
+
+      // Si estaba pausado por activación manual de Auth, mostrar la alerta de inmediato
+      if (statusData.pausedForAuth) {
+        setPendingOnboardingResult({
+          projectId: payload.fbProjectId || payload.newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          taskId
+        });
+        setIsOnboardingActive(true);
+      }
+
+      // Reabrir EventSource SSE para continuar la transmisión en caliente
+      const eventSource = new EventSource(`${CLI_URL}/api/create-project/stream?taskId=${taskId}`);
+      
+      eventSource.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'log') {
+            addLog(data.line, "info");
+            setProvisioningLogs(prev => [...prev, data.line]);
+            
+            // Re-detectar etapa actual
+            const STAGE_PATTERNS = [
+              { regex: /Copiar estructura base/i, label: '1/12 — Copiando plantilla base...' },
+              { regex: /Documentación estándar/i, label: '2/12 — Generando documentación...' },
+              { regex: /Variables de marca/i, label: '3/12 — Inyectando paleta de colores...' },
+              { regex: /Variables de entorno|env\.local/i, label: '4/12 — Configurando .env.local...' },
+              { regex: /Metadatos de nicho|niche\.json/i, label: '5/12 — Configurando nicho comercial...' },
+              { regex: /Manifest PWA|manifest\.json/i, label: '6/12 — Configurando PWA...' },
+              { regex: /Metatags SEO|index\.html/i, label: '7/12 — Inyectando SEO...' },
+              { regex: /Logo|favicon|icono/i, label: '8/12 — Generando logo e íconos...' },
+              { regex: /GEMINI\.md/i, label: '9/12 — Inyectando reglas de IA...' },
+              { regex: /antigravity_bootstrap/i, label: '10/12 — Generando prompt de arranque...' },
+              { regex: /Instalando dependencias|npm install/i, label: '11/12 — Instalando dependencias npm...' },
+              { regex: /Git local|repositorio Git/i, label: '12/12 — Inicializando repositorio Git...' },
+            ];
+            for (const s of STAGE_PATTERNS) {
+              if (s.regex.test(data.line)) {
+                setProvisioningStageLabel(s.label);
+                break;
+              }
+            }
+          } else if (data.type === 'auth_activation_required') {
+            // Manejar pausa interactiva de Auth en reconexión
+            addLog(`[CLI API] Pausa interactiva: Se requiere activación manual de Firebase Auth.`, "warning");
+            setProvisioningLogs(prev => [...prev, `[CLI API] ⚠️ Pausa interactiva: Se requiere habilitar Firebase Auth en Firebase Console.`]);
+            setPendingOnboardingResult({
+              projectId: data.projectId,
+              taskId: data.taskId
+            });
+            setIsOnboardingActive(true);
+          } else if (data.type === 'success') {
+            eventSource.close();
+            addLog(`[CLI API] Aprovisionamiento físico completado en disco (reconexión).`, "success");
+            setProvisioningLogs(prev => [...prev, `[CLI API] ✅ Aprovisionamiento físico completado en disco.`]);
+
+            // Registrar en Firestore de la app central
+            addLog(`[Firestore] Registrando cliente ${payload.newClientName} en la nube central...`, "info");
+            setProvisioningLogs(prev => [...prev, `[Firestore] ⏳ Registrando cliente en la nube central...`]);
+
+            const centralApp = getCentralApp();
+            if (!centralApp) throw new Error('Instancia de Firebase central no encontrada.');
+            const dbInstance = getFirestore(centralApp);
+
+            const clientId = payload.newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const clientRef = doc(dbInstance, 'clientes_control', clientId);
+            
+            await setDoc(clientRef, {
+              nombre: payload.newClientName.trim(),
+              niche: payload.niche,
+              billingMode: payload.billingMode,
+              comisionPorcentaje: payload.comisionPorcentaje,
+              montoFijoServicio: payload.montoFijoServicio,
+              pagoMensualFijo: payload.pagoMensualFijo,
+              setupFee: payload.setupFee,
+              enableDianBilling: payload.enableDianBilling,
+              costoPorFacturaDian: payload.costoPorFacturaDian,
+              creadoEn: serverTimestamp(),
+              targetPath: payload.targetPath,
+              template: payload.selectedTemplate,
+              customRequirements: payload.customRequirements.trim(),
+              adminEmail: payload.adminEmail.trim(),
+              customPort: payload.customPort.trim(),
+              whatsappAdmin: payload.whatsappAdmin.trim(),
+              storeAddress: payload.storeAddress.trim(),
+              firebaseConfig: {
+                apiKey: payload.fbApiKey.trim(),
+                authDomain: payload.fbAuthDomain.trim(),
+                projectId: payload.fbProjectId.trim(),
+                storageBucket: payload.fbStorageBucket.trim(),
+                messagingSenderId: payload.fbMessagingSenderId.trim(),
+                appId: payload.fbAppId.trim(),
+                vapidKey: payload.fbVapidKey.trim()
+              },
+              branding: {
+                primaryColor: payload.primaryColor,
+                secondaryColor: payload.secondaryColor,
+                bgColor: payload.bgColor,
+                textColor: payload.textColor,
+                surfaceColor: payload.surfaceColor,
+                surface2Color: payload.surface2Color,
+                borderColor: payload.borderColor,
+                textMutedColor: payload.textMutedColor,
+                radiusBase: payload.radiusBase,
+                googleFont: payload.googleFont
+              },
+              github: data.data.github || null,
+              flags: {
+                enableGithub: payload.enableGithub,
+                enableFirebaseDeploy: payload.enableFirebaseDeploy,
+                enablePwa: payload.enablePwa,
+                enablePush: payload.enablePush,
+                enableBilling: payload.enableBilling,
+                enableDianBilling: payload.enableDianBilling
+              }
+            });
+
+            // Registrar token de telemetría si existe en el payload
+            if (payload.telemetryToken) {
+              const tokenRef = doc(dbInstance, 'tokens', payload.telemetryToken);
+              await setDoc(tokenRef, {
+                active: true,
+                clientId,
+                creadoEn: serverTimestamp()
+              });
+            }
+
+            addLog(`[Firestore] Registro de cliente y token completado con éxito.`, "success");
+            setProvisioningLogs(prev => [...prev, `[Firestore] ✅ Registro de cliente y token completado con éxito.`]);
+
+            // Limpiar localStorage
+            localStorage.removeItem('activeProvisioningTaskId');
+            localStorage.removeItem('activeProvisioningClientPayload');
+          } else if (data.type === 'error') {
+            eventSource.close();
+            throw new Error(data.message);
+          }
+        } catch (err) {
+          console.error('[EventSource Error en reconexión]:', err);
+          addLog(`[Error] Fallo en la transmisión del aprovisionamiento: ${err.message}`, "error");
+          setProvisioningLogs(prev => [...prev, `[Error] Fallo: ${err.message}`]);
+          localStorage.removeItem('activeProvisioningTaskId');
+          localStorage.removeItem('activeProvisioningClientPayload');
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('[EventSource Connection Error en reconexión]:', err);
+        eventSource.close();
+      };
+
+    } catch (err) {
+      console.error('[Reconexión fallida]:', err);
+      addLog(`[Error Reconexión] No se pudo restablecer el stream: ${err.message}`, 'error');
+      localStorage.removeItem('activeProvisioningTaskId');
+      localStorage.removeItem('activeProvisioningClientPayload');
+      setIsProvisioning(false);
+    }
+  };
 
   useEffect(() => {
+    // 0. Cargar categorías de instancias
+    fetchCategories()
+
+    // 0b. Reconectar aprovisionamiento si se recargó la página
+    const savedTaskId = localStorage.getItem('activeProvisioningTaskId')
+    const savedPayloadStr = localStorage.getItem('activeProvisioningClientPayload')
+    if (savedTaskId && savedPayloadStr) {
+      try {
+        const savedPayload = JSON.parse(savedPayloadStr)
+        reconnectProvisioning(savedTaskId, savedPayload)
+      } catch (e) {
+        console.error('Error al parsear payload de reconexión persistido:', e)
+        localStorage.removeItem('activeProvisioningTaskId')
+        localStorage.removeItem('activeProvisioningClientPayload')
+      }
+    }
+
     // 1. Cargar plantillas
     fetch(`${CLI_URL}/api/templates`)
       .then(res => res.json())
@@ -4426,9 +4717,20 @@ export default function App() {
 
   const handleClientNameChange = (val) => {
     setNewClientName(val)
-    const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    setTargetPath(val.trim() ? `D:\\PROTOTIPE\\Instancias Clientes\\App-${slug}` : '')
   }
+
+  useEffect(() => {
+    if (newClientName.trim()) {
+      const slug = newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      if (selectedCategory) {
+        setTargetPath(`D:\\PROTOTIPE\\Instancias Clientes\\${selectedCategory}\\App-${slug}`)
+      } else {
+        setTargetPath(`D:\\PROTOTIPE\\Instancias Clientes\\App-${slug}`)
+      }
+    } else {
+      setTargetPath('')
+    }
+  }, [newClientName, selectedCategory])
 
   // Reintentar solo el aprovisionamiento físico en disco (CLI) cuando Firestore ya fue exitoso
   // Helper para generar la ruta de destino de auto-inyección
@@ -4460,6 +4762,9 @@ export default function App() {
     const { clientId, nombre, comisionPorcentaje, telemetryToken, payload } = pendingCliProvisioning
 
     addLog(`[Reintento] Volviendo a contactar el daemon CLI para provisionar: ${clientId}...`, 'warning')
+    setIsAuthActivationRequired(false)
+    setAuthProjectId('')
+    setAuthTaskId('')
     setIsProvisioning(true)
 
     try {
@@ -5732,6 +6037,29 @@ export default function App() {
       setDriftLoading(false)
     }
   }
+
+  const loadDiffDetail = async (clientId, file) => {
+    setDiffLoading(true)
+    try {
+      const res = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}&filePath=${encodeURIComponent(file)}`)
+      const data = await res.json()
+      if (data.success) {
+        setActiveDiffFile(prev => prev && prev.file === file ? { ...prev, diff: data.diff } : prev)
+      } else {
+        throw new Error(data.error)
+      }
+    } catch (err) {
+      showToast(`Error al cargar diferencias de líneas: ${err.message}`, { type: 'error' })
+    } finally {
+      setDiffLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeDiffFile && activeDiffFile.diff === null && selectedCrmClientId) {
+      loadDiffDetail(selectedCrmClientId, activeDiffFile.file)
+    }
+  }, [activeDiffFile, selectedCrmClientId])
 
   const handleRunBuildAudit = async (clientId) => {
     setBuildAuditing(true)
@@ -7088,6 +7416,14 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <span className="font-extrabold text-sm tracking-wide bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">Aprovisionamiento y Onboarding</span>
+            <button
+              onClick={() => setIsProvisioningQueueModalOpen(true)}
+              className="h-8 px-3 rounded-xl bg-slate-900 hover:bg-slate-850 hover:border-slate-700 text-slate-300 hover:text-indigo-400 text-[10px] font-bold border border-slate-800 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+              title="Ver cola de tareas e historial de aprovisionamientos"
+            >
+              <History size={12} className="transition-all duration-300 hover:rotate-45" />
+              Ver Cola e Historial
+            </button>
             <span className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Motor Prototipe</span>
           </div>
         </nav>
@@ -7235,6 +7571,60 @@ export default function App() {
                           placeholder="token-telemetria"
                           className="bg-[var(--color-bg)] opacity-60 border border-[var(--color-border)] rounded-xl px-3 py-2 text-xs w-full text-[var(--color-text)] outline-none cursor-not-allowed font-mono"
                         />
+                      </div>
+
+                      {/* Ubicación / Categoría de Instancia */}
+                      <div className="space-y-3 p-3.5 bg-[var(--color-surface-2)]/20 border border-[var(--color-border)] rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Categoría de Ubicación (Instancia)</label>
+                          <button
+                            type="button"
+                            onClick={fetchCategories}
+                            className="group text-[10px] text-[var(--color-text-muted)] hover:text-indigo-400 bg-[var(--color-surface-3)]/60 hover:bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded-lg px-2.5 py-0.5 transition-all flex items-center gap-1.5 active:scale-[0.97] cursor-pointer hover:shadow-[0_0_8px_rgba(99,102,241,0.15)] font-medium"
+                            title="Sincronizar carpetas del disco"
+                          >
+                            <RefreshCw size={10} className="transition-all duration-500 group-hover:rotate-180" />
+                            Sincronizar
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="w-full text-left">
+                            <CustomSelect
+                              value={selectedCategory}
+                              onChange={(val) => setSelectedCategory(val)}
+                              options={[
+                                { value: '', label: '[Raíz] /Instancias Clientes/' },
+                                ...instancesCategories.map(cat => ({
+                                  value: cat,
+                                  label: `/${cat}/`
+                                }))
+                              ]}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5 w-full">
+                            <input 
+                              type="text"
+                              value={newCategoryName}
+                              onChange={(e) => setNewCategoryName(e.target.value)}
+                              placeholder="Crear nueva subcarpeta/categoría..."
+                              className="bg-[var(--color-surface-2)]/40 border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-indigo-500 font-mono flex-1 h-[34px]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleCreateCategory(newCategoryName)}
+                              disabled={isCreatingCategory || !newCategoryName.trim()}
+                              className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/40 disabled:text-[var(--color-text-muted)]/50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl px-3.5 transition-all active:scale-[0.98] h-[34px] flex items-center justify-center shrink-0 cursor-pointer"
+                            >
+                              {isCreatingCategory ? '...' : 'Crear'}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <p className="text-[9px] text-[var(--color-text-muted)] leading-tight">
+                          Selecciona la subcarpeta de categoría física en el disco o crea una nueva para organizar las instancias de los clientes de forma ordenada.
+                        </p>
                       </div>
 
                       <div className="space-y-1">
@@ -7952,6 +8342,16 @@ export default function App() {
                         <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
                           <input 
                             type="checkbox" 
+                            checked={seedDatabase} 
+                            onChange={(e) => setSeedDatabase(e.target.checked)}
+                            className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                          />
+                          Sembrar datos de prueba iniciales (seeds) en Firestore
+                        </label>
+
+                        <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-[var(--color-text-muted)] select-none">
+                          <input 
+                            type="checkbox" 
                             checked={enablePwa} 
                             onChange={(e) => setEnablePwa(e.target.checked)}
                             className="w-4 h-4 rounded accent-indigo-600 bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] focus:ring-0 focus:outline-none"
@@ -8472,6 +8872,9 @@ export default function App() {
                       `[Iniciando] Iniciando aprovisionamiento para el cliente "${newClientName.trim()}"...`,
                       `[Pre-vuelo] Configurando payload y validando parámetros locales...`
                     ])
+                    setIsAuthActivationRequired(false)
+                    setAuthProjectId('')
+                    setAuthTaskId('')
                     setIsRegistering(true)
                     setIsProvisioning(true)
                     const clientId = newClientName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
@@ -8496,6 +8899,7 @@ export default function App() {
                       customAccent: secondaryColor,
                       enableGithub,
                       enableFirebaseDeploy,
+                      seedDatabase,
                       firebaseApiKey: fbApiKey.trim(),
                       firebaseAuthDomain: fbAuthDomain.trim(),
                       firebaseProjectId: fbProjectId.trim(),
@@ -8657,6 +9061,50 @@ export default function App() {
 
                       const { taskId } = await cliRes.json()
                       addLog(`[CLI API] Creación de proyecto asíncrona iniciada. Task ID: ${taskId}`, "info")
+                      
+                      localStorage.setItem('activeProvisioningTaskId', taskId)
+                      localStorage.setItem('activeProvisioningClientPayload', JSON.stringify({
+                        newClientName,
+                        niche,
+                        billingMode,
+                        comisionPorcentaje,
+                        montoFijoServicio,
+                        pagoMensualFijo,
+                        setupFee,
+                        enableDianBilling,
+                        costoPorFacturaDian,
+                        targetPath,
+                        selectedTemplate,
+                        customRequirements,
+                        adminEmail,
+                        customPort,
+                        whatsappAdmin,
+                        storeAddress,
+                        fbApiKey,
+                        fbAuthDomain,
+                        fbProjectId,
+                        fbStorageBucket,
+                        fbMessagingSenderId,
+                        fbAppId,
+                        fbVapidKey,
+                        primaryColor,
+                        secondaryColor,
+                        bgColor,
+                        textColor,
+                        surfaceColor,
+                        surface2Color,
+                        borderColor,
+                        textMutedColor,
+                        radiusBase,
+                        googleFont,
+                        enableGithub,
+                        enableFirebaseDeploy,
+                        enablePwa,
+                        enablePush,
+                        enableBilling,
+                        telemetryToken
+                      }))
+
                       setProvisioningLogs(prev => [
                         ...prev, 
                         `[CLI API] ✅ Creación iniciada con éxito. Task ID: ${taskId}`, 
@@ -8801,7 +9249,15 @@ export default function App() {
                               }
 
                               showToast(`Cliente ${newClientName} registrado y proyecto creado en disco`, { type: 'success' })
+                              localStorage.removeItem('activeProvisioningTaskId')
+                              localStorage.removeItem('activeProvisioningClientPayload')
                               resolve()
+                            } else if (data.type === 'auth_activation_required') {
+                              setIsAuthActivationRequired(true);
+                              setAuthProjectId(data.projectId);
+                              setAuthTaskId(data.taskId);
+                              addLog(`[Firebase Automate] Aprovisionamiento pausado. Requiere activar Auth en consola: https://console.firebase.google.com/project/${data.projectId}/authentication`, "warning");
+                              setProvisioningLogs(prev => [...prev, `[Firebase Automate] ⏸️  Aprovisionamiento pausado. Requiere activación manual de Auth en la consola de Firebase.`]);
                             } else if (data.type === 'error') {
                               eventSource.close()
                               setProvisioningLogs(prev => [...prev, `[CLI API Error] ❌ Error: ${data.message || 'Error en el motor de aprovisionamiento del CLI.'}`])
@@ -8833,6 +9289,8 @@ export default function App() {
                       })
                     } catch (err) {
                       console.error(err)
+                      localStorage.removeItem('activeProvisioningTaskId')
+                      localStorage.removeItem('activeProvisioningClientPayload')
                       addLog(`Error registrando cliente: ${err.message}`, "error")
                       setProvisioningLogs(prev => [...prev, `[CLI Error] ❌ Error: ${err.message}`])
                       showToast(`Error al registrar cliente: ${err.message}`, { type: 'error' })
@@ -10456,6 +10914,9 @@ export default function App() {
           clientName={newClientName || ''}
           onClose={handleCloseProvisioningModal}
           onOpenAccountsManager={() => setIsFirebaseAccountsModalOpen(true)}
+          isAuthActivationRequired={isAuthActivationRequired}
+          authProjectId={authProjectId}
+          onResumeAuth={handleResumeAuthProvisioning}
         />
       </div>
     )
@@ -14495,23 +14956,29 @@ export default function App() {
                 ✕
               </button>
             </div>
-
-            <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-auto font-mono text-[10px] whitespace-pre-wrap leading-relaxed max-h-[50vh]">
-              {activeDiffFile.diff ? (
-                activeDiffFile.diff.map((part, idx) => (
-                  <span 
-                    key={idx} 
-                    className={
-                      part.added 
-                        ? 'text-emerald-400 bg-emerald-500/10 block w-full px-1 border-l-2 border-emerald-500' 
-                        : part.removed 
-                        ? 'text-red-400 bg-red-500/10 block w-full px-1 border-l-2 border-red-500' 
-                        : 'text-slate-400 block w-full px-1'
-                    }
-                  >
-                    {part.value}
-                  </span>
-                ))
+            <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-auto font-mono text-[10px] whitespace-pre-wrap leading-relaxed max-h-[50vh] flex flex-col justify-center items-center min-h-[200px]">
+              {diffLoading ? (
+                <div className="flex flex-col items-center justify-center space-y-2 py-8">
+                  <RefreshCw size={20} className="animate-spin text-indigo-500" />
+                  <span className="text-[10px] text-slate-500 italic">Cargando diferencias del Core...</span>
+                </div>
+              ) : activeDiffFile.diff ? (
+                <div className="w-full text-left">
+                  {activeDiffFile.diff.map((part, idx) => (
+                    <span 
+                      key={idx} 
+                      className={
+                        part.added 
+                          ? 'text-emerald-400 bg-emerald-500/10 block w-full px-1 border-l-2 border-emerald-500' 
+                          : part.removed 
+                          ? 'text-red-400 bg-red-500/10 block w-full px-1 border-l-2 border-red-500' 
+                          : 'text-slate-400 block w-full px-1'
+                      }
+                    >
+                      {part.value}
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <p className="text-slate-400">Archivo nuevo (sin diferencias de líneas).</p>
               )}
@@ -16330,6 +16797,16 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
         clientName={newClientName || ''}
         onClose={handleCloseProvisioningModal}
         onOpenAccountsManager={() => setIsFirebaseAccountsModalOpen(true)}
+        isAuthActivationRequired={isAuthActivationRequired}
+        authProjectId={authProjectId}
+        onResumeAuth={handleResumeAuthProvisioning}
+      />
+
+      {/* Modal de Gestión de Cola e Historial de Aprovisionamientos */}
+      <ProvisioningQueueModal
+        isOpen={isProvisioningQueueModalOpen}
+        onClose={() => setIsProvisioningQueueModalOpen(false)}
+        cliUrl={CLI_URL}
       />
 
       {/* Toast de Notificaciones */}

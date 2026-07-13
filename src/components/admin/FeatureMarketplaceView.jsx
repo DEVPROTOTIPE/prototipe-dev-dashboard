@@ -12,6 +12,7 @@ import {
   RefreshCw, 
   Check 
 } from 'lucide-react';
+import { CLI_URL } from '../../config';
 
 export default function FeatureMarketplaceView({ clientesSaas = [] }) {
   const [features, setFeatures] = useState([]);
@@ -27,7 +28,7 @@ export default function FeatureMarketplaceView({ clientesSaas = [] }) {
   const fetchFeatures = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/feature-registry');
+      const res = await fetch(`${CLI_URL}/api/feature-registry`);
       const data = await res.json();
       if (data.success) {
         setFeatures(data.features || []);

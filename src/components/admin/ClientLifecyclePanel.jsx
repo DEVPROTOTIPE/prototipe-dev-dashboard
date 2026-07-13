@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import CorePromotionModal from './CorePromotionModal';
+import { CLI_URL } from '../../config';
 
 export default function ClientLifecyclePanel({ 
   clientId, 
@@ -93,14 +94,14 @@ export default function ClientLifecyclePanel({
     try {
       setFeaturesLoading(true);
       // 1. Obtener features del feature-registry
-      const regRes = await fetch('http://localhost:3001/api/feature-registry');
+      const regRes = await fetch(`${CLI_URL}/api/feature-registry`);
       const regData = await regRes.json();
       if (regData.success) {
         setRegistryFeatures(regData.features || []);
       }
 
       // 2. Obtener features instaladas
-      const driftRes = await fetch(`http://localhost:3001/api/project/drift?clientId=${encodeURIComponent(clientId)}`);
+      const driftRes = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}`);
       const driftData = await driftRes.json();
       if (driftData.success && driftData.lockData?.featuresInstalled) {
         setInstalledFeatures(Object.keys(driftData.lockData.featuresInstalled));
@@ -118,7 +119,7 @@ export default function ClientLifecyclePanel({
     try {
       setFeaturesLoading(true);
       const action = isInstalled ? 'remove' : 'add';
-      const res = await fetch(`http://localhost:3001/api/project/features/${action}`, {
+      const res = await fetch(`${CLI_URL}/api/project/features/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, featureId })
@@ -141,7 +142,7 @@ export default function ClientLifecyclePanel({
     try {
       setLoading(true);
       const colors = { primaryH, primaryS, primaryL, secondaryH, secondaryS, secondaryL };
-      const res = await fetch('http://localhost:3001/api/project/branding', {
+      const res = await fetch(`${CLI_URL}/api/project/branding`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, colors })
@@ -163,7 +164,7 @@ export default function ClientLifecyclePanel({
     try {
       setLoading(true);
       
-      const statusRes = await fetch('http://localhost:3001/api/project/status/update', {
+      const statusRes = await fetch(`${CLI_URL}/api/project/status/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, status })

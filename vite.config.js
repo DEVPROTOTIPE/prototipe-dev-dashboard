@@ -19,5 +19,8 @@ export default defineConfig({
     watch: {
       ignored: ['**/.git-backup-temp**']
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 3000
   }
 })

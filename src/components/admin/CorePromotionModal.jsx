@@ -15,6 +15,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
+import { CLI_URL } from '../../config';
 
 const NICHES = [
   { value: 'retail_clothing', label: '🛍️ Ropa y Retail Tradicional' },
@@ -78,7 +79,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
   const handlePreflight = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/project/${clientId}/core-promotion/preflight`, {
+      const res = await fetch(`${CLI_URL}/api/project/${clientId}/core-promotion/preflight`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetCoreKey, targetCoreName, nicho })
@@ -105,7 +106,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
       setLogs([]);
       
       // 1. Conectar SSE para logs en caliente
-      const es = new EventSource(`http://localhost:3001/api/project/core-promotion/${promotionId}/events`);
+      const es = new EventSource(`${CLI_URL}/api/project/core-promotion/${promotionId}/events`);
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {
@@ -125,7 +126,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
       };
 
       // 2. Ejecutar Pipeline
-      const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}/execute`, {
+      const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}/execute`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -148,7 +149,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
         return;
       }
       try {
-        const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}`);
+        const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}`);
         const data = await res.json();
         setBlueprint(data);
 
@@ -167,7 +168,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
   const handlePublish = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}/publish`, {
+      const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}/publish`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -187,7 +188,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
   const handleActivate = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}/activate`, {
+      const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}/activate`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -207,7 +208,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
   const handleRollbackPublish = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}/publication/rollback`, {
+      const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}/publication/rollback`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -228,7 +229,7 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
   const handleRollbackActivate = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/project/core-promotion/${promotionId}/activation/rollback`, {
+      const res = await fetch(`${CLI_URL}/api/project/core-promotion/${promotionId}/activation/rollback`, {
         method: 'POST'
       });
       const data = await res.json();

@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 import { useAlertConfirm } from '../common/AlertConfirmContext';
 import CustomSelect from '../ui/CustomSelect';
+import { CLI_URL } from '../../config';
 
-export default function NichesManagerPanel({ showToast, onNichesUpdated, cliUrl = 'http://localhost:3001' }) {
+export default function NichesManagerPanel({ showToast, onNichesUpdated, cliUrl = CLI_URL }) {
   const { showConfirm } = useAlertConfirm();
   const [niches, setNiches] = useState({});
   const [loading, setLoading] = useState(true);
