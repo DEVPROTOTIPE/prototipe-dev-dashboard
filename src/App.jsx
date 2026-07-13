@@ -5,6 +5,7 @@ import {
   CheckCircle, 
   AlertTriangle, 
   Clock,
+  History,
   RefreshCw, 
   Search,
   Layers,
@@ -14912,6 +14913,7 @@ export default function App() {
         <ClientLifecyclePanel 
           clientId={selectedCrmClientId}
           clientData={clientesSaas.find(c => c.id.toLowerCase() === selectedCrmClientId.toLowerCase()) || {}}
+          dbInstance={getCentralApp() ? getFirestore(getCentralApp()) : null}
           onClose={() => {
             setActiveMetricModal(null);
             setSelectedCrmClientId(null);

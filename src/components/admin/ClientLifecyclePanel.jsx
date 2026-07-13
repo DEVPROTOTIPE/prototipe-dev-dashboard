@@ -19,11 +19,13 @@ import {
 } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import CorePromotionModal from './CorePromotionModal';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { CLI_URL } from '../../config';
 
 export default function ClientLifecyclePanel({ 
   clientId, 
   clientData = {}, 
+  dbInstance,
   onClose, 
   onSave, 
   showToast,
@@ -126,6 +128,19 @@ export default function ClientLifecyclePanel({
       });
       const data = await res.json();
       if (data.success) {
+        // Sincronizar en Firestore para la consola central SaaS
+        if (dbInstance) {
+          try {
+            const clientDocRef = doc(dbInstance, 'clientes_control', clientId);
+            await updateDoc(clientDocRef, {
+              installedFeatures: isInstalled ? arrayRemove(featureId) : arrayUnion(featureId),
+              [`flags.${featureId}`]: !isInstalled
+            });
+            console.log(`[Firestore Client Sync] Feature "${featureId}" actualizada exitosamente en Firestore.`);
+          } catch (dbErr) {
+            console.error('[Firestore Client Sync] Error al actualizar documento en Firestore:', dbErr.message);
+          }
+        }
         showToast(`Módulo "${featureId}" ${isInstalled ? 'desinstalado' : 'instalado'} con éxito de la instancia.`, 'success');
         fetchFeaturesAndLock();
       } else {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ToggleRight, 
   Search, 
@@ -15,15 +15,12 @@ import { CLI_URL } from '../../config';
 
 const CORE_FLAGS = [
   { id: 'creditsEnabled', label: 'Créditos y Fiado', desc: 'Permite a los clientes fiar y abonar deudas mediante un timeline interactivo' },
-  { id: 'couponsEnabled', label: 'Cupones de Descuento', desc: 'Sistema de cupones de descuento con confeti animado y validaciones' },
+  { id: 'couponsEnabled', label: 'Cupones de Descuento', desc: 'Sistema de cupones de descuento con confetti animado y validaciones' },
   { id: 'claimsEnabled', label: 'Garantías y Reclamaciones', desc: 'Habilita bandeja técnica para reportar daños y productos defectuosos' },
   { id: 'wholesaleEnabled', label: 'Precios de Mayoreo', desc: 'Descuentos automáticos al sobrepasar topes de cantidad por artículo' },
   { id: 'deliveryEnabled', label: 'Gestión de Empleados & Domicilios', desc: 'Habilita la creación de empleados, accesos QR a portales de trabajo (caja, bodega, mensajería) y seguimiento de entregas' },
-  { id: 'commissionsEnabled', label: 'Comisiones por Vendedor', desc: 'Cálculo comisional automático por cada ticket de venta concretado' },
-  { id: 'enableDianBilling', label: 'Facturación DIAN', desc: 'Módulo de conexión directa para reportes fiscales en caliente' },
-  { id: 'reservasEnabled', label: 'Citas y Reservas', desc: 'Agenda interactiva con bloqueo de franjas horarias y asignación de técnicos' },
-  { id: 'posExpressScanner', label: 'POS Exprés con Scanner', desc: 'Checkout rápido interpretando eventos de lectores de códigos de barra' },
-  { id: 'ordenesTrabajo', label: 'Órdenes de Trabajo', desc: 'Ficha de control de recepción de maquinaria y firmas de conformidad' }
+  { id: 'posExpressScanner', label: 'POS Express Scanner', desc: 'Lectura acelerada de códigos de barras integrada al panel de caja' },
+  { id: 'onlineOrdersEnabled', label: 'Pedidos en Línea & Carrito', desc: 'Habilita la recepción de pedidos web y el carrito de compras. Si se apaga, la web funciona como catálogo vitrina y se oculta la bandeja de pedidos del admin' }
 ];
 
 export default function FeatureFlagManager({ dbInstance, showToast }) {
@@ -33,9 +30,12 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [coresMetadata, setCoresMetadata] = useState({});
+  const [registryFeatures, setRegistryFeatures] = useState([]);
+  const [installedFeatures, setInstalledFeatures] = useState([]);
 
   useEffect(() => {
     loadCoresMetadata();
+    fetchRegistryFeatures();
   }, []);
 
   const loadCoresMetadata = async () => {
@@ -47,6 +47,18 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
       }
     } catch (err) {
       console.error('Error al cargar metadatos de cores:', err);
+    }
+  };
+
+  const fetchRegistryFeatures = async () => {
+    try {
+      const res = await fetch(`${CLI_URL}/api/feature-registry`);
+      const data = await res.json();
+      if (data.success) {
+        setRegistryFeatures(data.features || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar feature registry en flags:', err);
     }
   };
 
@@ -93,13 +105,30 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
     try {
       // 1. Cargar las flags reales del cliente
       const client = list.find(c => c.id === clientId);
+      let fsFeatures = [];
       if (client) {
         setClientFlags(client.flags || {});
         // Cargar historial de cambios
         setHistoryList(client.flagHistory || []);
+        fsFeatures = client.installedFeatures || [];
+      }
+      
+      // 2. Cargar features del disco o usar Firestore como fallback
+      setInstalledFeatures(fsFeatures);
+      
+      try {
+        const driftRes = await fetch(`${CLI_URL}/api/project/drift?clientId=${encodeURIComponent(clientId)}`);
+        const driftData = await driftRes.json();
+        if (driftData.success && driftData.lockData?.featuresInstalled) {
+          const physicalFeatures = Object.keys(driftData.lockData.featuresInstalled);
+          const merged = Array.from(new Set([...fsFeatures, ...physicalFeatures]));
+          setInstalledFeatures(merged);
+        }
+      } catch (driftErr) {
+        console.warn('[FeatureFlagManager] Error al consultar drift local, usando fallback Firestore:', driftErr.message);
       }
     } catch (err) {
-      console.error('Error al cargar flags de cliente:', err.message);
+      console.error('Error al cargar flags de cliente o features instaladas:', err.message);
     } finally {
       setLoading(false);
     }
@@ -151,11 +180,8 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
   };
 
   const handleBulkAction = async (actionType) => {
-    const activeCore = selectedClientData?.template || 'ventas';
-    const activeFlags = coresMetadata[activeCore]?.manifest?.featureFlags || CORE_FLAGS;
-    
     const updatedFlags = { ...clientFlags };
-    activeFlags.forEach(flag => {
+    coreFlags.forEach(flag => {
       updatedFlags[flag.id] = actionType === 'enable';
     });
 
@@ -197,7 +223,50 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
 
   const selectedClientData = clientes.find(c => c.id === selectedClientId);
   const activeCoreKey = selectedClientData?.template || 'ventas';
-  const activeFlagsList = coresMetadata[activeCoreKey]?.manifest?.featureFlags || CORE_FLAGS;
+  
+  const { coreFlags, dynamicFeatures } = useMemo(() => {
+    const rawFlags = coresMetadata[activeCoreKey]?.manifest?.featureFlags || CORE_FLAGS;
+    const cleanRawFlags = Array.isArray(rawFlags) ? rawFlags : CORE_FLAGS;
+    
+    // Normalizar IDs de baseFlags para alinearse con las llaves lógicas de Firestore
+    const baseFlags = cleanRawFlags.map(flag => {
+      if (!flag) return flag;
+      const idStr = flag.id || '';
+      if (idStr === 'rolesOperativosEnabled' || flag.legacyRemoteKeys?.includes('deliveryEnabled')) {
+        return { ...flag, id: 'deliveryEnabled' };
+      }
+      return flag;
+    });
+    
+    // Crear un Set con los IDs de las flags estáticas para evitar duplicados
+    const existingIds = new Set(baseFlags.map(f => f.id));
+    
+    const dynamicFlags = [];
+    installedFeatures.forEach(featId => {
+      // Si ya existe una flag estática para este ID, omitir duplicado
+      if (existingIds.has(featId)) return;
+      
+      // Buscar metadata en el catálogo de features
+      const registryFeat = registryFeatures.find(f => f.id === featId);
+      if (registryFeat) {
+        dynamicFlags.push({
+          id: featId,
+          label: registryFeat.displayName,
+          desc: registryFeat.description || 'Módulo inyectado físicamente en la instancia.'
+        });
+      } else {
+        // Fallback genérico por si no se encuentra en el catálogo
+        const friendlyName = featId.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        dynamicFlags.push({
+          id: featId,
+          label: friendlyName,
+          desc: 'Módulo inyectado físicamente en la instancia.'
+        });
+      }
+    });
+    
+    return { coreFlags: baseFlags, dynamicFeatures: dynamicFlags };
+  }, [coresMetadata, activeCoreKey, installedFeatures, registryFeatures]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden text-[var(--color-text)] shadow-sm">
@@ -307,30 +376,77 @@ export default function FeatureFlagManager({ dbInstance, showToast }) {
               </div>
             )}
 
-            {/* Grid de Flags */}
-            <div className="grid grid-cols-2 gap-4">
-              {activeFlagsList.map(flag => {
-                const isActive = !!clientFlags[flag.id];
-                return (
-                  <div key={flag.id} className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] p-4 rounded-2xl flex justify-between items-start gap-4 hover:border-[var(--color-border)] transition-all">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-slate-600'}`} />
-                        <h4 className="text-xs font-black tracking-wide text-[var(--color-text)]">{flag.label}</h4>
-                      </div>
-                      <p className="text-[9px] text-slate-500 font-semibold leading-relaxed max-w-[220px]">{flag.description || flag.desc}</p>
-                    </div>
+            {/* Sección A: Módulos de Aplicación Instalados */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                📦 Módulos de Aplicación Instalados ({dynamicFeatures.length})
+              </h4>
+              {dynamicFeatures.length === 0 ? (
+                <div className="p-4 bg-[var(--color-bg)]/20 border border-dashed border-[var(--color-border)] rounded-2xl text-center">
+                  <span className="text-[10px] text-slate-505 font-semibold italic">
+                    No hay módulos de features inyectados físicamente en disco. Habilítalos en la pestaña de CRM.
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {dynamicFeatures.map(flag => {
+                    const isActive = !!clientFlags[flag.id];
+                    return (
+                      <div key={flag.id} className="bg-indigo-950/5 border border-indigo-500/10 [.light_&]:bg-indigo-50/10 p-4 rounded-2xl flex justify-between items-start gap-4 hover:border-indigo-500/25 transition-all">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-slate-600'}`} />
+                            <h4 className="text-xs font-black tracking-wide text-[var(--color-text)]">{flag.label}</h4>
+                          </div>
+                          <p className="text-[9px] text-slate-500 font-semibold leading-relaxed max-w-[220px]">{flag.description || flag.desc}</p>
+                        </div>
 
-                    {/* Toggle Button */}
-                    <button
-                      onClick={() => openConfirmModal(flag.id, flag.label, !isActive)}
-                      className={`w-12 h-7 rounded-full p-1 transition-all shrink-0 cursor-pointer ${isActive ? 'bg-emerald-600/80 hover:bg-emerald-600' : 'bg-slate-800 hover:bg-slate-750'}`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white transition-all ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-                );
-              })}
+                        {/* Toggle Button */}
+                        <button
+                          onClick={() => openConfirmModal(flag.id, flag.label, !isActive)}
+                          className={`w-12 h-7 rounded-full p-1 transition-all shrink-0 cursor-pointer ${isActive ? 'bg-emerald-600/80 hover:bg-emerald-600' : 'bg-slate-800 hover:bg-slate-750'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-full bg-white transition-all ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Separador */}
+            <div className="border-t border-[var(--color-border)]/60 my-6" />
+
+            {/* Sección B: Configuración Operativa (Flags) */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                🎛️ Configuración Operativa (Feature Flags)
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                {coreFlags.map(flag => {
+                  const isActive = !!clientFlags[flag.id];
+                  return (
+                    <div key={flag.id} className="bg-[var(--color-surface-2)]/30 border border-[var(--color-border)] p-4 rounded-2xl flex justify-between items-start gap-4 hover:border-[var(--color-border)] transition-all">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-slate-600'}`} />
+                          <h4 className="text-xs font-black tracking-wide text-[var(--color-text)]">{flag.label}</h4>
+                        </div>
+                        <p className="text-[9px] text-slate-500 font-semibold leading-relaxed max-w-[220px]">{flag.description || flag.desc}</p>
+                      </div>
+
+                      {/* Toggle Button */}
+                      <button
+                        onClick={() => openConfirmModal(flag.id, flag.label, !isActive)}
+                        className={`w-12 h-7 rounded-full p-1 transition-all shrink-0 cursor-pointer ${isActive ? 'bg-emerald-600/80 hover:bg-emerald-600' : 'bg-slate-800 hover:bg-slate-750'}`}
+                      >
+                        <div className={`w-5 h-5 rounded-full bg-white transition-all ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
