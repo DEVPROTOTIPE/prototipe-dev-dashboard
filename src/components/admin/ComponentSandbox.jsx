@@ -117,6 +117,7 @@ const COMPONENT_META = {
   'carrito de compras completo': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Store Zustand + CartDrawer con Framer Motion. Requiere store inicializado y productos reales.' },
   'modal de checkout multipaso': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Wizard de 3 pasos con validaciones, cupones y Firestore. Requiere store de carrito activo.' },
   'sistema de temas dinámicos': { type: 'complex', label: 'Sistema CSS', color: 'teal', note: 'Inyecta variables CSS en :root. Su efecto es global y ya está activo en todo el dashboard.' },
+  'propuesta portal creación features': { type: 'service', label: 'Servicio / CLI', color: 'amber', note: 'Especificación y wizard transaccional de features del monorepo. No requiere simulación.' },
   'restaurador de aplicación a fábrica': { type: 'complex', label: 'Herramienta Destructiva', color: 'red', note: '⚠️ Borra datos de Firestore en lotes. Solo se ejecuta con confirmación explícita del admin.' },
   'compra rápida por código qr': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Vista pública con lógica de variantes y carrito. Requiere datos de producto de Firestore.' },
   'sistema integral de monetización del desarrollador v2.0': { type: 'complex', label: 'Módulo Completo', color: 'teal', note: 'Sistema de 3 sub-componentes con Firestore y lógica de comisiones. Integración compleja.' },
