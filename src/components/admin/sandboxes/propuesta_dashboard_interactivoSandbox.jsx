@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import SandboxLayout from './SandboxLayout';
 
-export default function propuesta_dashboard_interactivoSandbox() {
+export default function PropuestaDashboardInteractivoSandbox() {
   const [theme, setTheme] = useState('dark');
 
   return (

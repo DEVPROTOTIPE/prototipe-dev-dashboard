@@ -21,6 +21,25 @@ import CustomSelect from '../ui/CustomSelect';
 import CorePromotionModal from './CorePromotionModal';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { CLI_URL } from '../../config';
+import { PALETTE_CATALOG, SEASONAL_EVENT_CATALOG } from '../../constants/paletteCatalog';
+
+// Conversión HSL -> Hex para los sliders de branding (H en grados 0-360, S/L en % 0-100)
+function hslToHex(h, s, l) {
+  const sNorm = s / 100;
+  const lNorm = l / 100;
+  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lNorm - c / 2;
+  let r, g, b;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 export default function ClientLifecyclePanel({ 
   clientId, 
@@ -74,6 +93,12 @@ export default function ClientLifecyclePanel({
   const [alertTitle, setAlertTitle] = useState(clientData.sistemaAlerta?.title || '');
   const [alertMessage, setAlertMessage] = useState(clientData.sistemaAlerta?.message || '');
   const [alertDismissible, setAlertDismissible] = useState(clientData.sistemaAlerta?.dismissible !== undefined ? clientData.sistemaAlerta?.dismissible : true);
+
+  // --- Estados de Paleta/Temporada remota (control en tiempo real, vía clientes_control) ---
+  const [appearanceControlledByDashboard, setAppearanceControlledByDashboard] = useState(!!clientData.appearanceControlledByDashboard);
+  const [dashboardTheme, setDashboardTheme] = useState(clientData.dashboardTheme || 'zafiro-moderno');
+  const [dashboardSeasonalEvent, setDashboardSeasonalEvent] = useState(clientData.dashboardSeasonalEvent || 'none');
+  const [savingAppearance, setSavingAppearance] = useState(false);
 
   // --- Estados de Branding ---
   const [primaryH, setPrimaryH] = useState(clientData.colors?.primaryH || 240);
@@ -153,23 +178,75 @@ export default function ClientLifecyclePanel({
     }
   };
 
+  const handleSaveAppearance = async () => {
+    if (!dbInstance) {
+      showToast('No hay conexión con Firestore Central.', 'error');
+      return;
+    }
+    try {
+      setSavingAppearance(true);
+      // Escritura directa a clientes_control (mismo patrón que handleToggleFeature):
+      // este panel mantiene su propio estado local de niche/billingMode/etc. que NO
+      // se refleja al guardar vía el prop onSave (ese lee variables "editX" aparte,
+      // gestionadas en App.jsx desde la apertura del modal). Para no heredar esa
+      // desconexión, la apariencia remota se persiste aquí mismo, directo.
+      const clientDocRef = doc(dbInstance, 'clientes_control', clientId);
+      await updateDoc(clientDocRef, {
+        appearanceControlledByDashboard,
+        dashboardTheme,
+        dashboardSeasonalEvent
+      });
+      showToast(
+        appearanceControlledByDashboard
+          ? 'Paleta y temporada del cliente controladas desde el dashboard.'
+          : 'Control remoto de apariencia desactivado. La app del cliente vuelve a decidir su paleta localmente.',
+        'success'
+      );
+    } catch (err) {
+      showToast(`Error al guardar la apariencia remota: ${err.message}`, 'error');
+    } finally {
+      setSavingAppearance(false);
+    }
+  };
+
+  const DEFAULT_PRIMARY_HSL = { h: 240, s: 70, l: 50 };
+  const DEFAULT_SECONDARY_HSL = { h: 340, s: 70, l: 50 };
+
+  const handleResetBrandingDefaults = () => {
+    setPrimaryH(DEFAULT_PRIMARY_HSL.h);
+    setPrimaryS(DEFAULT_PRIMARY_HSL.s);
+    setPrimaryL(DEFAULT_PRIMARY_HSL.l);
+    setSecondaryH(DEFAULT_SECONDARY_HSL.h);
+    setSecondaryS(DEFAULT_SECONDARY_HSL.s);
+    setSecondaryL(DEFAULT_SECONDARY_HSL.l);
+  };
+
   const handleSaveBranding = async () => {
+    // Nota (2026-07-16): este botón antes solo escribía VITE_COLOR_* en
+    // .env.local vía el Bridge del CLI — nada en el código de App Ventas lee
+    // esas variables (verificado por búsqueda: 0 resultados), así que los
+    // sliders HSL nunca surtían efecto real. Se reemplaza por escritura
+    // directa a clientes_control (mismo patrón que handleSaveAppearance /
+    // handleToggleFeature), reutilizando el canal en tiempo real ya
+    // construido: primario/secundario se convierten a hex y se guardan como
+    // un tema personalizado plano, sin pasar por el prop onSave/editX roto.
+    if (!dbInstance) {
+      showToast('No hay conexión con Firestore Central.', 'error');
+      return;
+    }
     try {
       setLoading(true);
-      const colors = { primaryH, primaryS, primaryL, secondaryH, secondaryS, secondaryL };
-      const res = await fetch(`${CLI_URL}/api/project/branding`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId, colors })
+      const primaryHex = hslToHex(primaryH, primaryS, primaryL);
+      const secondaryHex = hslToHex(secondaryH, secondaryS, secondaryL);
+      const clientDocRef = doc(dbInstance, 'clientes_control', clientId);
+      await updateDoc(clientDocRef, {
+        appearanceControlledByDashboard: true,
+        dashboardTheme: { primary: primaryHex, secondary: secondaryHex, accent: secondaryHex }
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Identidad visual y paleta HSL propagada en caliente con éxito.', 'success');
-      } else {
-        showToast(data.error || 'Error al guardar branding.', 'error');
-      }
+      setAppearanceControlledByDashboard(true);
+      showToast('Paleta HSL aplicada en tiempo real a la app del cliente.', 'success');
     } catch (err) {
-      showToast(`Error al conectar con el Bridge: ${err.message}`, 'error');
+      showToast(`Error al guardar branding: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -520,6 +597,74 @@ export default function ClientLifecyclePanel({
                 </p>
               </div>
 
+              {/* Control remoto de Paleta y Temporada — independiente de los sliders HSL de abajo */}
+              <div className="p-4 bg-violet-950/5 border border-violet-500/15 rounded-2xl space-y-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-[var(--color-text)] flex items-center gap-1.5">
+                      <Palette size={13} className="text-violet-400" />
+                      Paleta y Temporada (Tiempo Real)
+                    </p>
+                    <p className="text-[10px] text-[var(--color-text-muted)] mt-1 leading-relaxed">
+                      A diferencia de los sliders HSL (requieren recompilar), esto se sincroniza al instante
+                      con las Opciones de Desarrollador de la app del cliente, sin redeploy. Si lo activas,
+                      la selección local del cliente queda bloqueada con el aviso "Configurado desde el dashboard".
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-[var(--color-text-muted)] select-none shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={appearanceControlledByDashboard}
+                      onChange={(e) => setAppearanceControlledByDashboard(e.target.checked)}
+                      className="w-4 h-4 rounded accent-violet-500 bg-[var(--color-bg)] border border-[var(--color-border)] focus:ring-0 focus:outline-none"
+                    />
+                    Controlar desde el Dashboard
+                  </label>
+                </div>
+
+                {appearanceControlledByDashboard && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in pl-4 border-l border-violet-500/20">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Paleta de la Tienda</label>
+                      <CustomSelect
+                        value={dashboardTheme}
+                        onChange={setDashboardTheme}
+                        options={PALETTE_CATALOG.map(p => ({ value: p.id, label: `${p.name} — ${p.category}` }))}
+                      />
+                      <div className="flex gap-1.5 pt-1">
+                        {(() => {
+                          const p = PALETTE_CATALOG.find(x => x.id === dashboardTheme);
+                          if (!p) return null;
+                          return [p.primary, p.secondary, p.accent].map((c, i) => (
+                            <span key={i} className="w-5 h-5 rounded-full border border-[var(--color-border)] shadow-sm shrink-0" style={{ backgroundColor: c }} />
+                          ));
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider block">Evento de Temporada</label>
+                      <CustomSelect
+                        value={dashboardSeasonalEvent}
+                        onChange={setDashboardSeasonalEvent}
+                        options={SEASONAL_EVENT_CATALOG.map(s => ({ value: s.id, label: s.name }))}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1 border-t border-[var(--color-border)]/50 -mx-4 -mb-4 px-4 pb-4 pt-3">
+                  <button
+                    onClick={handleSaveAppearance}
+                    disabled={savingAppearance}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {savingAppearance && <RefreshCw size={12} className="animate-spin" />}
+                    Guardar Apariencia Remota
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4 bg-[var(--color-surface-2)]/20 border border-[var(--color-border)]/50 p-4 rounded-2xl">
                   <span className="text-xs font-bold text-[var(--color-text)] flex items-center gap-1.5">
@@ -585,7 +730,15 @@ export default function ClientLifecyclePanel({
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
-                <button 
+                <button
+                  onClick={handleResetBrandingDefaults}
+                  disabled={loading}
+                  className="px-4 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text)] border border-[var(--color-border)] rounded-xl text-xs font-bold cursor-pointer active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RotateCcw size={12} />
+                  Volver a Valor Predeterminado
+                </button>
+                <button
                   onClick={handleSaveBranding}
                   disabled={loading}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold cursor-pointer shadow-lg active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"

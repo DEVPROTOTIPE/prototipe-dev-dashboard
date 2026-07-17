@@ -44,11 +44,11 @@ const NICHES = [
 ];
 
 export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: initialNicho }) {
-  if (!isOpen) return null;
+  const safeClientId = clientId || '';
 
   const [step, setStep] = useState('PREFLIGHT'); // PREFLIGHT, PIPELINE, PUBLISH, ACTIVATE, COMPLETED, ROLLBACK
-  const [targetCoreKey, setTargetCoreKey] = useState(`app-${clientId.toLowerCase()}`);
-  const [targetCoreName, setTargetCoreName] = useState(clientId.charAt(0).toUpperCase() + clientId.slice(1));
+  const [targetCoreKey, setTargetCoreKey] = useState(`app-${safeClientId.toLowerCase()}`);
+  const [targetCoreName, setTargetCoreName] = useState(safeClientId.charAt(0).toUpperCase() + safeClientId.slice(1));
   const [nicho, setNicho] = useState(initialNicho || 'retail_clothing');
   
   const [loading, setLoading] = useState(false);
@@ -75,6 +75,8 @@ export default function CorePromotionModal({ isOpen, onClose, clientId, nicho: i
       }
     };
   }, []);
+
+  if (!isOpen) return null;
 
   const handlePreflight = async () => {
     try {

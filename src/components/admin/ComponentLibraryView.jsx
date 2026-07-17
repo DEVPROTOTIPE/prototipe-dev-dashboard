@@ -27,7 +27,7 @@ function normalizeText(str) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[._\-]/g, " ");
+    .replace(/[._-]/g, " ");
 }
 
 // ─── Distancia Levenshtein para errores ortográficos ─────────────────────────────
@@ -2309,7 +2309,7 @@ export default function ComponentLibraryView({ showToast }) {
                                           if (evt.status === 'success') setBuildPhase('success');
                                           else if (evt.status === 'error') setBuildPhase('error');
                                         }
-                                      } catch {}
+                                      } catch { /* Ignorar líneas SSE incompletas. */ }
                                     }
                                   }
                                 }

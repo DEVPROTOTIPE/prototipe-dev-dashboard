@@ -138,7 +138,6 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
   };
 
   const handleTestAlert = async (testConfig) => {
-    setTestingAlert(true);
     try {
       const response = await fetch(`${CLI_URL}/api/project/notify/test`, {
         method: 'POST',
@@ -149,15 +148,13 @@ export default function HealthMonitorView({ dbInstance, showToast }) {
       if (!response.ok) {
         const errText = await response.text();
         let parsed;
-        try { parsed = JSON.parse(errText); } catch (_) {}
+        try { parsed = JSON.parse(errText); } catch { /* La respuesta puede ser texto plano. */ }
         throw new Error(parsed?.error || errText);
       }
 
       showToast('Alerta de prueba enviada exitosamente ✓', { type: 'success' });
     } catch (err) {
       showToast(`Fallo al enviar alerta de prueba: ${err.message}`, { type: 'error' });
-    } finally {
-      setTestingAlert(false);
     }
   };
 

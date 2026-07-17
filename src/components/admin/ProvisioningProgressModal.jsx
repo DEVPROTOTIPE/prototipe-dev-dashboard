@@ -54,7 +54,8 @@ export default function ProvisioningProgressModal({
     if (!logs || logs.length === 0) return;
     const textContent = logs.map(line => {
       if (typeof line !== 'string') return '';
-      return line.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, ''); // Limpiar códigos de escape ANSI
+      // eslint-disable-next-line no-control-regex -- Los códigos ANSI comienzan con ESC.
+      return line.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '');
     }).join('\n');
     
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });

@@ -875,7 +875,7 @@ const getSeverity = (fail) => {
  */
 const extractFileAndLine = (errorMsg = '', stack = '') => {
   const text = `${errorMsg}\n${stack}`
-  const srcRegex = /(src\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i
+  const srcRegex = /(src\/[a-zA-Z0-9_/-]+\.[a-zA-Z0-9]+)(?:\?[^:]*)?:(\d+)/i
   const srcMatch = text.match(srcRegex)
   if (srcMatch) return { file: srcMatch[1], line: parseInt(srcMatch[2]) || null }
 
@@ -888,7 +888,7 @@ const extractFileAndLine = (errorMsg = '', stack = '') => {
       line.includes('react.development')
     ) continue
 
-    const fileLineRegex = /([\w\-\/.]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i
+    const fileLineRegex = /([\w/.-]+\.[jt]sx?)(?:\?[^:]*)?:(\d+)/i
     const match = line.match(fileLineRegex)
     if (match) {
       let file = match[1]
@@ -3455,7 +3455,7 @@ export default function App() {
       if (!response.ok) {
         const errText = await response.text();
         let parsed;
-        try { parsed = JSON.parse(errText); } catch (_) {}
+        try { parsed = JSON.parse(errText); } catch { /* La respuesta puede ser texto plano. */ }
         throw new Error(parsed?.error || errText);
       }
 
@@ -6776,7 +6776,8 @@ export default function App() {
 
     try {
       const tokenDoc = telemetryTokens.find(t => t.clientId === targetClient)
-      const activeToken = tokenDoc ? tokenDoc.id : DEV_TOKEN
+      if (!tokenDoc) throw new Error(`No existe un token activo para ${targetClient}`)
+      const activeToken = tokenDoc.id
       const docRef = doc(dbInstance, 'reportesBilling', reportId)
       
       // 1. Crear el reporte de prueba/pendiente en la base de datos central
@@ -15476,7 +15477,7 @@ VITE_DEVELOPER_CLIENT_ID=${onboardingData.clientId}`}
                   let indexUrl = null;
 
                   // Rastrear enlace de indexación
-                  const indexRegex = /(https:\/\/console\.firebase\.google\.com\/[^\s\)]+)/i;
+                  const indexRegex = /(https:\/\/console\.firebase\.google\.com\/[^\s)]+)/i;
                   const indexMatch = fullText.match(indexRegex);
                   if (indexMatch) {
                     indexUrl = indexMatch[1];

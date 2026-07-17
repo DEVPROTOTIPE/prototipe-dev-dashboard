@@ -3,7 +3,7 @@ import SandboxLayout from './SandboxLayout';
 import { exportCommissionReceiptPDF } from '../../../services/pdfService';
 import CustomSelect from '../../ui/CustomSelect';
 
-export default function generacion_pdfSandbox() {
+export default function GeneracionPdfSandbox() {
   // Estados para simular el reporte de facturación comisional
   const [clientId, setClientId] = useState('ventas-smartfix');
   const [periodo, setPeriodo] = useState('2026-07');

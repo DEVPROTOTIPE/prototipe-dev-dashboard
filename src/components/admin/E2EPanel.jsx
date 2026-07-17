@@ -104,7 +104,7 @@ export default function E2EPanel() {
                 timestamp: new Date().toISOString()
               })
             }
-          } catch {}
+          } catch { /* Ignorar fragmentos de salida que aún no formen JSON. */ }
         }
       }
     } catch (err) {

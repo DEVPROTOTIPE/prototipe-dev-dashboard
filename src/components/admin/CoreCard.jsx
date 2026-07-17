@@ -246,7 +246,7 @@ export default function CoreCard({
                 showToast?.(`Fallo en despliegue: ${event.error}`, 'error')
               }
             }
-          } catch {}
+          } catch { /* Ignorar fragmentos SSE incompletos. */ }
         }
       }
     } catch (err) {

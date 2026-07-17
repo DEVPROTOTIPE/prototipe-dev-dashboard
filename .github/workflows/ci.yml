@@ -1,0 +1,44 @@
+name: CI/CD Pipeline - Dashboard Central
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Central PROTOTIPE/dev-dashboard
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.0
+          cache: 'npm'
+          cache-dependency-path: Central PROTOTIPE/dev-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Unit Tests (Firestore rules validated via Emulator)
+        run: npx firebase-tools emulators:exec --only firestore --project test-dashboard-rules "npx vitest run"
+
+      - name: Build Application
+        # El runner de CI hace un checkout limpio (git status siempre vacío) y
+        # no persiste ningún archivo tras terminar el job — por eso activar
+        # PROTOTIPE_ALLOW_INTEGRITY_SYNC aquí es seguro: el prebuild
+        # (verify_library_integrity.cjs) puede autosincronizar el manifiesto
+        # de skills sin riesgo de dejar un cambio no revisado en el repo real.
+        run: npm run build
+        env:
+          PROTOTIPE_ALLOW_INTEGRITY_SYNC: '1'

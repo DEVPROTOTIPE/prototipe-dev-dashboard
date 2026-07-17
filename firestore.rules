@@ -14,6 +14,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/tokens/$(token)).data.active == true;
     }
 
+    // ─── HELPER: Verifica si el usuario autenticado es un operador activo del sistema ──────
+    function isOperator() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/operators/$(request.auth.uid))
+        && get(/databases/$(database)/documents/operators/$(request.auth.uid)).data.activo == true;
+    }
+
+    // ─── Colección de Operadores Autorizados ─────────────────────────────────────────────
+    match /operators/{operatorId} {
+      allow get: if request.auth != null;
+      allow list: if isOperator();
+      allow write: if false; // Solo poblar manualmente (consola / Admin SDK)
+    }
+
     // ─── Reportes de facturación comisional ───────────────────────────────────────────
     // La app del cliente escribe su reporte mensual SOLO si su token es válido y activo.
     // El token nunca puede apuntar a un clientId diferente al declarado en el reporte.
@@ -22,8 +36,8 @@ service cloud.firestore {
         request.resource.data.token,
         request.resource.data.clientId
       );
-      // Solo el desarrollador autenticado (dev-dashboard) puede leer y eliminar
-      allow read, delete: if request.auth != null;
+      // Solo el desarrollador/operador autenticado puede leer y eliminar
+      allow read, delete: if isOperator();
     }
 
     // ─── Tokens de autenticación de instancias ────────────────────────────────────────
@@ -31,7 +45,7 @@ service cloud.firestore {
     // Solo el CLI del desarrollador los crea vía REST con la apiKey del desarrollador.
     // La función tokenValido() solo necesita leerlos internamente (no se expone al cliente).
     match /tokens/{tokenId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Configuración de tasas comisionales por instancia ────────────────────────────
@@ -40,59 +54,58 @@ service cloud.firestore {
     // Para simplificar y mantener la seguridad: se permite lectura pública de su propio clientId 
     // SIEMPRE QUE la consulta se haga desde la instancia validada en Firestore (se puede usar tokenValido en cabecera si se expone,
     // o para lectura básica, permitir si el clientId es exacto y se comprueba contra un header de token en la petición).
-    // Implementación: allow read si request.auth != null o si el token del query de lectura es válido para ese clientId.
+    // Implementación: allow read si isOperator() o si el token del query de lectura es válido para ese clientId.
     match /clientes_control/{clientId} {
       // Lectura pública: las instancias cliente necesitan leer su tasa comisional y configuración de alerta por ID
       allow get: if true;
-      // Restricción: solo el desarrollador autenticado puede listar todos los clientes
-      allow list: if request.auth != null;
+      // Restricción: solo el desarrollador autenticado/operador puede listar todos los clientes
+      allow list: if isOperator();
       // Escritura autenticada: el dashboard del desarrollador puede modificar cualquier campo
       // Escritura pública restringida: solo se permite actualizar el campo lastPingResponse (respuesta al Ping Test en tiempo real)
-      allow update: if request.auth != null ||
+      allow update: if isOperator() ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastPingResponse']);
-      allow create, delete: if request.auth != null;
+      allow create, delete: if isOperator();
     }
 
     // ─── Reportes de fallos y errores de aplicaciones ─────────────────────────────────
-    // CORREGIDO: Se agrega validación de token antes de permitir crear un reporte de fallo.
+    // Se agrega validación de token antes de permitir crear un reporte de fallo.
     // Esto previene que procesos externos inyecten ruido o datos falsos en el log de errores.
     match /app_failures/{failureId} {
       allow create: if tokenValido(
         request.resource.data.token,
         request.resource.data.clientId
       );
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isOperator();
     }
 
     // ─── Plantillas de WhatsApp para cobros ──────────────────────────────────────────
     match /whatsappTemplates/{templateId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Configuración global del sistema de monitoreo y alertas ──────────────────────
     match /configuracion_sistema/{document} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Sesiones de Descubrimiento (Briefing Studio) ─────────────────────────────────
     match /briefings/{briefingId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Propuestas y Cotizaciones ───────────────────────────────────────────────────
     match /cotizaciones/{quoteId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Configuración de Tableros y Tarifas ──────────────────────────────────────────
     match /dashboard_config/{configId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
 
     // ─── Historial y Estado de Salud de Instancias (Health Checks) ───────────────────
     match /health_checks/{checkId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isOperator();
     }
   }
 }
-

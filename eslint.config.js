@@ -25,6 +25,16 @@ export default defineConfig([
       // ── CALIDAD — warnings (no bloquean build) ───────────────────────
       'react-hooks/exhaustive-deps': 'warn',
 
+      // React Compiler aún no está habilitado en este proyecto. Conservamos
+      // sus diagnósticos visibles como deuda, sin confundirlos con errores de
+      // ejecución del React actual.
+      'react-hooks/error-boundaries': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/static-components': 'warn',
+
       // ── SILENCIADOS ───────────────────────────────────────────────────
       // React 19 no requiere import React — eliminar false-positive masivo
       'no-unused-vars': ['warn', {

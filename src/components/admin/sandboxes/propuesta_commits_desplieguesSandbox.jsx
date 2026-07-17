@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import SandboxLayout from './SandboxLayout';
 
-export default function propuesta_commits_desplieguesSandbox() {
+export default function PropuestaCommitsDesplieguesSandbox() {
   const [theme, setTheme] = useState('dark');
 
   return (

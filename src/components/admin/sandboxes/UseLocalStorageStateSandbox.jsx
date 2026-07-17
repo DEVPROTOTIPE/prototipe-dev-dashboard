@@ -29,7 +29,7 @@ function useLocalStorageState(key, defaultValue) {
       if (e.key === keyRef.current && e.newValue !== null) {
         try {
           setState(JSON.parse(e.newValue));
-        } catch {}
+        } catch { /* Ignorar valores externos que no sean JSON válido. */ }
       }
     };
     window.addEventListener('storage', handleStorageChange);

@@ -111,7 +111,7 @@ const TargetItem = ({ target, isSelected, onClick, categoryLabel }) => {
           </div>
           <p className="text-xs font-bold text-[var(--color-text)] truncate">{target.name}</p>
           <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate mt-0.5 opacity-70">
-            {target.path?.replace(/\\/g, '/').replace('D:/PROTOTIPE/', '…/')}
+            {target.path?.replace(/\\/g, '/').replace('D:/PROTOTIPE_WORKSPACE/', '…/').replace('D:/PROTOTIPE/', '…/')}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -704,7 +704,7 @@ export default function GitBackupPanel({ showToast, showAlert, showConfirm }) {
                   <div className="min-w-0">
                     <p className="text-sm font-black text-[var(--color-text)] truncate">{selected.name}</p>
                     <p className="text-[9px] font-mono text-[var(--color-text-muted)] truncate">
-                      {selected.path?.replace(/\\/g, '/').replace('D:/PROTOTIPE/', '…/')}
+                      {selected.path?.replace(/\\/g, '/').replace('D:/PROTOTIPE_WORKSPACE/', '…/').replace('D:/PROTOTIPE/', '…/')}
                     </p>
                   </div>
                 </div>

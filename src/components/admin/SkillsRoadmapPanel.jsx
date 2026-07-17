@@ -536,7 +536,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
           files: editTaskFiles.length > 0 ? editTaskFiles : (selectedTask.detail?.archivos || []),
           commitMessage: editTaskDesc
             ? editTaskDesc.substring(0, 80).replace(/\n/g, ' ')
-            : selectedTask.text?.replace(/^Tarea\s+[a-zA-Z0-9\-]+:\s*/i, '').substring(0, 80)
+            : selectedTask.text?.replace(/^Tarea\s+[a-zA-Z0-9-]+:\s*/i, '').substring(0, 80)
         })
       });
       const data = await res.json();
@@ -656,6 +656,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
     if (!logLine) return '';
 
     // 1. Limpiar todos los códigos de escape ANSI
+    // eslint-disable-next-line no-control-regex -- La expresión elimina secuencias ANSI.
     const cleanLine = logLine.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 
     // 2. Extraer timestamp e info si tiene el formato estándar [YYYY-MM-DDTHH:mm:ss.sssZ] [INFO]
@@ -673,7 +674,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
       if (!isNaN(date.getTime())) {
         timeStr = date.toLocaleTimeString();
       }
-    } catch (_) {}
+    } catch { /* Conservar el timestamp original si no se puede convertir. */ }
 
     // Color de nivel
     let levelClass = "text-slate-400";
@@ -743,7 +744,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
         if (data.type === 'log') {
           setCliLogs(prev => [...prev, data.log].slice(-400)); // Mantener últimas 400 líneas
         }
-      } catch (_) {}
+      } catch { /* Ignorar eventos SSE incompletos. */ }
     };
 
     source.onerror = (err) => {
@@ -1524,7 +1525,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
                                     ? 'line-through text-[var(--color-text-muted)] font-normal'
                                     : 'text-[var(--color-text)] font-semibold'
                                 }`}>
-                                  {task.text.replace(/^Tarea\s+[a-zA-Z0-9\-]+:\s*/i, '')}
+                                  {task.text.replace(/^Tarea\s+[a-zA-Z0-9-]+:\s*/i, '')}
                                 </p>
                                 {task.detail?.archivos?.length > 0 && (
                                   <span className="text-[9px] text-[var(--color-text-muted)] mt-0.5 block">
@@ -1597,7 +1598,7 @@ export default function SkillsRoadmapPanel({ showToast, dashBgSettings = {}, upd
                                 )}
                               </div>
                               <h3 className="text-sm font-bold text-[var(--color-text)] leading-snug">
-                                {selectedTask.text.replace(/^Tarea\s+[a-zA-Z0-9\-]+:\s*/i, '')}
+                                {selectedTask.text.replace(/^Tarea\s+[a-zA-Z0-9-]+:\s*/i, '')}
                               </h3>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">

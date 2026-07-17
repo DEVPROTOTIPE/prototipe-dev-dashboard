@@ -86,7 +86,7 @@ function LocalSearchVanishHighlightInput({
 function LocalSearchHighlight({ text = '', query = '' }) {
   if (!query.trim()) return <span>{text}</span>;
   
-  const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
   
   return (

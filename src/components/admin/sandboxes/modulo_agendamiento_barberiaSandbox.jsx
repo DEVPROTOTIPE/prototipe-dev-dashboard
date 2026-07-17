@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import SandboxLayout from './SandboxLayout';
 
-export default function modulo_agendamiento_barberiaSandbox() {
+export default function ModuloAgendamientoBarberiaSandbox() {
   const [theme, setTheme] = useState('dark');
 
   return (
